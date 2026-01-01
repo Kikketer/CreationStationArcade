@@ -1,7 +1,13 @@
+
 #!/bin/bash
+LOG_FILE="/home/pi/mcairpos.log"
+
 while true; do
-    echo "Launching Menu"
-    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap /home/pi/CreationStationArcade/menu.elf
-    echo "Launching Game"
-    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap /home/pi/CreationStationArcade/games/Robob.elf
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
+    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap /home/pi/CreationStationArcade/menu.elf >> $LOG_FILE 2>&1
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
+
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
+    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap /home/pi/CreationStationArcade/games/SyncTheBoat.elf >> $LOG_FILE 2>&1
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
 done
