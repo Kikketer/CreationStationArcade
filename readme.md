@@ -4,12 +4,25 @@ How to setup a Raspberry PI 3:
 
 1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
 2. Install git: `sudo apt install git`
-3. After booting it up copy over everything in this repo (or git clone)
+3. After booting it up clone this repo: `git clone https://github.com/kikketer/CreationStationArcade`
 4. Clone the McAirpos repo `git clone https://github.com/Vegz78/McAirpos.git`
 5. Copy the `/sd` directory to the root: `sudo cp -r ~/McAirpos/McAirpos/MakeCode/sd /`
 6. Change permissions on that directory: `sudo chown -R pi /sd && sudo chgrp -R pi /sd && sudo chmod -R 755 /sd`
 7. Make another user, this will be the "admin" user for the raspberry pi so you can admin the machine
-8. Set the login for the `pi` user to use the `./launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
+   - `sudo adduser admin`
+   - `sudo usermod -aG sudo admin`
+8. Create a group that both these users belong to so we can admin the files equally
+
+   - `sudo groupadd arcadeadmin`
+   - `sudo usermod -aG arcadeadmin pi`
+   - `sudo usermod -aG arcadeadmin admin`
+   - `sudo chgrp -R arcadeadmin /home/pi`
+   - `sudo find /home/pi -type d -exec chmod 2770 {} \;`
+   - `sudo find /home/pi -type f -exec chmod 660 {} \;`
+   - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
+   - `source /etc/profile.d/arcadeadmin.sh`
+
+9. Set the login for the `pi` user to use the `./launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
 
 ## Known Issues
 

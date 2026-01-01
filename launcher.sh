@@ -1,7 +1,7 @@
 #!/bin/bash
 while true; do
     echo "Launching Menu"
-    /home/chris/McAirpos/McAirpos/launCharc/launCharc nomap /home/chris/menu.elf
+    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap /home/pi/CreationStationArcade/menu.elf
     echo "Launching Game"
-    /home/chris/McAirpos/McAirpos/launCharc/launCharc nomap /home/chris/current-game.elf
+    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap /home/pi/CreationStationArcade/current-game.elf
 done
