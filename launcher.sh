@@ -8,6 +8,6 @@ while true; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
-    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap verbose /home/pi/CreationStationArcade/games/SyncTheBoat.elf >> $LOG_FILE 2>&1
+    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap verbose /home/pi/CreationStationArcade/games/Paddle-the-River.elf >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
 done
