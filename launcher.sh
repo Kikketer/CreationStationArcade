@@ -24,13 +24,18 @@ if ! pgrep -f "monitor_kill.py" > /dev/null; then
     python3 "$SCRIPT_DIR/monitor_kill.py" >> $LOG_FILE 2>&1 &
 fi
 
+RUNNER="$SCRIPT_DIR/simpleLaunch.sh"
+if [ ! -x "$RUNNER" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $RUNNER is missing or not executable" >> $LOG_FILE
+    exit 1
+fi
 
 while true; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap verbose /home/pi/CreationStationArcade/menu.elf >> $LOG_FILE 2>&1
+    "$RUNNER" /home/pi/CreationStationArcade/menu.elf >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
-    /home/pi/McAirpos/McAirpos/launCharc/launCharc nomap verbose /home/pi/CreationStationArcade/games/SyncTheBoatSync.elf >> $LOG_FILE 2>&1
+    "$RUNNER" /home/pi/CreationStationArcade/games/SyncTheBoatSync.elf >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
 done
