@@ -1,30 +1,42 @@
-
 #!/bin/bash
-LOG_FILE="/home/pi/mcairpos.log"
+LOG_FILE="/home/pi/arcade.log"
 
-# Self-update logic
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR" || exit 1
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Checking for updates..." >> $LOG_FILE
-git fetch origin >> $LOG_FILE 2>&1
+RUN_DIR="$SCRIPT_DIR"
+SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
 
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Update found. Resetting to origin/main..." >> $LOG_FILE
-    git reset --hard origin/main >> $LOG_FILE 2>&1
-    # Kill background monitor so it can be restarted with new code
-    pkill -f "monitor_kill.py"
+if [ -d "$SOURCE_DIR/.git" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+    else
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
+        cp -a "$SOURCE_DIR"/. "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+    fi
 
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Restarting launcher..." >> $LOG_FILE
-    exec "$SCRIPT_DIR/$(basename "$0")" "$@"
+    chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
+    chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
+    chmod +x "$RUN_DIR/launchGame.sh" 2>/dev/null || true
+    chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
+
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete. Continuing without restart." >> "$LOG_FILE"
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Source repo not found at $SOURCE_DIR; starting without sync" >> "$LOG_FILE"
+fi
+
+if [ -x "$RUN_DIR/pullFromGit.sh" ]; then
+    "$RUN_DIR/pullFromGit.sh" &
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: pullFromGit.sh missing or not executable" >> "$LOG_FILE"
 fi
 
 # Start background monitor if not running
 if ! pgrep -f "monitor_kill.py" > /dev/null; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting monitor_kill.py..." >> $LOG_FILE
-    python3 "$SCRIPT_DIR/monitor_kill.py" >> $LOG_FILE 2>&1 &
+    python3 "$RUN_DIR/monitor_kill.py" >> $LOG_FILE 2>&1 &
 fi
 
-RUNNER="$SCRIPT_DIR/simpleLaunch.sh"
+RUNNER="$RUN_DIR/simpleLaunch.sh"
 if [ ! -x "$RUNNER" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $RUNNER is missing or not executable" >> $LOG_FILE
     exit 1
@@ -32,10 +44,10 @@ fi
 
 while true; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-    "$RUNNER" /home/pi/CreationStationArcade/menu.elf >> $LOG_FILE 2>&1
+    "$RUNNER" "$RUN_DIR/menu.elf" >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
-    "$RUNNER" /home/pi/CreationStationArcade/games/SyncTheBoatSync.elf >> $LOG_FILE 2>&1
+    "$RUNNER" "$RUN_DIR/games/SyncTheBoatSync.elf" >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
 done

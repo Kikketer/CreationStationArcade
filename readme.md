@@ -4,29 +4,37 @@ How to setup a Raspberry PI 3:
 
 1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
 2. Install git: `sudo apt install git`
-3. After booting it up clone this repo: `git clone https://github.com/kikketer/CreationStationArcade`
-4. Clone the McAirpos repo `git clone https://github.com/Vegz78/McAirpos.git`
-5. Copy the `/sd` directory to the root: `sudo cp -r ~/McAirpos/McAirpos/MakeCode/sd /`
-6. Change permissions on that directory: `sudo chown -R pi /sd && sudo chgrp -R pi /sd && sudo chmod -R 755 /sd`
-7. Copy over the `arcade.cfg` from the CreationStationArcade to `/sd`: `sudo cp /home/pi/CreationStationArcade/arcade.cfg /sd/arcade.cfg`
-8. Run the fix for HDMI audio: `sudo ./McAirpos/HDMI-Audio-Fix.sh`
-9. Make another user, this will be the "admin" user for the raspberry pi so you can admin the machine
+3. Clone this repo into a source folder: `git clone https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src`
+4. Run initial setup to create the runtime folder and sync files: `bash /home/pi/CreationStationArcade-src/setup.sh`
+5. (If you have no HDMI audio in games) Install the HDMI audio fix and reboot:
+   - `sudo /home/pi/CreationStationArcade/install/hdmi-audio-fix.sh`
+   - `sudo reboot`
+6. Make another user, this will be the "admin" user for the raspberry pi so you can admin the machine
    - `sudo adduser admin`
    - `sudo usermod -aG sudo admin`
-10. Create a group that both these users belong to so we can admin the files equally
+7. Create a group that both these users belong to so we can admin the files equally
 
-    - `sudo groupadd arcadeadmin`
-    - `sudo usermod -aG arcadeadmin pi`
-    - `sudo usermod -aG arcadeadmin admin`
-    - `sudo chgrp -R arcadeadmin /home/pi`
-    - `sudo find /home/pi -type d -exec chmod 2770 {} \;`
-    - `sudo find /home/pi -type f -exec chmod 660 {} \;`
-    - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
-    - `source /etc/profile.d/arcadeadmin.sh`
+   - `sudo groupadd arcadeadmin`
+   - `sudo usermod -aG arcadeadmin pi`
+   - `sudo usermod -aG arcadeadmin admin`
+   - `sudo chgrp -R arcadeadmin /home/pi`
+   - `sudo find /home/pi -type d -exec chmod 2770 {} \;`
+   - `sudo find /home/pi -type f -exec chmod 660 {} \;`
+   - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
+   - `source /etc/profile.d/arcadeadmin.sh`
 
-11. Set the login for the `pi` user to use the `./launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
+8. Set the login for the `pi` user to use the runtime `launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
 
-    - `sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi`
+   - `sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi`
+
+## Folder layout
+
+- `/home/pi/CreationStationArcade-src`
+  - Source repo (git)
+  - Can be updated in the background and is not actively running
+- `/home/pi/CreationStationArcade`
+  - Runtime folder
+  - On boot, `launcher.sh` syncs from `*-src` to this folder and then runs from here
 
 ## Known Issues
 
