@@ -18,6 +18,7 @@ if [ -d "$SOURCE_DIR/.git" ]; then
     chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
     chmod +x "$RUN_DIR/launchGame.sh" 2>/dev/null || true
     chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
+    find "$RUN_DIR" -type f -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete. Continuing without restart." >> "$LOG_FILE"
 else

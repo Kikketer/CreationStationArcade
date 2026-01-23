@@ -5,7 +5,7 @@ import subprocess
 ARCADE_CFG_PATH = "/home/pi/CreationStationArcade/arcade.cfg"
 
 # Configuration
-KILL_PIN = 4  # BCM 4
+KILL_PIN = 3  # BCM 3
 INACTIVITY_SECONDS = 5 * 60
 
 _last_activity = None
