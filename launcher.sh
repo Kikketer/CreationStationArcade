@@ -5,10 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
 SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
 
+## CHANGE THIS to set the game to play!
+ACTIVE_GAME="SyncTheBoat"
+
 if [ -d "$SOURCE_DIR/.git" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+        rsync -a --no-perms --no-owner --no-group --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
     else
         echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
         cp -a "$SOURCE_DIR"/. "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
@@ -49,6 +52,6 @@ while true; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
-    "$RUNNER" "$RUN_DIR/games/SyncTheBoatSync.elf" >> $LOG_FILE 2>&1
+    "$RUNNER" "$RUN_DIR/games/$ACTIVE_GAME.elf" >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
 done
