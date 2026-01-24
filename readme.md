@@ -13,7 +13,6 @@ How to setup a Raspberry PI 3:
    - `sudo adduser admin`
    - `sudo usermod -aG sudo admin`
 7. Create a group that both these users belong to so we can admin the files equally
-
    - `sudo groupadd arcadeadmin`
    - `sudo usermod -aG arcadeadmin pi`
    - `sudo usermod -aG arcadeadmin admin`
@@ -24,7 +23,6 @@ How to setup a Raspberry PI 3:
    - `source /etc/profile.d/arcadeadmin.sh`
 
 8. Set the login for the `pi` user to use the runtime `launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
-
    - `sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi`
 
 ## Folder layout
@@ -35,6 +33,26 @@ How to setup a Raspberry PI 3:
 - `/home/pi/CreationStationArcade`
   - Runtime folder
   - On boot, `launcher.sh` syncs from `*-src` to this folder and then runs from here
+
+## Putting Games On The Arcade
+
+4 Player games are not officially supported by MakeCode Arcade (even though the "cardboard" setup has the pin layout). So if you need to build a game for the 4 player controllers you need to do it manually and locally.
+
+1. Setup the pxt, pxt-arcade, and pxt-common-packages repos from my forks (this is a little painful but you got this). I put everything in a single folder called `pxt-root`.
+   2. https://github.com/Kikketer/pxt/tree/kikketer/feat-raw-elf-four-player
+   3. https://github.com/Kikketer/pxt-arcade/tree/kikketer/feat-raw-elf-four-player
+   4. https://github.com/Kikketer/pxt-common-packages/tree/master
+2. There's an npm link step here... trying to remember how to do it, it was finicky at best
+3. Once you have all the repos checked into that single `pxt-root` folder be sure to check out the "feat-raw-elf-four-player" branches of the pxt and pxt-arcade projects.
+4. Navigate to `pxt-arcade` and run `npm serve`
+5. A local copy will start, now you just need to import the game you wish to put on the arcade.
+6. Once you have the game loaded, pick the "choose hardware" near the download button
+7. Pick "Pi0 Raw Elf" option
+8. Click download
+9. Now you have a 4 player .elf file that can be used on the arcade, copy this into the `CreationStationArcade/games` folder
+10. Update the `launcher.sh` to point to your new game name
+11. Commit and push
+12. Then reboot the arcade box, it'll pull on the first reboot, reboot again and it'll copy over the new one (yes that's 2 reboots)
 
 ## Known Issues
 
