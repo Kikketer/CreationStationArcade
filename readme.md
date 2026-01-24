@@ -39,9 +39,9 @@ How to setup a Raspberry PI 3:
 4 Player games are not officially supported by MakeCode Arcade (even though the "cardboard" setup has the pin layout). So if you need to build a game for the 4 player controllers you need to do it manually and locally.
 
 1. Setup the pxt, pxt-arcade, and pxt-common-packages repos from my forks (this is a little painful but you got this). I put everything in a single folder called `pxt-root`.
-   2. https://github.com/Kikketer/pxt/tree/kikketer/feat-raw-elf-four-player
-   3. https://github.com/Kikketer/pxt-arcade/tree/kikketer/feat-raw-elf-four-player
-   4. https://github.com/Kikketer/pxt-common-packages/tree/master
+   - https://github.com/Kikketer/pxt/tree/kikketer/feat-raw-elf-four-player
+   - https://github.com/Kikketer/pxt-arcade/tree/kikketer/feat-raw-elf-four-player
+   - https://github.com/Kikketer/pxt-common-packages/tree/master
 2. There's an npm link step here... trying to remember how to do it, it was finicky at best
 3. Once you have all the repos checked into that single `pxt-root` folder be sure to check out the "feat-raw-elf-four-player" branches of the pxt and pxt-arcade projects.
 4. Navigate to `pxt-arcade` and run `npm serve`
