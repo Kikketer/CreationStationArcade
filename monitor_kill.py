@@ -1,12 +1,19 @@
 import RPi.GPIO as GPIO
 import time
 import subprocess
+import threading
+import os
 
 ARCADE_CFG_PATH = "/home/pi/CreationStationArcade/arcade.cfg"
+LOG_FILE = "/home/pi/arcade.log"
 
 # Configuration
 KILL_PIN = 3  # BCM 3
 INACTIVITY_SECONDS = 5 * 60
+
+# Determine SOURCE_DIR (same logic as launcher.sh)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SOURCE_DIR = os.environ.get("CSA_SOURCE_DIR", f"{SCRIPT_DIR}-src")
 
 _last_activity = None
 
@@ -79,6 +86,69 @@ def _is_non_menu_elf_running() -> bool:
         return False
 
 
+def _update_from_git() -> None:
+    """Run git fetch and reset in background (same logic as pullFromGit.sh)"""
+    try:
+        if not os.path.isdir(os.path.join(SOURCE_DIR, ".git")):
+            print(f"Background update: source repo not found at {SOURCE_DIR}")
+            return
+
+        print(f"Background update: fetching origin from {SOURCE_DIR}")
+        
+        # Change to source directory and fetch
+        result = subprocess.run(
+            ["git", "fetch", "origin"],
+            cwd=SOURCE_DIR,
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        if result.returncode != 0:
+            print(f"Git fetch failed: {result.stderr}")
+            return
+
+        # Check if origin/main exists and if we need to reset
+        check_result = subprocess.run(
+            ["git", "rev-parse", "--verify", "origin/main"],
+            cwd=SOURCE_DIR,
+            capture_output=True,
+            text=True
+        )
+        
+        if check_result.returncode == 0:
+            # Get current HEAD and origin/main
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=SOURCE_DIR,
+                capture_output=True,
+                text=True
+            ).stdout.strip()
+            
+            origin_main = subprocess.run(
+                ["git", "rev-parse", "origin/main"],
+                cwd=SOURCE_DIR,
+                capture_output=True,
+                text=True
+            ).stdout.strip()
+            
+            if head != origin_main:
+                print("Background update: resetting to origin/main")
+                subprocess.run(
+                    ["git", "reset", "--hard", "origin/main"],
+                    cwd=SOURCE_DIR,
+                    capture_output=True,
+                    text=True
+                )
+                print("Background update: reset complete")
+            else:
+                print("Background update: already up to date")
+    except subprocess.TimeoutExpired:
+        print("Git fetch timed out after 15 seconds")
+    except Exception as e:
+        print(f"Error during git update: {e}")
+
+
 def _kill_elf_processes(reason: str) -> None:
     print(f"{reason}. Killing ELF processes...")
     try:
@@ -86,6 +156,11 @@ def _kill_elf_processes(reason: str) -> None:
         # Using pkill -9 -f \.elf to be safer and target files with .elf extension
         subprocess.run(["pkill", "-9", "-f", r"\.elf"], check=False)
         print("Sent kill signal to .elf processes.")
+        
+        # Start git update in background thread
+        update_thread = threading.Thread(target=_update_from_git, daemon=True)
+        update_thread.start()
+        print("Started background git update")
     except Exception as e:
         print(f"Error killing processes: {e}")
 
