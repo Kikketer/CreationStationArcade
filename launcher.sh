@@ -6,7 +6,7 @@ RUN_DIR="$SCRIPT_DIR"
 SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
 
 ## CHANGE THIS to set the game to play!
-ACTIVE_GAME="Spoopy"
+ACTIVE_GAME="Super-Star-Story"
 
 if [ -d "$SOURCE_DIR/.git" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
