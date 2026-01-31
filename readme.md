@@ -21,8 +21,12 @@ How to setup a Raspberry PI 3:
    - `sudo find /home/pi -type f -exec chmod 660 {} \;`
    - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
    - `source /etc/profile.d/arcadeadmin.sh`
+8. Optional: Make the /sd/prj folder if you wish to use a custom menu
+   - `sudo mkdir /sd/prj`
+   - `sudo chmod +w /sd/prj` (cuz I don't care)
+   - The custom menu will list and launch games from this folder
 
-8. Set the login for the `pi` user to use the runtime `launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
+9. Set the login for the `pi` user to use the runtime `launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
    - `sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi`
 
 ## Folder layout

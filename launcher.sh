@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
 SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
 
-## CHANGE THIS to set the game to play!
-ACTIVE_GAME="Super-Star-Story"
+### CHANGE THIS to set the game to play!
+#ACTIVE_GAME="Super-Star-Story"
 
 if [ -d "$SOURCE_DIR/.git" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
@@ -46,12 +46,12 @@ if [ ! -x "$RUNNER" ]; then
     exit 1
 fi
 
-while true; do
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-    "$RUNNER" "$RUN_DIR/menu.elf" >> $LOG_FILE 2>&1
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
+#while true; do
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
+"$RUNNER" "$RUN_DIR/MadeArcadeMenu.elf" >> $LOG_FILE 2>&1
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
 
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
-    "$RUNNER" "$RUN_DIR/games/$ACTIVE_GAME.elf" >> $LOG_FILE 2>&1
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
-done
+#    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
+#    "$RUNNER" "$RUN_DIR/games/$ACTIVE_GAME.elf" >> $LOG_FILE 2>&1
+#    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
+#done

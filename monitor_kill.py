@@ -10,6 +10,7 @@ LOG_FILE = "/home/pi/arcade.log"
 # Configuration
 KILL_PIN = 3  # BCM 3
 INACTIVITY_SECONDS = 5 * 60
+MENU_ELF_FILE = "MadeArcadeMenu.elf"
 
 # Determine SOURCE_DIR (same logic as launcher.sh)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,7 +80,7 @@ def _is_non_menu_elf_running() -> bool:
         if not lines:
             return False
 
-        non_menu_lines = [proc_line for proc_line in lines if "menu.elf" not in proc_line]
+        non_menu_lines = [proc_line for proc_line in lines if "MadeArcadeMenu.elf" not in proc_line]
         return len(non_menu_lines) > 0
     except Exception as e:
         print(f"WARNING: Failed checking running elfs: {e}")
@@ -161,6 +162,14 @@ def _kill_elf_processes(reason: str) -> None:
         update_thread = threading.Thread(target=_update_from_git, daemon=True)
         update_thread.start()
         print("Started background git update")
+        
+        # Launch menu ELF file after killing processes
+        menu_path = os.path.join(SCRIPT_DIR, MENU_ELF_FILE)
+        if os.path.exists(menu_path) and os.access(menu_path, os.X_OK):
+            print(f"Launching {menu_path} after process kill...")
+            subprocess.Popen([menu_path], cwd=SCRIPT_DIR)
+        else:
+            print(f"WARNING: {MENU_ELF_FILE} not found or not executable at {menu_path}")
     except Exception as e:
         print(f"Error killing processes: {e}")
 
