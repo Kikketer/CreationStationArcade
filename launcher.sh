@@ -28,6 +28,7 @@ else
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Source repo not found at $SOURCE_DIR; starting without sync" >> "$LOG_FILE"
 fi
 
+# Pull from git after we rysync to avoid race conditions and make this nice and fast to boot (when no wifi)
 if [ -x "$RUN_DIR/pullFromGit.sh" ]; then
     "$RUN_DIR/pullFromGit.sh" &
 else
