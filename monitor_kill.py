@@ -10,7 +10,7 @@ LOG_FILE = "/home/pi/arcade.log"
 # Configuration
 KILL_PIN = 3  # BCM 3
 INACTIVITY_SECONDS = 5 * 60
-MENU_ELF_FILE = "MadeArcadeMenu.elf"
+MENU_ELF_FILE = "menu.elf"
 
 # Determine SOURCE_DIR (same logic as launcher.sh)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
