@@ -28,6 +28,21 @@ else
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Source repo not found at $SOURCE_DIR; starting without sync" >> "$LOG_FILE"
 fi
 
+# Check for /sd/prj folder and sync games if it exists
+if [ -d "/sd/prj" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Found /sd/prj folder, syncing games..." >> "$LOG_FILE"
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --no-perms --no-owner --no-group --delete "$RUN_DIR/games"/ "/sd/prj"/ >> "$LOG_FILE" 2>&1
+    else
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
+        cp -a "$RUN_DIR/games"/. "/sd/prj"/ >> "$LOG_FILE" 2>&1
+    fi
+    
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Games sync complete." >> "$LOG_FILE"
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] no prj folder found, not using custom menu launcher" >> "$LOG_FILE"
+fi
+
 # Pull from git after we rysync to avoid race conditions and make this nice and fast to boot (when no wifi)
 if [ -x "$RUN_DIR/pullFromGit.sh" ]; then
     "$RUN_DIR/pullFromGit.sh" &
