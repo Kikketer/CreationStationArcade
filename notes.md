@@ -6,4 +6,3 @@ sudo pkill -9 -f .elf
 ```
 
 then you have to clear the screen `clear`
-
