@@ -48,7 +48,7 @@ fi
 
 while true; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-    "$RUNNER" "$RUN_DIR/MadeArcadeMenu.elf" >> $LOG_FILE 2>&1
+    "$RUNNER" "$RUN_DIR/menu.elf" >> $LOG_FILE 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE

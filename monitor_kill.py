@@ -79,7 +79,7 @@ def _is_non_menu_elf_running() -> bool:
         if not lines:
             return False
 
-        non_menu_lines = [proc_line for proc_line in lines if "MadeArcadeMenu.elf" not in proc_line]
+        non_menu_lines = [proc_line for proc_line in lines if "menu.elf" not in proc_line]
         return len(non_menu_lines) > 0
     except Exception as e:
         print(f"WARNING: Failed checking running elfs: {e}")
