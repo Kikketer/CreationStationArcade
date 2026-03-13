@@ -22,7 +22,7 @@ How to setup a Raspberry PI 3:
    - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
    - `source /etc/profile.d/arcadeadmin.sh`
 8. Optional: Make the /sd/prj folder if you wish to use a custom menu
-   - `sudo mkdir /sd/prj`
+   - `sudo mkdir -p /sd/prj`
    - `sudo chmod +w /sd/prj` (cuz I don't care)
    - The custom menu will list and launch games from this folder
 

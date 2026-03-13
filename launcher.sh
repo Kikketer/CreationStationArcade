@@ -43,7 +43,7 @@ else
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] no prj folder found, not using custom menu launcher" >> "$LOG_FILE"
 fi
 
-# Pull from git after we rysync to avoid race conditions and make this nice and fast to boot (when no wifi)
+# Pull from git after we rsync to avoid race conditions and make this nice and fast to boot (when no wifi)
 if [ -x "$RUN_DIR/pullFromGit.sh" ]; then
     "$RUN_DIR/pullFromGit.sh" &
 else
@@ -62,12 +62,6 @@ if [ ! -x "$RUNNER" ]; then
     exit 1
 fi
 
-#while true; do
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
 "$RUNNER" "$RUN_DIR/MadeArcadeMenu.elf" >> $LOG_FILE 2>&1
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
-
-#    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Game" >> $LOG_FILE
-#    "$RUNNER" "$RUN_DIR/games/$ACTIVE_GAME.elf" >> $LOG_FILE 2>&1
-#    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Game exited with status $?" >> $LOG_FILE
-#done
