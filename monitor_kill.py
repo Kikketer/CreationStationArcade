@@ -9,7 +9,7 @@ LOG_FILE = "/home/pi/arcade.log"
 
 # Configuration
 KILL_PIN = 3  # BCM 3
-INACTIVITY_SECONDS = 5 * 60
+INACTIVITY_SECONDS = 2 * 60
 MENU_ELF_FILE = "MadeArcadeMenu.elf"
 
 # Determine SOURCE_DIR (same logic as launcher.sh)
