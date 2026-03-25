@@ -77,33 +77,35 @@ def _load_button_pins(cfg_path: str) -> list[int]:
     return deduped
 
 
+PIDFILE = "/tmp/creationstation_current_elf.pid"
+
+
 def _is_non_menu_elf_running() -> bool:
     try:
-        result = subprocess.run(
-            ["pgrep", "-af", r"\.elf"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        lines = [proc_line.strip() for proc_line in result.stdout.splitlines() if proc_line.strip()]
-        _log(f"DEBUG _is_non_menu_elf_running: pgrep found {len(lines)} line(s): {lines}")
-        if not lines:
-            _log("DEBUG _is_non_menu_elf_running: no .elf processes found via pgrep -af")
-            # Fallback: check /proc directly for any .elf in cmdline
-            found = _scan_proc_for_elf()
-            _log(f"DEBUG _is_non_menu_elf_running: /proc scan result: {found}")
-            return found
+        # Primary: check the pidfile written by simpleLaunch.sh
+        if os.path.exists(PIDFILE):
+            try:
+                with open(PIDFILE, "r") as f:
+                    pid = int(f.read().strip())
+                if pid > 0 and os.path.exists(f"/proc/{pid}"):
+                    _log(f"DEBUG _is_non_menu_elf_running: game running via pidfile pid={pid}")
+                    return True
+                else:
+                    _log(f"DEBUG _is_non_menu_elf_running: pidfile pid={pid} no longer alive")
+            except (ValueError, OSError) as e:
+                _log(f"DEBUG _is_non_menu_elf_running: pidfile read error: {e}")
 
-        non_menu_lines = [proc_line for proc_line in lines if "MadeArcadeMenu.elf" not in proc_line]
-        _log(f"DEBUG _is_non_menu_elf_running: non-menu lines: {non_menu_lines}")
-        return len(non_menu_lines) > 0
+        # Fallback: walk /proc directly for any .elf in cmdline
+        found = _scan_proc_for_elf()
+        _log(f"DEBUG _is_non_menu_elf_running: /proc scan result: {found}")
+        return found
     except Exception as e:
         _log(f"WARNING: Failed checking running elfs: {e}")
         return False
 
 
 def _scan_proc_for_elf() -> bool:
-    """Fallback: walk /proc/*/cmdline looking for .elf in the command path."""
+    """Walk /proc/*/cmdline looking for a non-menu .elf in the command path."""
     try:
         for entry in os.listdir("/proc"):
             if not entry.isdigit():
