@@ -19,6 +19,15 @@ SOURCE_DIR = os.environ.get("CSA_SOURCE_DIR", f"{SCRIPT_DIR}-src")
 _last_activity = None
 
 
+def _log(msg: str) -> None:
+    print(msg)
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    except Exception:
+        pass
+
+
 def _now() -> float:
     return time.monotonic()
 
@@ -77,14 +86,39 @@ def _is_non_menu_elf_running() -> bool:
             text=True,
         )
         lines = [proc_line.strip() for proc_line in result.stdout.splitlines() if proc_line.strip()]
+        _log(f"DEBUG _is_non_menu_elf_running: pgrep found {len(lines)} line(s): {lines}")
         if not lines:
-            return False
+            _log("DEBUG _is_non_menu_elf_running: no .elf processes found via pgrep -af")
+            # Fallback: check /proc directly for any .elf in cmdline
+            found = _scan_proc_for_elf()
+            _log(f"DEBUG _is_non_menu_elf_running: /proc scan result: {found}")
+            return found
 
         non_menu_lines = [proc_line for proc_line in lines if "MadeArcadeMenu.elf" not in proc_line]
+        _log(f"DEBUG _is_non_menu_elf_running: non-menu lines: {non_menu_lines}")
         return len(non_menu_lines) > 0
     except Exception as e:
-        print(f"WARNING: Failed checking running elfs: {e}")
+        _log(f"WARNING: Failed checking running elfs: {e}")
         return False
+
+
+def _scan_proc_for_elf() -> bool:
+    """Fallback: walk /proc/*/cmdline looking for .elf in the command path."""
+    try:
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                with open(f"/proc/{entry}/cmdline", "rb") as f:
+                    cmdline = f.read().replace(b"\x00", b" ").decode(errors="replace")
+                if ".elf" in cmdline and "MadeArcadeMenu.elf" not in cmdline:
+                    _log(f"DEBUG _scan_proc_for_elf: found pid {entry} cmdline: {cmdline.strip()}")
+                    return True
+            except (FileNotFoundError, PermissionError):
+                continue
+    except Exception as e:
+        _log(f"WARNING: /proc scan failed: {e}")
+    return False
 
 
 def _update_from_git() -> None:
@@ -207,7 +241,7 @@ def main():
         while True:
             if _last_activity is not None and (_now() - _last_activity) > INACTIVITY_SECONDS:
                 if _is_non_menu_elf_running():
-                    _kill_elf_processes("No button activity for 5 minutes")
+                    _kill_elf_processes("No button activity for 2 minutes")
                 _last_activity = _now()
             time.sleep(1)
             

@@ -23,6 +23,9 @@ if [ -d "$SOURCE_DIR/.git" ]; then
     find "$RUN_DIR" -type f -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete. Continuing without restart." >> "$LOG_FILE"
+
+    # Restore pi user's login shell to bash (removes launcher.sh as login shell)
+    sudo usermod -s /bin/bash pi && echo "[$(date +'%Y-%m-%d %H:%M:%S')] Restored pi login shell to /bin/bash" >> "$LOG_FILE"
 else
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Source repo not found at $SOURCE_DIR; starting without sync" >> "$LOG_FILE"
 fi
