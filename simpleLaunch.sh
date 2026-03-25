@@ -60,7 +60,7 @@ write_pidfile "$PID"
 
 MISSING_COUNT=0
 while true; do
-    if kill -0 "$PID" 2>/dev/null; then
+    if kill -0 "$PID" 2>/dev/null && ! grep -q "^State:.*Z" /proc/"$PID"/status 2>/dev/null; then
         MISSING_COUNT=0
     else
         NEW_PID=$(find_running_pid || true)
