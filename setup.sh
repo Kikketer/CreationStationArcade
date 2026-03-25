@@ -36,7 +36,6 @@ fi
 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/launchGame.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/install/hdmi-audio-fix.sh" 2>/dev/null || true
 
