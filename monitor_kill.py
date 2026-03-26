@@ -78,34 +78,52 @@ def _load_button_pins(cfg_path: str) -> list[int]:
 
 
 PIDFILE = "/tmp/creationstation_current_elf.pid"
+PXT_PID_FILE = "/tmp/pxt-pid"
+
+
+def _get_game_process_name() -> str:
+    """Read the PID from /tmp/pxt-pid (written by MCA ELF runtime) and return
+    the process name from /proc/<pid>/comm, or empty string if not found."""
+    try:
+        if not os.path.exists(PXT_PID_FILE):
+            return ""
+        with open(PXT_PID_FILE, "r") as f:
+            pid = f.readline().strip()
+        if not pid:
+            return ""
+        comm_path = f"/proc/{pid}/comm"
+        if not os.path.exists(comm_path):
+            return ""
+        with open(comm_path, "r") as f:
+            return f.read().strip()
+    except (OSError, ValueError):
+        return ""
 
 
 def _is_non_menu_elf_running() -> bool:
     try:
-        # Primary: check the pidfile written by simpleLaunch.sh
-        if os.path.exists(PIDFILE):
-            try:
-                with open(PIDFILE, "r") as f:
-                    pid = int(f.read().strip())
-                if pid > 0 and os.path.exists(f"/proc/{pid}"):
-                    _log(f"DEBUG _is_non_menu_elf_running: game running via pidfile pid={pid}")
-                    return True
-                else:
-                    _log(f"DEBUG _is_non_menu_elf_running: pidfile pid={pid} no longer alive")
-            except (ValueError, OSError) as e:
-                _log(f"DEBUG _is_non_menu_elf_running: pidfile read error: {e}")
+        # Primary: use /tmp/pxt-pid written by the MakeCode Arcade ELF runtime.
+        # McAirpos discovered that the ELF spawns a child thread and writes its
+        # PID there — this is the only reliable way to track the real game process.
+        name = _get_game_process_name()
+        if name and MENU_ELF_FILE[:len(name)] not in name:
+            result = subprocess.run(
+                ["pgrep", "-n", name],
+                check=False, capture_output=True, text=True
+            )
+            running = result.returncode == 0
+            _log(f"DEBUG _is_non_menu_elf_running: pxt-pid process '{name}' running={running}")
+            return running
 
-        # Fallback: walk /proc directly for any .elf in cmdline
-        found = _scan_proc_for_elf()
-        _log(f"DEBUG _is_non_menu_elf_running: /proc scan result: {found}")
-        return found
+        _log("DEBUG _is_non_menu_elf_running: no pxt-pid or name is menu, checking /proc")
+        return _scan_proc_for_elf()
     except Exception as e:
         _log(f"WARNING: Failed checking running elfs: {e}")
         return False
 
 
 def _scan_proc_for_elf() -> bool:
-    """Walk /proc/*/cmdline looking for a non-menu .elf in the command path."""
+    """Fallback: walk /proc for a non-menu .elf in any cmdline."""
     try:
         for entry in os.listdir("/proc"):
             if not entry.isdigit():
@@ -113,8 +131,8 @@ def _scan_proc_for_elf() -> bool:
             try:
                 with open(f"/proc/{entry}/cmdline", "rb") as f:
                     cmdline = f.read().replace(b"\x00", b" ").decode(errors="replace")
-                if ".elf" in cmdline and "MadeArcadeMenu.elf" not in cmdline:
-                    _log(f"DEBUG _scan_proc_for_elf: found pid {entry} cmdline: {cmdline.strip()}")
+                if ".elf" in cmdline and MENU_ELF_FILE not in cmdline:
+                    _log(f"DEBUG _scan_proc_for_elf: found pid={entry} cmdline={cmdline.strip()[:80]}")
                     return True
             except (FileNotFoundError, PermissionError):
                 continue
@@ -187,12 +205,19 @@ def _update_from_git() -> None:
 
 
 def _kill_elf_processes(reason: str) -> None:
-    print(f"{reason}. Killing ELF processes...")
+    _log(f"{reason}. Killing ELF processes...")
     try:
-        # Find and kill all .elf processes
-        # Using pkill -9 -f \.elf to be safer and target files with .elf extension
-        subprocess.run(["pkill", "-9", "-f", r"\.elf"], check=False)
-        print("Sent kill signal to .elf processes.")
+        # Use the process name from /tmp/pxt-pid (written by MCA ELF runtime).
+        # McAirpos uses killall <processName> — same approach here.
+        name = _get_game_process_name()
+        if name and MENU_ELF_FILE[:len(name)] not in name:
+            subprocess.run(["killall", "-9", name], check=False)
+            _log(f"Sent killall -9 {name}")
+        else:
+            # Fallback: pkill by .elf pattern
+            subprocess.run(["pkill", "-9", "-f", r"\.elf"], check=False)
+            _log("Fallback: sent pkill -9 -f .elf")
+        _log("Sent kill signals to game processes.")
         
         # Start git update in background thread
         update_thread = threading.Thread(target=_update_from_git, daemon=True)
