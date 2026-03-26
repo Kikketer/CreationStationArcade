@@ -43,6 +43,11 @@ write_pidfile() {
     fi
 }
 
+# Hide console cursor and suppress text bleed during launch
+tput civis 2>/dev/null || true
+echo -ne "\033[2J\033[H" > /dev/tty1 2>/dev/null || true
+setterm --cursor off --blank 0 2>/dev/null || true
+
 # Launch the game
 
 "$ELF_PATH" &
@@ -81,6 +86,12 @@ done
 
 # Cleanup
 fbset -depth 8 && fbset -depth 16
+
+# Clear console and restore cursor after ELF exits
+echo -ne "\033[2J\033[H" > /dev/tty1 2>/dev/null || true
+setterm --cursor on 2>/dev/null || true
+tput cnorm 2>/dev/null || true
+
 echo "Framebuffer restored."
 
 rm -f "$PIDFILE" 2>/dev/null || true

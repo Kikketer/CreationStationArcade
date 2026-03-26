@@ -1,0 +1,9 @@
+wallpaper_image = Image("MadeArcadeBoot.png");
+screen_width = Window.GetWidth();
+screen_height = Window.GetHeight();
+
+scaled = wallpaper_image.Scale(screen_width, screen_height);
+sprite = Sprite(scaled);
+sprite.SetX(0);
+sprite.SetY(0);
+sprite.SetZ(-100);

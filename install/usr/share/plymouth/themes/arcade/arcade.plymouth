@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Arcade
+Description=MadeArcade boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/arcade
+ScriptFile=/usr/share/plymouth/themes/arcade/arcade.script
