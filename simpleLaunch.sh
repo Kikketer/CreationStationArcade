@@ -43,6 +43,10 @@ write_pidfile() {
     fi
 }
 
+# Kill fbi splash (if running) so it doesn't hold the framebuffer
+pkill -f fbi 2>/dev/null || true
+sleep 0.2
+
 # Hide console cursor and suppress text bleed during launch
 tput civis 2>/dev/null || true
 echo -ne "\033[2J\033[H" > /dev/tty1 2>/dev/null || true

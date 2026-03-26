@@ -5,9 +5,8 @@ set -e
 LOG_FILE="/home/pi/arcade.log"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-THEME_SRC="$SCRIPT_DIR/usr/share/plymouth/themes/arcade"
-THEME_DEST="/usr/share/plymouth/themes/arcade"
-IMAGE_SRC="/home/pi/CreationStationArcade/media/MadeArcadeBoot.png"
+SERVICE_SRC="$SCRIPT_DIR/etc/systemd/system/arcade-splash.service"
+SERVICE_DEST="/etc/systemd/system/arcade-splash.service"
 
 CMDLINE_FILE="/boot/firmware/cmdline.txt"
 if [ ! -f "$CMDLINE_FILE" ]; then
@@ -19,37 +18,26 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-if [ ! -d "$THEME_SRC" ]; then
-    echo "ERROR: missing theme source at $THEME_SRC" >&2
-    exit 1
-fi
-
-if [ ! -f "$IMAGE_SRC" ]; then
-    echo "ERROR: missing splash image at $IMAGE_SRC" >&2
+if [ ! -f "$SERVICE_SRC" ]; then
+    echo "ERROR: missing $SERVICE_SRC" >&2
     exit 1
 fi
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Splash setup: starting" >> "$LOG_FILE"
 
-# Install Plymouth and the script module
-echo "Installing Plymouth..."
-apt-get install -y plymouth plymouth-themes
+# Install fbi (framebuffer image viewer)
+if ! command -v fbi >/dev/null 2>&1; then
+    echo "Installing fbi..."
+    apt-get install -y fbi
+fi
 
-# Copy the arcade theme
-mkdir -p "$THEME_DEST"
-cp "$THEME_SRC/arcade.plymouth" "$THEME_DEST/"
-cp "$THEME_SRC/arcade.script" "$THEME_DEST/"
-cp "$IMAGE_SRC" "$THEME_DEST/MadeArcadeBoot.png"
-chmod 644 "$THEME_DEST/"*
+# Install the systemd service
+cp "$SERVICE_SRC" "$SERVICE_DEST"
+chmod 644 "$SERVICE_DEST"
+systemctl daemon-reload
+systemctl enable arcade-splash.service
 
-# Set the arcade theme as default
-plymouth-set-default-theme arcade
-
-# Rebuild initramfs so Plymouth is included in early boot
-echo "Rebuilding initramfs (this may take a minute)..."
-update-initramfs -u
-
-echo "Plymouth arcade theme installed."
+echo "arcade-splash.service installed and enabled."
 
 # Patch /boot/firmware/cmdline.txt to suppress boot text
 if [ ! -f "$CMDLINE_FILE" ]; then
