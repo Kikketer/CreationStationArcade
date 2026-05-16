@@ -88,7 +88,9 @@ fi
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
 "$CHROMIUM_BIN" \
-    --kiosk \
+    --start-fullscreen \
+    --window-size=1920,1080 \
+    --window-position=0,0 \
     --noerrdialogs \
     --disable-infobars \
     --no-first-run \
