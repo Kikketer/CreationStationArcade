@@ -272,7 +272,7 @@ With something like:
 ```bash
 node "$RUN_DIR/server.js" &
 sleep 2
-chromium-browser --kiosk --noerrdialogs --disable-infobars \
+chromium --kiosk --noerrdialogs --disable-infobars \
   --no-first-run --disable-session-crashed-bubble \
   http://localhost:3000 &
 ```

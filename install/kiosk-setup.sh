@@ -17,7 +17,7 @@ log "Repo dir: $SCRIPT_DIR"
 log "Installing system packages..."
 sudo apt-get update -y >> "$LOG" 2>&1
 sudo apt-get install -y \
-    chromium-browser \
+    chromium \
     nodejs \
     npm \
     xorg \
@@ -45,21 +45,16 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
-# ── 4. Set launcher.sh as login shell ─────────────────────────────────────────
-log "Configuring .bash_profile to launch arcade on login..."
+# ── 4. DISPLAY env for kiosk ─────────────────────────────────────────────────
+# Set DISPLAY for any scripts that run within the X session
 PROFILE="$HOME/.bash_profile"
-LAUNCHER_LINE="exec $SCRIPT_DIR/launcher.sh"
-grep -qF "$LAUNCHER_LINE" "$PROFILE" 2>/dev/null || echo "$LAUNCHER_LINE" >> "$PROFILE"
-log ".bash_profile updated."
-
-# ── 5. DISPLAY env for kiosk ─────────────────────────────────────────────────
-# launcher.sh needs DISPLAY if running without a desktop session manager.
-# We inject it here so Chromium can find the X display.
 DISPLAY_LINE="export DISPLAY=:0"
-grep -qF "$DISPLAY_LINE" "$PROFILE" 2>/dev/null || \
-    sed -i "1i $DISPLAY_LINE" "$PROFILE"
+if ! grep -qF "$DISPLAY_LINE" "$PROFILE" 2>/dev/null; then
+    log "Adding DISPLAY to .bash_profile..."
+    echo "$DISPLAY_LINE" >> "$PROFILE"
+fi
 
-# ── 6. Xorg auto-start (openbox, no login manager) ───────────────────────────
+# ── 5. Xorg auto-start (openbox, no login manager) ───────────────────────────
 log "Configuring Xorg to start on TTY1..."
 XINITRC="$HOME/.xinitrc"
 cat > "$XINITRC" <<'XEOF'
@@ -82,7 +77,7 @@ fi'
 grep -qF "exec startx" "$PROFILE" 2>/dev/null || echo "$STARTX_BLOCK" >> "$PROFILE"
 log "Xorg startx configured."
 
-# ── 7. Openbox autostart — launch the arcade ─────────────────────────────────
+# ── 6. Openbox autostart — launch the arcade ─────────────────────────────────
 OPENBOX_DIR="$HOME/.config/openbox"
 mkdir -p "$OPENBOX_DIR"
 cat > "$OPENBOX_DIR/autostart" <<OEOF
@@ -91,16 +86,15 @@ $SCRIPT_DIR/launcher.sh &
 OEOF
 log "Openbox autostart configured."
 
-# ── 8. Suppress boot messages ─────────────────────────────────────────────────
+# ── 7. Suppress boot messages ─────────────────────────────────────────────────
 log "Suppressing boot messages..."
 CMDLINE="/boot/cmdline.txt"
 if [ -f "$CMDLINE" ]; then
-    if ! grep -q "quiet" "$CMDLINE"; then
-        sudo sed -i 's/$/ quiet loglevel=3 vt.global_cursor_default=0/' "$CMDLINE"
-        log "Boot quiet flags added."
-    else
-        log "Boot quiet flags already present."
-    fi
+    # Remove any existing quiet/flags first (idempotent), then add fresh
+    sudo sed -i 's/ quiet loglevel=3 vt.global_cursor_default=0//g' "$CMDLINE"
+    sudo sed -i 's/ quiet//g' "$CMDLINE"
+    sudo sed -i 's/$/ quiet loglevel=3 vt.global_cursor_default=0/' "$CMDLINE"
+    log "Boot quiet flags configured."
 else
     log "WARNING: $CMDLINE not found; skipping boot flag update."
 fi

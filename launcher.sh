@@ -95,6 +95,9 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --disable-features=TranslateUI \
     --no-default-browser-check \
     --disable-pinch \
+    --disable-gpu \
+    --disable-software-rasterizer \
+    --no-sandbox \
     http://localhost:3000 >> $LOG_FILE 2>&1
 
 CHROMIUM_EXIT=$?
