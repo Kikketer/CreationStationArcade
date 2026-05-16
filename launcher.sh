@@ -18,6 +18,7 @@ if [ -d "$SOURCE_DIR/.git" ]; then
     chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
     chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
     find "$RUN_DIR" -type f -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
+    chmod +x "$RUN_DIR/server.js" 2>/dev/null || true
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete. Continuing without restart." >> "$LOG_FILE"
 else
@@ -52,12 +53,52 @@ if ! pgrep -f "monitor_kill.py" > /dev/null; then
     python3 "$RUN_DIR/monitor_kill.py" >> $LOG_FILE 2>&1 &
 fi
 
-RUNNER="$RUN_DIR/simpleLaunch.sh"
-if [ ! -x "$RUNNER" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $RUNNER is missing or not executable" >> $LOG_FILE
+# ── Kiosk launch ──────────────────────────────────────────────────────────
+# Kill any leftover server or browser from a previous session
+pkill -f "node.*server.js" 2>/dev/null || true
+pkill -f chromium 2>/dev/null || true
+sleep 0.5
+
+# Start local HTTP server
+if command -v node >/dev/null 2>&1; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting HTTP server on port 3000" >> $LOG_FILE
+    node "$RUN_DIR/server.js" >> $LOG_FILE 2>&1 &
+    SERVER_PID=$!
+    sleep 1.5
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: node not found. Install Node.js." >> $LOG_FILE
     exit 1
 fi
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-"$RUNNER" "$RUN_DIR/MadeArcadeMenu.elf" >> $LOG_FILE 2>&1
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
+# Launch Chromium in kiosk mode
+CHROMIUM_BIN=""
+for bin in chromium-browser chromium google-chrome; do
+    if command -v $bin >/dev/null 2>&1; then
+        CHROMIUM_BIN=$bin
+        break
+    fi
+done
+
+if [ -z "$CHROMIUM_BIN" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: chromium not found." >> $LOG_FILE
+    kill $SERVER_PID 2>/dev/null || true
+    exit 1
+fi
+
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
+"$CHROMIUM_BIN" \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --disable-session-crashed-bubble \
+    --disable-features=TranslateUI \
+    --no-default-browser-check \
+    --disable-pinch \
+    http://localhost:3000 >> $LOG_FILE 2>&1
+
+CHROMIUM_EXIT=$?
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Chromium exited with status $CHROMIUM_EXIT" >> $LOG_FILE
+
+# Clean up server on exit
+kill $SERVER_PID 2>/dev/null || true

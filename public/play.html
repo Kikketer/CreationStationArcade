@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Playing…</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #f0f0ff;
+    }
+
+    #status {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    #status h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #e040fb, #40c4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #status p { color: #666688; font-size: 0.9rem; }
+
+    #back-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #333355;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* Simulator iframe — fills screen once loaded */
+    #sim-frame {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">
+    <h2 id="game-title">Loading…</h2>
+    <p id="game-msg">Preparing simulator</p>
+  </div>
+
+  <div id="back-hint">Press <b>Esc</b> or Kill button to return to menu</div>
+
+  <!-- Simulator iframe (shown when sim/ files are available) -->
+  <iframe id="sim-frame" allow="autoplay" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>
+
+  <script>
+    const HEARTBEAT_INTERVAL = 5000;
+    const SIM_URL = "/sim/slim.html";
+    const CDN_URL = "/sim/cdn";
+
+    const params = new URLSearchParams(window.location.search);
+    const gameName = params.get("game") || "";
+
+    // ── Heartbeat ─────────────────────────────────────────────────────────────
+    function startHeartbeat() {
+      setInterval(() => {
+        fetch("/api/heartbeat").catch(() => {});
+      }, HEARTBEAT_INTERVAL);
+    }
+
+    // ── Back to menu ──────────────────────────────────────────────────────────
+    function goBack() {
+      window.location.href = "/";
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") goBack();
+    });
+
+    // Gamepad: Start/Select (buttons 8 or 9) → back
+    function pollGamepadBack() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (const pad of pads) {
+        if (!pad) continue;
+        if (pad.buttons[8]?.pressed || pad.buttons[9]?.pressed) {
+          goBack();
+          return;
+        }
+      }
+      requestAnimationFrame(pollGamepadBack);
+    }
+    pollGamepadBack();
+
+    // ── Load game and run in simulator ────────────────────────────────────────
+    const frame = document.getElementById("sim-frame");
+
+    async function loadGame() {
+      const res = await fetch(`/games/${encodeURIComponent(gameName)}.js`);
+      if (!res.ok) throw new Error(`Game file not found (${res.status})`);
+      return res.text();
+    }
+
+    function parseMeta(code) {
+      let meta = { cdnUrl: CDN_URL, version: "arcade", targetVersion: "4.0.14" };
+      code.replace(/^\/\/\s+meta=([^\n]+)\n/m, (m, metasrc) => {
+        try { meta = JSON.parse(metasrc); } catch (_) {}
+        return m;
+      });
+      return meta;
+    }
+
+    function runSimulator(code) {
+      const meta = parseMeta(code);
+
+      // Attach listener BEFORE setting iframe.src so we never miss the ready event
+      const handleMessage = (ev) => {
+        if (!ev.data || ev.data.type !== "ready") return;
+
+        frame.contentWindow.postMessage({
+          type: "run",
+          parts: [],
+          code: code,
+          partDefinitions: {},
+          cdnUrl: meta.cdnUrl || CDN_URL,
+          version: meta.targetVersion || "4.0.14",
+          storedState: {},
+          frameCounter: 1,
+          options: { theme: "green", player: "" },
+          id: "game-" + Math.random(),
+        }, "*");
+
+        // Unmute — Chromium in kiosk mode has already had user interaction
+        setTimeout(() => {
+          frame.contentWindow.postMessage({ type: "mute", mute: false }, "*");
+        }, 300);
+
+        window.removeEventListener("message", handleMessage);
+
+        // Show iframe, hide status overlay
+        frame.style.display = "block";
+        document.getElementById("status").style.display = "none";
+      };
+
+      window.addEventListener("message", handleMessage);
+      frame.src = SIM_URL;
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function init() {
+      if (!gameName) {
+        document.getElementById("game-title").textContent = "No game selected";
+        document.getElementById("game-msg").textContent = "Return to menu and pick a game.";
+        return;
+      }
+
+      document.getElementById("game-title").textContent = gameName;
+      document.getElementById("game-msg").textContent = "Loading…";
+      startHeartbeat();
+
+      try {
+        const code = await loadGame();
+        document.getElementById("game-msg").textContent = "Starting simulator…";
+        runSimulator(code);
+      } catch (err) {
+        document.getElementById("game-msg").textContent = `Error: ${err.message}`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

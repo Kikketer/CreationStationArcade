@@ -79,7 +79,16 @@ One Chromium window in kiosk mode hosts everything: a web-based menu carousel an
 
 4. **Proven path.** `make-web` proves we can compile JS games. `makecode-desktop` proves we can run them in a shell. Kiosk mode is the simplest extension of this.
 
-The rest of this document details the implementation of **Option 2**.
+### POCs → CreationStationArcade
+
+**`make-web` and `makecode-desktop` are proof-of-concepts only.** They will not be called or used directly by `CreationStationArcade`. Instead, the working code from these POCs will be **copied and adapted** into the `CreationStationArcade` repository:
+
+- `make-web/apps/compile-service/` → standalone compile service running **on the Pi** (no network calls)
+- `make-web/app/twominute/` → simulator player (strip to just game, no timer/NES)
+- `make-web/public/sim/` → simulator runtime files
+- `makecode-desktop` → Electrobun approach documented but **not used**
+
+The rest of this document details the implementation of **Option 2** in `CreationStationArcade`.
 
 ---
 
@@ -106,25 +115,25 @@ Understanding what we're replacing:
 6. `MadeArcadeMenu.elf` (a MakeCode Arcade game built as an ELF) is the game picker UI — player picks a game, the menu ELF kills itself and launches the chosen game's ELF
 7. When a game exits, `simpleLaunch.sh` restores the framebuffer and launcher.sh exits (login shell exits → auto-restarts, looping back to step 2)
 
-**How games are built today:**
-- Simple games: use the hidden `?nolocalhost=1&compile=rawELF&hw=rpi#editor` URL trick on `arcade.makecode.com`
-- 4-player games: requires checking out the `kikketer/feat-raw-elf-four-player` fork of `pxt` + `pxt-arcade`, running a local server, and manually compiling — a painful multi-step process
+**How games are built today (transitioning to JS):**
+- Old way: use `?compile=rawELF&hw=rpi` to build `.elf` binaries (deprecated, Pi 3 only)
+- New way: use `make-web` desktop compiler to build `.js` files that work on any Pi
 
 **Where the compiled game files come from:**
-- The `pxt-root` workspace at `~/Projects/pxt-root` contains the toolchain
-- `png-to-elf/` is a Node.js server that accepts a `.png` file (saved from MakeCode Arcade editor) and returns a compiled `.elf` binary
-- It decodes the PNG (LZMA-compressed project source embedded steganographically), runs the PXT compiler, POSTs `compileData` to a compile service (either Microsoft's or a self-hosted Docker container running `pext/rpi:alsa`)
-- The resulting `.elf` is dropped into `CreationStationArcade/games/` and committed
+- `make-web` (this repo) has a working PNG → JS compiler at `/desktop`
+- Upload a `.png` from MakeCode Arcade editor → download `[projectname].js`
+- The JS compile happens entirely in-process via `pxt-core` (no Docker, no ARM compiler)
+- Drop the `.js` file into `CreationStationArcade/games/` and commit
 
 ---
 
 ## The Proposed Replacement Architecture
 
-Instead of compiling to ARM ELF, compile to the **JS/VM target** (`hw---vm`) and run inside the MakeCode Arcade browser simulator, hosted locally on the Pi.
+Compile to the **JS/VM target** (`hw---vm`) and run inside the MakeCode Arcade browser simulator, hosted locally on the Pi. Games are pure JavaScript files (`[gamename].js`), not binaries.
 
 ```
 [Git repo: CreationStationArcade]
-  └── games/*.js          ← compiled JS bundles (one per game, from hw---vm target)
+  └── games/*.js          ← compiled JS bundles (e.g., `Gelb.js`, `Vikings.js`)
   └── launcher.sh         ← same pattern, but launches Chromium instead of ELF
   └── monitor_kill.py     ← same GPIO logic, but kills Chromium instead of ELFs
   └── arcade.cfg          ← same GPIO pin map (still used for inactivity timer)
@@ -170,67 +179,87 @@ to:
 hw=vm            (produces a JavaScript bundle — no Docker, no ARM compiler needed)
 ```
 
-The `hw---vm` target in `pxt-arcade/libs/hw---vm/` compiles the game TypeScript to a self-contained JS file that can be loaded into the MakeCode simulator runtime. This compile happens entirely in-process via `pxtworker.js` — no compile service, no Docker, no Pi hardware.
+The `hw---vm` target compiles the game TypeScript to a self-contained JS file that can be loaded into the MakeCode simulator runtime. This compile happens entirely in-process via `pxt-core` — proven in `make-web/app/api/compile-js/route.ts`.
 
 ### Output Format
 
-Instead of a `.elf` binary, the output is a `.js` file (the compiled game bundle). This gets committed to `CreationStationArcade/games/` just like ELFs are today.
+The output is a `.js` file named after the project (e.g., `Gelb.js`). This gets committed to `CreationStationArcade/games/`.
 
-### Updated png-to-elf Flow
+### Build Flow (as implemented in `make-web`)
 
 ```
-User uploads game.png
+User uploads game.png to /desktop
   → server decodes PNG → extracts project source (TypeScript files)
-  → PXT compiler runs with hw=vm variant
-  → outputs game.js (JS bundle for simulator)
-  → downloads game.js to user
-  → user commits game.js to CreationStationArcade/games/
+  → PXT compiler runs with hw=vm variant via pxt-core
+  → outputs [projectname].js (JS bundle for simulator)
+  → downloads [projectname].js to user
+  → user commits [projectname].js to CreationStationArcade/games/
 ```
 
-No Docker. No ARM cross-compiler. No Microsoft compile service dependency. Runs on any machine that can run Node.js.
+No Docker. No ARM cross-compiler. No Microsoft compile service dependency. Runs entirely in Node.js via `pxt-core` — proven in `make-web/app/api/compile-js/route.ts`.
 
 ---
 
 ## What Needs to Be Built
 
-### 1. Update `png-to-elf` to support `hw---vm` output
+### 1. Build Pipeline — On-Pi Compilation (no network)
 
-- Add a `/api/compile-js` endpoint (or a `?target=vm` parameter on the existing `/api/compile`)
-- Switch `compileServiceVariant` from `rpi-raw-elf` to `vm`
-- Return a `.js` file instead of `.elf`
-- Reference: `pxt-root/pxt-arcade/libs/hw---vm/pxt.json`
+**Based on:** `make-web/apps/compile-service/`
 
-### 2. Game launcher web app — custom HTML page (replaces `MadeArcadeMenu.elf`)
+This is a **standalone Node.js service** that runs directly on the Raspberry Pi. It compiles PNG files to JS entirely locally using `pxt-core` — no Docker, no Microsoft compile service, no network calls.
 
-**Decision: Build a custom HTML/JS carousel page, not a MakeCode Arcade game.**
+**Components to copy from `make-web/apps/compile-service/`:**
+- `src/js-compile.ts` — PXT compiler logic (PNG → `[projectname].js`)
+- `src/server.ts` — HTTP server (Express/Fastify) with endpoints:
+  - `POST /api/compile-js` — accepts PNG, returns JS
+  - `GET /api/games` — list available games
+- `pxt/target.js` — copied from `make-web` (required for hw---vm compilation)
+- `package.json` — dependencies: `pxt-core`, `pxt-arcade`, etc.
 
-A MakeCode Arcade game running in the simulator cannot be used as the menu for one fundamental reason: the game has no way to know what `.js` files exist in `games/` on the server — that list is server-side. While the simulator *can* emit outbound messages (via `serial.writeLine()` → `type: "bulkserial"` postMessage, or the `messagepacket` channel broadcast), the menu game would still need the outer page to intercept those messages and respond with a game list. You'd be fighting the abstraction the whole way.
-
-A plain HTML/JS carousel page is simpler, faster, and gives total control:
-- On load: `fetch('/api/games')` → list of `{ name, title, description, thumbnail }` objects
-- Renders a D-pad navigable game carousel
-- Controller input: uses the same Gamepad API that drives game input (see GPIO bridge below)
-- On selection: `window.location = '/play?g=<name>'` — no page reload, just SPA navigation
-
-### 3. Simulator player page — single Chromium window, SPA navigation
-
-**The entire experience lives in one Chromium `--kiosk` window.** The menu and each game are just different URLs in the same session:
-
+**User workflow:**
 ```
-http://localhost:3000/          ← game carousel
-http://localhost:3000/play?g=Gelb   ← simulator running Gelb.js
+1. Drop `NewGame.png` onto Raspberry Pi (USB, SCP, etc.)
+2. Run: ./compile-png.sh NewGame.png
+3. Script calls: curl -X POST -F "png=@NewGame.png" http://localhost:3001/api/compile-js
+4. Output: games/NewGame.js
+5. Menu auto-detects new game on next refresh (or restart)
+```
+
+**Key benefit:** Zero external dependencies. The Pi is fully self-contained for game compilation.
+
+### 2. Game Launcher — Custom HTML/JS Menu (replaces `MadeArcadeMenu.elf`)
+
+**Standard web-based menu, not a MakeCode Arcade game.**
+
+The menu is a plain HTML/CSS/JS page (like any web app) that:
+- On load: `fetch('/api/games')` → list of `{ name, title, description, thumbnail }` from `games/` directory
+- Renders a D-pad navigable game carousel
+- Controller input: Gamepad API (via GPIO → `uinput` bridge, see below)
+- On selection: navigates to `play.html?game=[name]` with the selected `.js` file
+
+**Why not a MakeCode game as menu?** A simulator-hosted game cannot query the server's filesystem to list available games. The outer page must provide the list anyway, so we skip the indirection and build the menu in standard web tech.
+
+### 3. Game Player — Simulator Page (based on `make-web/twominute`)
+
+**The player is essentially `make-web/app/twominute/page.tsx` stripped down:**
+- No timer, no NES games, no bezel, no control panel
+- Just the simulator iframe loading the selected game's `.js` file
+- Same pattern as `/twominute?game=Gelb` — load `[gameName].js` into the simulator runtime
+
+**Architecture:**
+```
+http://localhost:3000/              ← menu carousel (custom HTML/JS)
+http://localhost:3000/play?game=Gelb  ← simulator player loading `games/Gelb.js`
 ```
 
 The `play` page:
-- Hosts the simulator as an `<iframe>` pointing at the local `sim/` runtime
-- Waits for `type: "ready"` postMessage from the iframe
-- Sends `{ type: "run", code: <game JS bundle> }` to start the game
-- Kill button / inactivity: `monitor_kill.py` POSTs to `/api/return-to-menu` → server responds, page calls `window.location = '/'`
-- This is exactly the pattern in `pxt-root/pxt-arcade/share/src/components/simulator.ts`
+- Hosts the simulator runtime (same files as `make-web/public/sim/`)
+- Loads the specified `.js` file from `games/` directory
+- Waits for `type: "ready"` postMessage from simulator
+- Sends `{ type: "run", code: <game JS> }` to start the game
+- Kill button triggers return to menu via `window.location = '/'`
 
-Simulator JS files: copy from `pxt-root/pxt-arcade/built/sim/` into `sim/` in this repo. Pin to a specific version and update intentionally.
-
-**Why no MakeCode game-as-menu:** The simulator's outbound message types are `serial`/`bulkserial` (from `serial.writeLine()`), `messagepacket` (radio/channel broadcasts), and `custom`. None of these carry a game-list response because the game itself can't query the filesystem. The custom HTML page avoids this entirely.
+**Proven approach:** `make-web/twominute` already does exactly this — it loads a game by name and runs it in the simulator.
 
 ### 4. Update `launcher.sh`
 
@@ -250,11 +279,12 @@ chromium-browser --kiosk --noerrdialogs --disable-infobars \
 
 ### 5. Update `monitor_kill.py`
 
-Replace ELF kill logic with:
+Replace ELF kill logic with Chromium kill:
 ```python
 subprocess.run(["pkill", "-9", "chromium"], check=False)
 ```
-Or, more elegantly, have `monitor_kill.py` POST to a local `/api/return-to-menu` endpoint that navigates Chromium back to the carousel without a full restart.
+
+The launcher loop (`launcher.sh`) will restart Chromium back to the menu. No separate menu process — just one Chromium instance navigating between pages.
 
 ### 6. GPIO → Browser Input Bridge
 
@@ -323,25 +353,30 @@ Since the entire experience lives in one Chromium process, a freeze is catastrop
 
 The build tooling now lives in two places:
 
-- `~/Projects/make-web/` — the current proof-of-concept for PNG → JS compilation
-  - `app/api/compile/route.ts` — PXT compiler endpoint (currently targets ELF, needs `hw---vm` path)
-  - `lib/png-decode.ts` — PNG steganography decoder
-  - `lib/elf-compile.ts` — compile logic using pxt-core (adapt for JS output)
-- `~/Projects/makecode-desktop/` — proof-of-concept for running simulator in a shell
-  - Demonstrates the simulator works in a webview context
-  - Electrobun approach is documented but **not** selected for final implementation
-- `~/Projects/pxt-root/` — original PXT toolchain workspace (legacy reference)
+**POCs to copy from (not call directly):**
+
+- `~/Projects/make-web/apps/compile-service/` — **standalone Node.js compile service**
+  - `src/js-compile.ts` — PXT compiler logic to copy (runs PNG → JS entirely on Pi)
+  - `pxt/target.js` — required for hw---vm compilation, copy to `compile-service/pxt/`
+  - Runs as local HTTP service, no network calls needed
+- `~/Projects/make-web/app/twominute/` — simulator player pattern (strip to just game)
+- `~/Projects/make-web/public/sim/` — simulator runtime files (copy to `CreationStationArcade/sim/`)
+- `~/Projects/make-web/lib/png-decode.ts` — PNG steganography decoder (copy to compile-service)
+- `~/Projects/makecode-desktop/` — Electrobun POC (documented but **not selected**)
+
+**Reference only:**
+- `~/Projects/pxt-root/` — original PXT toolchain workspace
   - `pxt-arcade/libs/hw---vm/` — the VM hardware target definition
-  - `pxt-arcade/libs/hw---rpi-raw-elf/` — the ELF target (being replaced)
 
 ---
 
 ## Implementation Checklist
 
-### Phase 1: Build Pipeline (`make-web`)
-- [ ] Add `hw---vm` compile path to `make-web/app/api/compile/route.ts`
-- [ ] Return `.js` bundle instead of `.elf` binary
-- [ ] Test compile with existing games (Gelb, Vikings, etc.)
+### Phase 1: On-Pi Compile Service (copy from `make-web/apps/compile-service/`)
+- [ ] Copy `src/js-compile.ts` and `pxt/target.js` to `CreationStationArcade/compile-service/`
+- [ ] Build minimal HTTP server with `POST /api/compile-js` and `GET /api/games`
+- [ ] Create `./compile-png.sh` script for CLI compilation
+- [ ] Test: drop PNG → compile → `games/[name].js` available
 - [ ] Verify 4-player input compiles correctly to JS target
 
 ### Phase 2: Simulator Hosting (`CreationStationArcade/sim/`)
