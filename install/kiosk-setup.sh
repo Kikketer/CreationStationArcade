@@ -57,16 +57,24 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
-# ── 4. DISPLAY env for kiosk ─────────────────────────────────────────────────
+# ── 4. Auto-start Xorg on TTY1 ───────────────────────────────────────────────
+log "Configuring Xorg to start on TTY1..."
 PROFILE="$HOME/.bash_profile"
-DISPLAY_LINE="export DISPLAY=:0"
-if ! grep -qF "$DISPLAY_LINE" "$PROFILE" 2>/dev/null; then
-    log "Adding DISPLAY to .bash_profile..."
-    echo "$DISPLAY_LINE" >> "$PROFILE"
+
+# Add startx block first (before DISPLAY export, since we check -z "$DISPLAY")
+STARTX_BLOCK='# Auto-start X on TTY1
+if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    exec startx
 fi
 
-# ── 5. Xorg auto-start (openbox, no login manager) ───────────────────────────
-log "Configuring Xorg to start on TTY1..."
+# DISPLAY for X sessions
+export DISPLAY=:0'
+
+if ! grep -qF "exec startx" "$PROFILE" 2>/dev/null; then
+    echo "$STARTX_BLOCK" >> "$PROFILE"
+fi
+
+# ── 5. Xorg config (openbox, no login manager) ───────────────────────────────
 XINITRC="$HOME/.xinitrc"
 cat > "$XINITRC" <<'XEOF'
 #!/bin/sh
@@ -80,14 +88,6 @@ xset -dpms
 exec openbox-session
 XEOF
 chmod +x "$XINITRC"
-
-# Add startx to .bash_profile
-STARTX_BLOCK='if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    exec startx
-fi'
-if ! grep -qF "exec startx" "$PROFILE" 2>/dev/null; then
-    echo "$STARTX_BLOCK" >> "$PROFILE"
-fi
 log "Xorg startx configured."
 
 # ── 6. Create runtime folder (sync from repo) ────────────────────────────────
