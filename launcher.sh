@@ -3,7 +3,8 @@ LOG_FILE="/home/pi/arcade.log"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
-SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
+# Look for source at ../CreationStationArcade (strip -run suffix if present)
+SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR%-run}"}"
 
 if [ -d "$SOURCE_DIR/.git" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"

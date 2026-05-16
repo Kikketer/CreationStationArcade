@@ -1,17 +1,29 @@
 #!/bin/bash
 # kiosk-setup.sh — one-shot Pi setup for Creation Station Arcade kiosk mode
-# Run once as the pi user after cloning the repo.
-# Usage: bash install/kiosk-setup.sh
+# This script:
+#   1. Installs required packages
+#   2. Configures auto-login and Xorg
+#   3. Creates runtime folder from git repo
+#   4. Configures boot messages
+# Usage: bash install/kiosk-setup.sh (run from repo root)
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+RUN_DIR="${REPO_DIR}-run"
 LOG="$HOME/arcade-setup.log"
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 log "=== Creation Station Arcade Kiosk Setup ==="
-log "Repo dir: $SCRIPT_DIR"
+log "Repo: $REPO_DIR"
+log "Runtime: $RUN_DIR"
+
+# ── 0. Verify we're in a git repo ─────────────────────────────────────────────
+if [ ! -d "$REPO_DIR/.git" ]; then
+    log "ERROR: $REPO_DIR is not a git repo. This script must be run from the cloned repository."
+    exit 2
+fi
 
 # ── 1. System packages ────────────────────────────────────────────────────────
 log "Installing system packages..."
@@ -46,7 +58,6 @@ sudo systemctl daemon-reload
 log "Auto-login configured."
 
 # ── 4. DISPLAY env for kiosk ─────────────────────────────────────────────────
-# Set DISPLAY for any scripts that run within the X session
 PROFILE="$HOME/.bash_profile"
 DISPLAY_LINE="export DISPLAY=:0"
 if ! grep -qF "$DISPLAY_LINE" "$PROFILE" 2>/dev/null; then
@@ -70,23 +81,42 @@ exec openbox-session
 XEOF
 chmod +x "$XINITRC"
 
-# Add startx to .bash_profile if TTY1 and not already in a graphical session
+# Add startx to .bash_profile
 STARTX_BLOCK='if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     exec startx
 fi'
-grep -qF "exec startx" "$PROFILE" 2>/dev/null || echo "$STARTX_BLOCK" >> "$PROFILE"
+if ! grep -qF "exec startx" "$PROFILE" 2>/dev/null; then
+    echo "$STARTX_BLOCK" >> "$PROFILE"
+fi
 log "Xorg startx configured."
 
-# ── 6. Openbox autostart — launch the arcade ─────────────────────────────────
+# ── 6. Create runtime folder (sync from repo) ────────────────────────────────
+log "Creating runtime folder at $RUN_DIR..."
+mkdir -p "$RUN_DIR"
+
+if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/
+else
+    cp -a "$REPO_DIR"/ "$RUN_DIR"/
+fi
+
+chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/install/hdmi-audio-fix.sh" 2>/dev/null || true
+log "Runtime folder created."
+
+# ── 7. Openbox autostart — launch the arcade ─────────────────────────────────
 OPENBOX_DIR="$HOME/.config/openbox"
 mkdir -p "$OPENBOX_DIR"
 cat > "$OPENBOX_DIR/autostart" <<OEOF
 # Creation Station Arcade kiosk autostart
-$SCRIPT_DIR/launcher.sh &
+# Runtime folder: $RUN_DIR
+$RUN_DIR/launcher.sh &
 OEOF
 log "Openbox autostart configured."
 
-# ── 7. Suppress boot messages ─────────────────────────────────────────────────
+# ── 8. Suppress boot messages ─────────────────────────────────────────────────
 log "Suppressing boot messages..."
 CMDLINE="/boot/cmdline.txt"
 if [ -f "$CMDLINE" ]; then
@@ -102,3 +132,7 @@ fi
 log "=== Setup complete. Reboot to activate. ==="
 echo ""
 echo "Run: sudo reboot"
+echo ""
+echo "After reboot, the arcade will auto-start."
+echo "Runtime folder: $RUN_DIR"
+echo "Source folder:  $REPO_DIR"
