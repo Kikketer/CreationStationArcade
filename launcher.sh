@@ -81,8 +81,12 @@ if command -v xdotool >/dev/null 2>&1; then
             xdotool windowactivate "$WIN_ID" 2>/dev/null || true
             sleep 0.5
             xdotool click --window "$WIN_ID" 1 2>/dev/null || true
-            xdotool key --clearmodifiers Tab 2>/dev/null || true
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Window focused and clicked" >> $LOG_FILE
+            # Spam a few Tab presses to ensure focus (user tested: multiple tabs keep focus)
+            for i in 1 2 3; do
+                xdotool key --clearmodifiers Tab 2>/dev/null || true
+                sleep 0.2
+            done
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Window focused with triple-tab" >> $LOG_FILE
             break
         fi
     done
