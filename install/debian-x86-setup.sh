@@ -36,8 +36,10 @@ sudo apt-get install -y \
     nodejs \
     npm \
     xserver-xorg \
+    xinit \
     openbox \
     unclutter \
+    xdotool \
     git \
     >> "$LOG" 2>&1
 log "Packages installed."
