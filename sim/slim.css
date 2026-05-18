@@ -58,3 +58,13 @@ body {
   /* height: min(100dvh, 100dvw * 3/4); */
   outline: none;
 }
+
+/* Test mode: native resolution (no scaling) */
+#game-screen.native-resolution {
+  width: 160px;
+  height: 120px;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  outline: none;
+}
