@@ -83,7 +83,11 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname.startsWith("/sim/")) {
-    const simRelPath = pathname.slice("/sim/".length);
+    let simRelPath = pathname.slice("/sim/".length);
+    // Default to webgpu.html for testing
+    if (simRelPath === "" || simRelPath === "/") {
+      simRelPath = "webgpu.html";
+    }
     const simFile = path.join(SIM_DIR, simRelPath);
     if (!simFile.startsWith(SIM_DIR)) {
       res.writeHead(403, { "Content-Type": "text/plain" });

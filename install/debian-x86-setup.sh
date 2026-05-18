@@ -41,6 +41,7 @@ sudo apt-get install -y \
     unclutter \
     xdotool \
     git \
+    mesa-utils \
     >> "$LOG" 2>&1
 log "Packages installed."
 
@@ -155,6 +156,14 @@ for i in {1..30}; do
     sleep 1
 done
 
+# Check GPU acceleration
+echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Checking GPU acceleration..." >> \$LOG_FILE
+if command -v glxinfo >/dev/null 2>&1; then
+    glxinfo | grep -E "(direct rendering|OpenGL renderer)" >> \$LOG_FILE 2>&1 || echo "No glxinfo output" >> \$LOG_FILE
+else
+    echo "glxinfo not available" >> \$LOG_FILE
+fi
+
 echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> \$LOG_FILE
 "\$CHROMIUM_BIN" \\
     --user-data-dir=/tmp/chromium-arcade \\
@@ -172,6 +181,9 @@ echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> \$LOG_FILE
     --disable-sync \\
     --disable-default-apps \\
     --disable-component-extensions-with-background-pages \\
+    --enable-gpu-rasterization \\
+    --enable-zero-copy \\
+    --ignore-gpu-blacklist \\
     http://localhost:3000 >> \$LOG_FILE 2>&1 &
 
 CHROMIUM_PID=\$!
