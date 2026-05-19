@@ -42,6 +42,10 @@ sudo apt-get install -y \
     xdotool \
     git \
     mesa-utils \
+    alsa-utils \
+    pulseaudio \
+    pulseaudio-utils \
+    feh \
     >> "$LOG" 2>&1
 log "Packages installed."
 
@@ -85,6 +89,8 @@ fi
 XINITRC="$HOME/.xinitrc"
 cat > "$XINITRC" <<'XEOF'
 #!/bin/sh
+# Start audio system
+pulseaudio --start &
 # Hide cursor after 1s of inactivity
 unclutter -idle 1 -root &
 # Disable screen saver / blanking
@@ -205,11 +211,11 @@ log "x86 launcher created."
 OPENBOX_DIR="$HOME/.config/openbox"
 mkdir -p "$OPENBOX_DIR"
 cat > "$OPENBOX_DIR/autostart" <<OEOF
-# Creation Station Arcade kiosk autostart
+# Creation Station Arcade kiosk autostart with splash screen
 # Runtime folder: $RUN_DIR
-$RUN_DIR/launcher.sh &
+$RUN_DIR/install/openbox-autostart-splash.sh &
 OEOF
-log "Openbox autostart configured."
+log "Openbox autostart configured with splash screen."
 
 # ── 9. Suppress boot messages (Debian x86 paths) ────────────────────────────
 log "Suppressing boot messages..."

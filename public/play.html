@@ -155,6 +155,15 @@
         // Show iframe, hide status overlay
         frame.style.display = "block";
         document.getElementById("status").style.display = "none";
+        
+        // Auto-focus the game canvas
+        setTimeout(() => {
+          if (frame.contentWindow) {
+            frame.contentWindow.focus();
+            const canvas = frame.contentWindow.document.getElementById("game-screen");
+            if (canvas) canvas.focus();
+          }
+        }, 500);
       };
 
       window.addEventListener("message", handleMessage);
