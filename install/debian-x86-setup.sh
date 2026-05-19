@@ -105,12 +105,17 @@ log "Xorg startx configured."
 
 # ── 6. Create runtime folder (sync from repo) ────────────────────────────────
 log "Creating runtime folder at $RUN_DIR..."
+# Remove existing runtime directory to avoid permission issues
+if [ -d "$RUN_DIR" ]; then
+    rm -rf "$RUN_DIR"
+fi
 mkdir -p "$RUN_DIR"
 
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/
+    rsync -a --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/
 else
-    cp -a "$REPO_DIR"/ "$RUN_DIR"/
+    # Copy without .git directory
+    find "$REPO_DIR" -maxdepth 1 -not -name ".git" -not -name "." -exec cp -r {} "$RUN_DIR"/ \;
 fi
 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
