@@ -1,0 +1,15 @@
+[Unit]
+Description=Arcade GPIO Monitor - Reset button and inactivity timeout
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/pi/CreationStationArcade-run/gpio-monitor.py
+Restart=always
+RestartSec=5
+User=root
+StandardOutput=append:/home/pi/arcade.log
+StandardError=append:/home/pi/arcade.log
+
+[Install]
+WantedBy=multi-user.target
