@@ -1,63 +1,106 @@
 #!/bin/bash
+# launcher.sh - Chromium kiosk launcher for Creation Station Arcade
 LOG_FILE="/home/pi/arcade.log"
+PID_FILE="/tmp/arcade-server.pid"
+CHROMIUM_PID_FILE="/tmp/arcade-chromium.pid"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
-SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
+SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR%-run}"}"
 
-if [ -d "$SOURCE_DIR/.git" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --no-perms --no-owner --no-group --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
-    else
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
-        cp -a "$SOURCE_DIR"/. "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
-    fi
+# Find chromium
+CHROMIUM_BIN=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null)
 
-    chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-    chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
-    chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
-    find "$RUN_DIR" -type f -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
-
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete. Continuing without restart." >> "$LOG_FILE"
-else
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Source repo not found at $SOURCE_DIR; starting without sync" >> "$LOG_FILE"
-fi
-
-# Check for /sd/prj folder and sync games if it exists
-if [ -d "/sd/prj" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Found /sd/prj folder, syncing games..." >> "$LOG_FILE"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --no-perms --no-owner --no-group --delete "$RUN_DIR/games"/ "/sd/prj"/ >> "$LOG_FILE" 2>&1
-    else
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
-        cp -a "$RUN_DIR/games"/. "/sd/prj"/ >> "$LOG_FILE" 2>&1
-    fi
-    
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Games sync complete." >> "$LOG_FILE"
-else
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] no prj folder found, not using custom menu launcher" >> "$LOG_FILE"
-fi
-
-# Pull from git after we rsync to avoid race conditions and make this nice and fast to boot (when no wifi)
-if [ -x "$RUN_DIR/pullFromGit.sh" ]; then
-    "$RUN_DIR/pullFromGit.sh" &
-else
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: pullFromGit.sh missing or not executable" >> "$LOG_FILE"
-fi
-
-# Start background monitor if not running
-if ! pgrep -f "monitor_kill.py" > /dev/null; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting monitor_kill.py..." >> $LOG_FILE
-    python3 "$RUN_DIR/monitor_kill.py" >> $LOG_FILE 2>&1 &
-fi
-
-RUNNER="$RUN_DIR/simpleLaunch.sh"
-if [ ! -x "$RUNNER" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $RUNNER is missing or not executable" >> $LOG_FILE
+if [ -z "$CHROMIUM_BIN" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Chromium not found" >> $LOG_FILE
     exit 1
 fi
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-"$RUNNER" "$RUN_DIR/MadeArcadeMenu.elf" >> $LOG_FILE 2>&1
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Using Chromium: $CHROMIUM_BIN" >> $LOG_FILE
+
+# NOTE: Git sync disabled - Chromium launcher not in repo yet
+# Sync from source if available
+# if [ -d "$SOURCE_DIR/.git" ]; then
+#     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
+#     rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+#     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete" >> "$LOG_FILE"
+# fi
+
+# Kill any existing processes
+kill $(cat $PID_FILE 2>/dev/null) 2>/dev/null || true
+kill $(cat $CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
+pkill -f "chromium.*localhost:3000" 2>/dev/null || true
+sleep 1
+
+# Start Node server
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting Node server..." >> $LOG_FILE
+cd "$RUN_DIR"
+node server.js >> $LOG_FILE 2>&1 &
+SERVER_PID=$!
+echo $SERVER_PID > $PID_FILE
+
+# Wait for server
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Waiting for server..." >> $LOG_FILE
+for i in {1..30}; do
+    if curl -s http://localhost:3000 >/dev/null 2>&1; then
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] Server ready" >> $LOG_FILE
+        break
+    fi
+    sleep 1
+done
+
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
+"$CHROMIUM_BIN" \
+    --user-data-dir=/tmp/chromium-arcade \
+    --kiosk \
+    --window-position=0,0 \
+    --window-size=1920,1080 \
+    --start-fullscreen \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --disable-session-crashed-bubble \
+    --disable-features=TranslateUI \
+    --no-default-browser-check \
+    --disable-pinch \
+    --disable-extensions \
+    --disable-background-networking \
+    --disable-sync \
+    --disable-default-apps \
+    --disable-component-extensions-with-background-pages \
+    --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy \
+    --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies \
+    --ignore-gpu-blocklist \
+    --enable-gpu-rasterization \
+    --force-gpu-rasterization \
+    --enable-zero-copy \
+    --enable-hardware-overlays \
+    --use-gl=egl \
+    --remote-debugging-port=9222 \
+    http://localhost:3000 >> $LOG_FILE 2>&1 &
+
+CHROMIUM_PID=$!
+echo $CHROMIUM_PID > $CHROMIUM_PID_FILE
+
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Chromium started (PID: $CHROMIUM_PID)" >> $LOG_FILE
+
+# Wait for window to appear then focus it
+sleep 4
+if command -v xdotool >/dev/null 2>&1; then
+    for winclass in "chromium" "Chromium" "chromium-browser"; do
+        WIN_ID=$(xdotool search --onlyvisible --class "$winclass" 2>/dev/null | head -1)
+        if [ -n "$WIN_ID" ]; then
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Window focused" >> $LOG_FILE
+            xdotool windowfocus "$WIN_ID" 2>/dev/null || true
+            xdotool windowactivate "$WIN_ID" 2>/dev/null || true
+            break
+        fi
+    done
+fi
+
+wait $CHROMIUM_PID
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Chromium exited" >> $LOG_FILE
+
+# Cleanup
+kill $SERVER_PID 2>/dev/null || true
+rm -f $PID_FILE $CHROMIUM_PID_FILE
