@@ -126,7 +126,11 @@ function spawnGameChromium(gameName) {
   proc.on("exit", (code) => {
     console.log(`[CSA] Game Chromium exited (code: ${code})`);
     gameProcess = null;
-    fs.unlinkSync("/tmp/arcade-game-chromium.pid");
+    try {
+      fs.unlinkSync("/tmp/arcade-game-chromium.pid");
+    } catch (e) {
+      // File might not exist, that's okay
+    }
     
     // Refocus menu window via xdotool
     try {
