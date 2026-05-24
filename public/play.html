@@ -155,6 +155,14 @@
         // Show iframe, hide status overlay
         frame.style.display = "block";
         document.getElementById("status").style.display = "none";
+
+        // Auto-focus the game iframe so keyboard works immediately
+        setTimeout(() => {
+          frame.focus();
+          if (frame.contentWindow) {
+            frame.contentWindow.focus();
+          }
+        }, 100);
       };
 
       window.addEventListener("message", handleMessage);
