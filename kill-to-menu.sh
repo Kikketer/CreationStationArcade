@@ -24,25 +24,24 @@ pkill -f "chromium.*localhost:3000" 2>/dev/null || true
 pkill -f "node server.js" 2>/dev/null || true
 sleep 1
 
-# Sync from chromium-kiosk branch (not main which has old ELF files)
-log "Syncing from chromium-kiosk branch..."
-if [ -d "$SOURCE_DIR/.git" ]; then
-    cd "$SOURCE_DIR"
-    timeout 15s git fetch origin chromium-kiosk >/dev/null 2>&1 || true
-    if git rev-parse --verify origin/chromium-kiosk >/dev/null 2>&1; then
-        LOCAL=$(git rev-parse HEAD)
-        REMOTE=$(git rev-parse origin/chromium-kiosk)
-        if [ "$LOCAL" != "$REMOTE" ]; then
-            log "Git: new commits on chromium-kiosk, updating..."
-            git reset --hard origin/chromium-kiosk >/dev/null 2>&1
-            if command -v rsync >/dev/null 2>&1; then
-                rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >/dev/null 2>&1
-            fi
-            log "Git: synced to runtime folder"
-        fi
-    fi
-fi
-
 log "=== Kill-to-menu complete (xinitrc will restart) ==="
 
-# Exit - the .xinitrc loop will restart Chromium automatically
+# Exit immediately so xinitrc can restart Chromium quickly
+# Git sync happens in background (may take time on slow wifi)
+(
+    if [ -d "$SOURCE_DIR/.git" ]; then
+        cd "$SOURCE_DIR"
+        timeout 30s git fetch origin chromium-kiosk >/dev/null 2>&1 || true
+        if git rev-parse --verify origin/chromium-kiosk >/dev/null 2>&1; then
+            LOCAL=$(git rev-parse HEAD)
+            REMOTE=$(git rev-parse origin/chromium-kiosk)
+            if [ "$LOCAL" != "$REMOTE" ]; then
+                echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: new commits, updating..." >> "$LOG_FILE"
+                git reset --hard origin/chromium-kiosk >/dev/null 2>&1
+                echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: updated, will sync next restart" >> "$LOG_FILE"
+            fi
+        fi
+    fi
+) &
+
+# Exit - the .xinitrc loop will restart Chromium immediately
