@@ -283,7 +283,15 @@
       try {
         const res = await fetch(`/api/launch-game?name=${encodeURIComponent(g.name)}`);
         const data = await res.json();
-        if (data.ok) {
+        if (res.status === 409) {
+          // Game already running
+          statusEl.textContent = "Game already running! Press Kill button first";
+          setTimeout(() => { statusEl.style.display = "none"; }, 3000);
+        } else if (res.status === 429) {
+          // Launch pending
+          statusEl.textContent = "Launch in progress, please wait...";
+          setTimeout(() => { statusEl.style.display = "none"; }, 2000);
+        } else if (data.ok) {
           // Game launched - menu stays visible underneath
           statusEl.textContent = "Game launched! Press Kill button to return";
         } else {

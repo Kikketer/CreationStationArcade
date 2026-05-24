@@ -152,14 +152,57 @@ while true; do
         # Focus the game window (it should be on top)
         sleep 2
         if command -v xdotool >/dev/null 2>&1; then
-            # Find the newest Chromium window
+            # Get menu window ID first
+            MENU_WIN_ID=$(xdotool search --onlyvisible --class "chromium" 2>/dev/null | head -1)
+            
+            # Find all Chromium windows, activate the newest (game should be newest)
             WIN_IDS=$(xdotool search --class "chromium" 2>/dev/null)
+            GAME_WIN_ID=""
             for WIN_ID in $WIN_IDS; do
+                # Skip menu window if we know it
+                if [ "$WIN_ID" != "$MENU_WIN_ID" ]; then
+                    GAME_WIN_ID="$WIN_ID"
+                fi
                 xdotool windowactivate "$WIN_ID" 2>/dev/null || true
             done
+            
+            # Lower the menu window so it's underneath
+            if [ -n "$MENU_WIN_ID" ]; then
+                xdotool windowlower "$MENU_WIN_ID" 2>/dev/null || true
+            fi
+            
+            # Raise and focus game window on top
+            if [ -n "$GAME_WIN_ID" ]; then
+                xdotool windowraise "$GAME_WIN_ID" 2>/dev/null || true
+                xdotool windowfocus "$GAME_WIN_ID" 2>/dev/null || true
+                xdotool windowactivate "$GAME_WIN_ID" 2>/dev/null || true
+            fi
+            
+            log "Window focus: game raised, menu lowered"
         fi
     fi
     
+    # Check if game died (and refocus menu if so)
+    GAME_PID=$(cat "$GAME_CHROMIUM_PID_FILE" 2>/dev/null)
+    if [ -n "$GAME_PID" ] && ! kill -0 "$GAME_PID" 2>/dev/null; then
+        # Game died - refocus and raise menu window
+        log "Game Chromium died, refocusing menu..."
+        rm -f "$GAME_CHROMIUM_PID_FILE"
+        if command -v xdotool >/dev/null 2>&1; then
+            # Find and raise menu window
+            for winclass in "chromium" "Chromium"; do
+                WIN_ID=$(xdotool search --onlyvisible --class "$winclass" 2>/dev/null | head -1)
+                if [ -n "$WIN_ID" ]; then
+                    xdotool windowraise "$WIN_ID" 2>/dev/null || true
+                    xdotool windowfocus "$WIN_ID" 2>/dev/null || true
+                    xdotool windowactivate "$WIN_ID" 2>/dev/null || true
+                    log "Menu window refocused"
+                    break
+                fi
+            done
+        fi
+    fi
+
     # Check if menu died (shouldn't happen, but restart if it does)
     if ! kill -0 "$MENU_PID" 2>/dev/null; then
         log "WARNING: Menu Chromium died, restarting..."

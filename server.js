@@ -64,8 +64,41 @@ function handleHeartbeat(res) {
 }
 
 function handleLaunchGame(res, gameName) {
-  // Write game name to tmp file - launcher polls for this
   const fs = require("fs");
+
+  // Check if game is already running (PID file exists and process alive)
+  try {
+    const gamePid = fs.readFileSync("/tmp/arcade-game-chromium.pid", "utf8").trim();
+    if (gamePid) {
+      // Check if process actually exists
+      try {
+        process.kill(parseInt(gamePid), 0); // Signal 0 = check if exists
+        // Game is already running - reject new launch
+        res.writeHead(409, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Game already running", active: true }));
+        return;
+      } catch (e) {
+        // PID file stale, process dead - continue to launch
+      }
+    }
+  } catch (e) {
+    // No PID file - safe to launch
+  }
+
+  // Check if launch already pending (tmp file exists and recent)
+  try {
+    const stats = fs.statSync("/tmp/arcade-launch-game");
+    const ageMs = Date.now() - stats.mtimeMs;
+    if (ageMs < 5000) { // Less than 5 seconds old
+      res.writeHead(429, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Launch already pending", retryAfter: Math.ceil((5000 - ageMs) / 1000) }));
+      return;
+    }
+  } catch (e) {
+    // No pending launch file - safe to proceed
+  }
+
+  // Write game name to tmp file - launcher polls for this
   fs.writeFile("/tmp/arcade-launch-game", gameName, (err) => {
     if (err) {
       res.writeHead(500, { "Content-Type": "application/json" });
