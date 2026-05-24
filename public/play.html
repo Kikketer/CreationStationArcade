@@ -89,23 +89,44 @@
       window.location.href = "/";
     }
 
+    // ── Reset game (send signal to iframe, don't reload) ───────────────────────
+    function resetGame() {
+      const frame = document.getElementById("sim-frame");
+      if (frame.contentWindow) {
+        frame.contentWindow.postMessage({ type: "reset" }, "*");
+        console.log("[Arcade] Sent reset signal to game");
+      }
+    }
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") goBack();
+      // R key for reset (testing)
+      if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        resetGame();
+      }
     });
 
     // Gamepad: Start/Select (buttons 8 or 9) → back
-    function pollGamepadBack() {
+    // Gamepad: Button 7 or 6 → reset game
+    function pollGamepad() {
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (const pad of pads) {
         if (!pad) continue;
+        // Button 8 or 9 = Start/Select → back to menu
         if (pad.buttons[8]?.pressed || pad.buttons[9]?.pressed) {
           goBack();
           return;
         }
+        // Button 6 or 7 = L2/R2 or Back buttons → reset game
+        if (pad.buttons[6]?.pressed || pad.buttons[7]?.pressed) {
+          resetGame();
+          return;
+        }
       }
-      requestAnimationFrame(pollGamepadBack);
+      requestAnimationFrame(pollGamepad);
     }
-    pollGamepadBack();
+    pollGamepad();
 
     // ── Load game and run in simulator ────────────────────────────────────────
     const frame = document.getElementById("sim-frame");
