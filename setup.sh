@@ -1,23 +1,18 @@
 #!/bin/bash
+# setup.sh — syncs from git repo to runtime folder
+# Usage: Run from within the cloned repo (e.g., /home/pi/CreationStationArcade)
+# Runtime folder will be ../CreationStationArcade-run
 
 set -e
 
 SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-if [[ "$SOURCE_DIR" != *-src ]]; then
-    echo "ERROR: setup.sh must be run from the source repo folder named '*-src'." >&2
-    echo "Example:" >&2
-    echo "  /home/pi/CreationStationArcade-src  (source repo)" >&2
-    echo "  /home/pi/CreationStationArcade      (runtime folder)" >&2
-    exit 2
-fi
+RUN_DIR="${SOURCE_DIR}-run"
 
 if [ ! -d "$SOURCE_DIR/.git" ]; then
     echo "ERROR: $SOURCE_DIR is not a git repo (missing .git)." >&2
+    echo "This script must be run from the cloned repository." >&2
     exit 2
 fi
-
-RUN_DIR="${SOURCE_DIR%-src}"
 
 LOG_FILE="/home/pi/arcade.log"
 
@@ -39,4 +34,4 @@ chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/install/hdmi-audio-fix.sh" 2>/dev/null || true
 
-echo "Done. If you use the two-folder flow, point login shell to: $RUN_DIR/launcher.sh"
+echo "Done. Point login shell to: $RUN_DIR/launcher.sh"

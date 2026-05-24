@@ -1,0 +1,70 @@
+body {
+  background: #000;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-content: center;
+  height: 100dvh;
+  width: 100dvw;
+}
+
+#wrap {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-player {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-embed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Hide ALL the UI elements we don't want */
+#wrap {
+  display: none !important;
+}
+
+/* Hide Safari mute button — audio is handled by the parent page */
+#safari-mute-button-outer,
+.safari-mute-button {
+  display: none !important;
+}
+
+/* Just the canvas */
+#game-screen {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  aspect-ratio: 4/3;
+  height: 100dvh;
+  /* width: min(100dvw, 100dvh * 4/3); */
+  /* height: min(100dvh, 100dvw * 3/4); */
+  outline: none;
+}
+
+/* Test mode: native resolution (no scaling) */
+#game-screen.native-resolution {
+  width: 160px;
+  height: 120px;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  outline: none;
+}

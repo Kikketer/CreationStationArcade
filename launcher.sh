@@ -25,7 +25,6 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Using Chromium: $CHROMIUM_BIN" >> $LOG_FILE
 #     rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
 #     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete" >> "$LOG_FILE"
 # fi
-
 # Kill any existing processes
 kill $(cat $PID_FILE 2>/dev/null) 2>/dev/null || true
 kill $(cat $CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
@@ -84,15 +83,24 @@ echo $CHROMIUM_PID > $CHROMIUM_PID_FILE
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Chromium started (PID: $CHROMIUM_PID)" >> $LOG_FILE
 
-# Wait for window to appear then focus it
+# Wait for window to appear then focus it (fixes keyboard input issue)
 sleep 4
 if command -v xdotool >/dev/null 2>&1; then
+    # Try multiple window class names Chromium might use
     for winclass in "chromium" "Chromium" "chromium-browser"; do
         WIN_ID=$(xdotool search --onlyvisible --class "$winclass" 2>/dev/null | head -1)
         if [ -n "$WIN_ID" ]; then
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Window focused" >> $LOG_FILE
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Found window $WIN_ID with class $winclass" >> $LOG_FILE
             xdotool windowfocus "$WIN_ID" 2>/dev/null || true
             xdotool windowactivate "$WIN_ID" 2>/dev/null || true
+            sleep 0.5
+            xdotool click --window "$WIN_ID" 1 2>/dev/null || true
+            # Spam a few Tab presses to ensure focus (user tested: multiple tabs keep focus)
+            for i in 1 2 3; do
+                xdotool key --clearmodifiers Tab 2>/dev/null || true
+                sleep 0.2
+            done
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Window focused with triple-tab" >> $LOG_FILE
             break
         fi
     done

@@ -1,0 +1,16 @@
+[Unit]
+Description=Arcade framebuffer splash screen
+DefaultDependencies=no
+After=local-fs.target systemd-udev-settle.service
+After=dev-fb0.device
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/fbi -d /dev/fb0 --noverbose -a --timeout 0 /home/pi/CreationStationArcade/media/MadeArcadeBoot.png
+StandardInput=null
+StandardOutput=null
+StandardError=null
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
