@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-# gpio-monitor.py - GPIO button monitor + inactivity timeout for Chromium kiosk
-# Watches reset button and kills to menu after inactivity in game
+# gpio-monitor.py - GPIO button monitor + inactivity timeout for Dual-Chromium kiosk
+# Watches reset button, monitors GPIO activity, kills game Chromium after inactivity
 
 import RPi.GPIO as GPIO
 import time
 import subprocess
 import os
-import json
 import threading
+import signal
 
 # Configuration
 RESET_PIN = 4           # BCM GPIO 4 for reset button (from arcade.cfg BTN_RESET)
 BUTTON_PINS = []        # Loaded from arcade.cfg
 INACTIVITY_SECONDS = 2 * 60  # 2 minutes
-KILL_SCRIPT = "/home/pi/CreationStationArcade-run/kill-to-menu.sh"
-DEBUG_PORT = 9222
+GAME_PID_FILE = "/tmp/arcade-game-chromium.pid"
 
 # State
 _last_activity = time.monotonic()
@@ -52,23 +51,24 @@ def load_button_pins():
     # De-dupe
     return list(dict.fromkeys(pins))
 
-def get_chromium_url():
-    """Get current URL from Chromium debugging port"""
+def is_game_running():
+    """Check if game Chromium is running via PID file"""
     try:
-        import urllib.request
-        with urllib.request.urlopen(f"http://localhost:{DEBUG_PORT}/json/list", timeout=2) as resp:
-            data = json.loads(resp.read().decode())
-            for page in data:
-                if page.get("type") == "page":
-                    return page.get("url", "")
-    except Exception:
-        pass
-    return ""
+        with open(GAME_PID_FILE, "r") as f:
+            pid = int(f.read().strip())
+        # Check if process exists
+        os.kill(pid, 0)
+        return True
+    except (FileNotFoundError, ValueError, OSError):
+        return False
 
-def check_in_game():
-    """Check if currently on a game page (not menu)"""
-    url = get_chromium_url()
-    return "/play?" in url
+def get_game_pid():
+    """Get game Chromium PID from file"""
+    try:
+        with open(GAME_PID_FILE, "r") as f:
+            return int(f.read().strip())
+    except (FileNotFoundError, ValueError):
+        return None
 
 def on_button_activity(channel):
     """Any button press resets activity timer"""
@@ -77,38 +77,56 @@ def on_button_activity(channel):
     log(f"Button activity on pin {channel}")
 
 def on_reset_press(channel):
-    """Reset button immediately kills to menu"""
+    """Reset button immediately kills game Chromium"""
     log(f"Reset button pressed on pin {channel}")
-    trigger_kill()
+    kill_game_chromium()
 
-def trigger_kill():
-    """Run kill script"""
-    try:
-        subprocess.Popen(["bash", KILL_SCRIPT],
-                          stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL)
-        global _last_activity
-        _last_activity = time.monotonic()
-    except Exception as e:
-        log(f"Error running kill script: {e}")
+def kill_game_chromium():
+    """Kill game Chromium process directly via PID file"""
+    pid = get_game_pid()
+    if pid:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            log(f"Sent SIGTERM to game Chromium (PID: {pid})")
+            # Wait a bit then force kill if still running
+            time.sleep(1)
+            try:
+                os.kill(pid, 0)
+                os.kill(pid, signal.SIGKILL)
+                log(f"Force killed game Chromium (PID: {pid})")
+            except OSError:
+                pass  # Already dead
+        except OSError as e:
+            log(f"Error killing game Chromium: {e}")
+    else:
+        # Fallback: try to find and kill by pattern
+        try:
+            subprocess.run(["pkill", "-f", "chromium.*localhost:3000/play"], 
+                         capture_output=True, timeout=5)
+            log("Killed game Chromium via pkill pattern")
+        except Exception as e:
+            log(f"pkill failed: {e}")
+    
+    global _last_activity
+    _last_activity = time.monotonic()
 
 def inactivity_monitor():
-    """Background thread: kill to menu if inactive in game"""
-    global _last_activity, _in_game
+    """Background thread: kill game Chromium if inactive"""
+    global _last_activity
     log("Inactivity monitor thread started")
     while True:
         time.sleep(5)
 
-        # Check if we're in a game
-        _in_game = check_in_game()
-        log(f"Check: in_game={_in_game}")
+        # Check if game is running
+        game_running = is_game_running()
+        log(f"Check: game_running={game_running}")
 
-        if _in_game:
+        if game_running:
             inactive_time = time.monotonic() - _last_activity
             log(f"In game, inactive for {int(inactive_time)}s (timeout: {INACTIVITY_SECONDS}s)")
             if inactive_time > INACTIVITY_SECONDS:
-                log(f"TIMEOUT! Inactive for {int(inactive_time)}s in game, killing to menu")
-                trigger_kill()
+                log(f"TIMEOUT! Inactive for {int(inactive_time)}s in game, killing game Chromium")
+                kill_game_chromium()
         else:
             # Reset timer when back at menu (so fresh start next game)
             _last_activity = time.monotonic()
