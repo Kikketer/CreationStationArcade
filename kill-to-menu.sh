@@ -24,15 +24,17 @@ pkill -f "chromium.*localhost:3000" 2>/dev/null || true
 pkill -f "node server.js" 2>/dev/null || true
 sleep 1
 
-# Sync latest code
-log "Syncing from source..."
+# Sync from chromium-kiosk branch (not main which has old ELF files)
+log "Syncing from chromium-kiosk branch..."
 if [ -d "$SOURCE_DIR/.git" ]; then
     cd "$SOURCE_DIR"
-    timeout 15s git fetch origin >/dev/null 2>&1 || true
-    if git rev-parse --verify origin/main >/dev/null 2>&1; then
-        if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-            log "Git: new commits found, updating..."
-            git reset --hard origin/main >/dev/null 2>&1
+    timeout 15s git fetch origin chromium-kiosk >/dev/null 2>&1 || true
+    if git rev-parse --verify origin/chromium-kiosk >/dev/null 2>&1; then
+        LOCAL=$(git rev-parse HEAD)
+        REMOTE=$(git rev-parse origin/chromium-kiosk)
+        if [ "$LOCAL" != "$REMOTE" ]; then
+            log "Git: new commits on chromium-kiosk, updating..."
+            git reset --hard origin/chromium-kiosk >/dev/null 2>&1
             if command -v rsync >/dev/null 2>&1; then
                 rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >/dev/null 2>&1
             fi
