@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Creation Station Arcade - local HTTP server
-// Serves public/ as static files and provides /api/games
+// Serves public/ as static files, provides /api/games, and spawns game Chromium
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -63,51 +64,143 @@ function handleHeartbeat(res) {
   res.end(JSON.stringify({ ok: true, ts: Date.now() }));
 }
 
-function handleLaunchGame(res, gameName) {
-  const fs = require("fs");
+// Track the game Chromium process
+let gameProcess = null;
+let gameLaunchTime = 0;
 
-  // Check if game is already running (PID file exists and process alive)
+function isGameRunning() {
+  if (!gameProcess) return false;
   try {
-    const gamePid = fs.readFileSync("/tmp/arcade-game-chromium.pid", "utf8").trim();
-    if (gamePid) {
-      // Check if process actually exists
-      try {
-        process.kill(parseInt(gamePid), 0); // Signal 0 = check if exists
-        // Game is already running - reject new launch
-        res.writeHead(409, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Game already running", active: true }));
-        return;
-      } catch (e) {
-        // PID file stale, process dead - continue to launch
-      }
-    }
+    process.kill(gameProcess.pid, 0); // Check if process exists
+    return true;
   } catch (e) {
-    // No PID file - safe to launch
+    gameProcess = null;
+    return false;
+  }
+}
+
+function spawnGameChromium(gameName) {
+  const chromiumBin = process.env.CHROMIUM_BIN || 
+    require("child_process").execSync("which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo ''").toString().trim();
+  
+  if (!chromiumBin) {
+    console.error("[CSA] Chromium not found");
+    return null;
   }
 
-  // Check if launch already pending (tmp file exists and recent)
-  try {
-    const stats = fs.statSync("/tmp/arcade-launch-game");
-    const ageMs = Date.now() - stats.mtimeMs;
-    if (ageMs < 5000) { // Less than 5 seconds old
-      res.writeHead(429, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Launch already pending", retryAfter: Math.ceil((5000 - ageMs) / 1000) }));
-      return;
-    }
-  } catch (e) {
-    // No pending launch file - safe to proceed
-  }
+  const gameUrl = `http://localhost:${PORT}/play?game=${encodeURIComponent(gameName)}`;
+  
+  const args = [
+    "--user-data-dir=/tmp/chromium-arcade-game",
+    "--window-position=0,0",
+    "--window-size=1920,1080",
+    "--start-fullscreen",
+    "--noerrdialogs",
+    "--disable-infobars",
+    "--no-first-run",
+    "--disable-session-crashed-bubble",
+    "--no-default-browser-check",
+    "--disable-pinch",
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--disable-sync",
+    "--disable-default-apps",
+    "--disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
+    "--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy",
+    "--ignore-gpu-blocklist",
+    "--enable-gpu-rasterization",
+    "--use-gl=egl",
+    gameUrl
+  ];
 
-  // Write game name to tmp file - launcher polls for this
-  fs.writeFile("/tmp/arcade-launch-game", gameName, (err) => {
-    if (err) {
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Failed to launch game" }));
-      return;
-    }
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true, game: gameName }));
+  console.log(`[CSA] Spawning game Chromium for: ${gameName}`);
+  
+  const proc = spawn(chromiumBin, args, {
+    detached: false,
+    stdio: "ignore"
   });
+
+  // Write PID file for kill-to-menu.sh
+  fs.writeFileSync("/tmp/arcade-game-chromium.pid", proc.pid.toString());
+
+  proc.on("exit", (code) => {
+    console.log(`[CSA] Game Chromium exited (code: ${code})`);
+    gameProcess = null;
+    fs.unlinkSync("/tmp/arcade-game-chromium.pid");
+    
+    // Refocus menu window via xdotool
+    try {
+      require("child_process").execSync(
+        'xdotool search --onlyvisible --class "chromium" | head -1 | xargs -I {} xdotool windowraise {} windowfocus {} windowactivate {} 2>/dev/null || true'
+      );
+    } catch (e) {
+      // xdotool might fail, that's okay
+    }
+  });
+
+  proc.on("error", (err) => {
+    console.error(`[CSA] Game Chromium error: ${err}`);
+    gameProcess = null;
+  });
+
+  // Lower menu window and raise game window
+  setTimeout(() => {
+    try {
+      // Find all Chromium windows, lower the first (menu), raise the rest
+      const windows = require("child_process")
+        .execSync('xdotool search --class "chromium" 2>/dev/null')
+        .toString()
+        .trim()
+        .split("\n")
+        .filter(id => id);
+      
+      if (windows.length >= 1) {
+        // Lower first window (menu)
+        try { require("child_process").execSync(`xdotool windowlower ${windows[0]} 2>/dev/null`); } catch (e) {}
+      }
+      if (windows.length >= 2) {
+        // Raise last window (game - should be newest)
+        const gameWin = windows[windows.length - 1];
+        try { 
+          require("child_process").execSync(`xdotool windowraise ${gameWin} windowfocus ${gameWin} windowactivate ${gameWin} 2>/dev/null`);
+        } catch (e) {}
+      }
+    } catch (e) {
+      // Window management failed, but game is still running
+    }
+  }, 3000);
+
+  return proc;
+}
+
+function handleLaunchGame(res, gameName) {
+  // Check if game already running
+  if (isGameRunning()) {
+    res.writeHead(409, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Game already running", active: true }));
+    return;
+  }
+
+  // Check if launch recently happened (debounce)
+  const now = Date.now();
+  if (now - gameLaunchTime < 5000) {
+    res.writeHead(429, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Launch already pending", retryAfter: Math.ceil((5000 - (now - gameLaunchTime)) / 1000) }));
+    return;
+  }
+
+  // Spawn game Chromium
+  gameProcess = spawnGameChromium(gameName);
+  gameLaunchTime = now;
+
+  if (!gameProcess) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Failed to spawn Chromium" }));
+    return;
+  }
+
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true, game: gameName, pid: gameProcess.pid }));
 }
 
 const server = http.createServer((req, res) => {
