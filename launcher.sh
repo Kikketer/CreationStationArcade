@@ -58,10 +58,14 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --disable-sync \
     --disable-default-apps \
     --disable-component-extensions-with-background-pages \
-    --enable-features=VaapiVideoDecoder \
+    --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy \
+    --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies \
     --ignore-gpu-blocklist \
     --enable-gpu-rasterization \
+    --force-gpu-rasterization \
     --enable-zero-copy \
+    --enable-hardware-overlays \
+    --use-gl=egl \
     http://localhost:3000 >> $LOG_FILE 2>&1 &
 
 CHROMIUM_PID=$!
