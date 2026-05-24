@@ -109,6 +109,9 @@ def inactivity_monitor():
             if inactive_time > INACTIVITY_SECONDS:
                 log(f"TIMEOUT! Inactive for {int(inactive_time)}s in game, killing to menu")
                 trigger_kill()
+        else:
+            # Reset timer when back at menu (so fresh start next game)
+            _last_activity = time.monotonic()
 
 def main():
     global _last_activity
