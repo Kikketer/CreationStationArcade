@@ -18,10 +18,16 @@ log() {
 
 log "=== Kill-to-menu triggered ==="
 
-# Kill Chromium and Node server
-log "Killing Chromium and Node server..."
-pkill -f "chromium.*localhost:3000" 2>/dev/null || true
-pkill -f "node server.js" 2>/dev/null || true
+# Kill only GAME Chromium (launched for /play), leave menu running
+log "Killing game Chromium..."
+pkill -f "chromium.*localhost:3000/play" 2>/dev/null || true
+# Also kill by PID file if exists
+kill $(cat /tmp/arcade-game-chromium.pid 2>/dev/null) 2>/dev/null || true
+rm -f /tmp/arcade-game-chromium.pid
+
+# Note: We do NOT kill the menu Chromium or Node server - they stay running!
+# This gives "instant" return to menu since it was never closed
+
 sleep 1
 
 log "=== Kill-to-menu complete (xinitrc will restart) ==="

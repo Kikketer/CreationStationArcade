@@ -63,6 +63,20 @@ function handleHeartbeat(res) {
   res.end(JSON.stringify({ ok: true, ts: Date.now() }));
 }
 
+function handleLaunchGame(res, gameName) {
+  // Write game name to tmp file - launcher polls for this
+  const fs = require("fs");
+  fs.writeFile("/tmp/arcade-launch-game", gameName, (err) => {
+    if (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Failed to launch game" }));
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, game: gameName }));
+  });
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
@@ -75,6 +89,16 @@ const server = http.createServer((req, res) => {
 
   if (pathname === "/api/heartbeat") {
     return handleHeartbeat(res);
+  }
+
+  if (pathname === "/api/launch-game") {
+    const gameName = url.searchParams.get("name") || "";
+    if (!gameName) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing name parameter" }));
+      return;
+    }
+    return handleLaunchGame(res, gameName);
   }
 
   if (pathname.startsWith("/games/")) {

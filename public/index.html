@@ -270,10 +270,31 @@
       scrollToSelected();
     }
 
-    function selectGame(idx) {
+    async function selectGame(idx) {
       const g = games[idx ?? selectedIndex];
       if (!g) return;
-      window.location.href = `/play?game=${encodeURIComponent(g.name)}`;
+
+      // Show launching status
+      const statusEl = document.getElementById("loading");
+      statusEl.textContent = `Launching ${g.name}...`;
+      statusEl.style.display = "block";
+
+      // Call API to launch game in separate Chromium instance
+      try {
+        const res = await fetch(`/api/launch-game?name=${encodeURIComponent(g.name)}`);
+        const data = await res.json();
+        if (data.ok) {
+          // Game launched - menu stays visible underneath
+          statusEl.textContent = "Game launched! Press Kill button to return";
+        } else {
+          statusEl.textContent = "Launch failed, trying direct...";
+          // Fallback: navigate directly
+          window.location.href = `/play?game=${encodeURIComponent(g.name)}`;
+        }
+      } catch (e) {
+        // API not available - fallback to navigation
+        window.location.href = `/play?game=${encodeURIComponent(g.name)}`;
+      }
     }
 
     // ── Keyboard input ────────────────────────────────────────────────────────
