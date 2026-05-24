@@ -100,6 +100,7 @@ function spawnGameChromium(gameName) {
   
   const args = [
     "--user-data-dir=/tmp/chromium-arcade-game",
+    "--kiosk",  // Kiosk mode - no exit UI
     "--window-position=0,0",
     "--window-size=1920,1080",
     "--start-fullscreen",
@@ -120,8 +121,6 @@ function spawnGameChromium(gameName) {
     "--use-gl=egl",
     "--hide-scrollbars",
     "--suppress-message-center-popups",
-    "--force-kiosk-mode",
-    "--app",
     gameUrl
   ];
 
