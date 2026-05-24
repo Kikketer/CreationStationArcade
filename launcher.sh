@@ -66,6 +66,7 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --enable-zero-copy \
     --enable-hardware-overlays \
     --use-gl=egl \
+    --remote-debugging-port=9222 \
     http://localhost:3000 >> $LOG_FILE 2>&1 &
 
 CHROMIUM_PID=$!
