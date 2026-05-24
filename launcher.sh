@@ -18,13 +18,22 @@ fi
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Using Chromium: $CHROMIUM_BIN" >> $LOG_FILE
 
-# NOTE: Git sync disabled - Chromium launcher not in repo yet
-# Sync from source if available
-# if [ -d "$SOURCE_DIR/.git" ]; then
-#     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
-#     rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
-#     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete" >> "$LOG_FILE"
-# fi
+# Sync from chromium-kiosk branch (not main which has old ELF files)
+if [ -d "$SOURCE_DIR/.git" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from chromium-kiosk branch to $RUN_DIR" >> "$LOG_FILE"
+    cd "$SOURCE_DIR"
+    timeout 15s git fetch origin chromium-kiosk >> "$LOG_FILE" 2>&1 || true
+    if git rev-parse --verify origin/chromium-kiosk >/dev/null 2>&1; then
+        LOCAL=$(git rev-parse HEAD)
+        REMOTE=$(git rev-parse origin/chromium-kiosk)
+        if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: updating to origin/chromium-kiosk" >> "$LOG_FILE"
+            git reset --hard origin/chromium-kiosk >> "$LOG_FILE" 2>&1
+        fi
+    fi
+    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete" >> "$LOG_FILE"
+fi
 # Kill any existing processes
 kill $(cat $PID_FILE 2>/dev/null) 2>/dev/null || true
 kill $(cat $CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
