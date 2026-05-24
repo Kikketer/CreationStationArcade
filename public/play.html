@@ -146,47 +146,67 @@
       return meta;
     }
 
+    // Store current game code for restart
+    let currentGameCode = null;
+    let messageHandler = null;
+
     function runSimulator(code) {
       const meta = parseMeta(code);
+      currentGameCode = code;
+
+      // Remove old listener if exists
+      if (messageHandler) {
+        window.removeEventListener("message", messageHandler);
+      }
 
       // Attach listener BEFORE setting iframe.src so we never miss the ready event
-      const handleMessage = (ev) => {
-        if (!ev.data || ev.data.type !== "ready") return;
+      messageHandler = (ev) => {
+        if (!ev.data) return;
 
-        frame.contentWindow.postMessage({
-          type: "run",
-          parts: [],
-          code: code,
-          partDefinitions: {},
-          cdnUrl: meta.cdnUrl || CDN_URL,
-          version: meta.targetVersion || "4.0.14",
-          storedState: {},
-          frameCounter: 1,
-          options: { theme: "green", player: "" },
-          id: "game-" + Math.random(),
-        }, "*");
+        // Handle simulator ready
+        if (ev.data.type === "ready") {
+          frame.contentWindow.postMessage({
+            type: "run",
+            parts: [],
+            code: code,
+            partDefinitions: {},
+            cdnUrl: meta.cdnUrl || CDN_URL,
+            version: meta.targetVersion || "4.0.14",
+            storedState: {},
+            frameCounter: 1,
+            options: { theme: "green", player: "" },
+            id: "game-" + Math.random(),
+          }, "*");
 
-        // Unmute — Chromium in kiosk mode has already had user interaction
-        setTimeout(() => {
-          frame.contentWindow.postMessage({ type: "mute", mute: false }, "*");
-        }, 300);
+          // Unmute — Chromium in kiosk mode has already had user interaction
+          setTimeout(() => {
+            frame.contentWindow.postMessage({ type: "mute", mute: false }, "*");
+          }, 300);
 
-        window.removeEventListener("message", handleMessage);
+          // Show iframe, hide status overlay
+          frame.style.display = "block";
+          document.getElementById("status").style.display = "none";
 
-        // Show iframe, hide status overlay
-        frame.style.display = "block";
-        document.getElementById("status").style.display = "none";
+          // Auto-focus the game iframe so keyboard works immediately
+          setTimeout(() => {
+            frame.focus();
+            if (frame.contentWindow) {
+              frame.contentWindow.focus();
+            }
+          }, 100);
 
-        // Auto-focus the game iframe so keyboard works immediately
-        setTimeout(() => {
-          frame.focus();
-          if (frame.contentWindow) {
-            frame.contentWindow.focus();
-          }
-        }, 100);
+          return;
+        }
+
+        // Handle game reset command (restart without page reload)
+        if (ev.data.type === "simulator" && ev.data.command === "restart") {
+          console.log("[Arcade] Game requested restart, re-running simulator...");
+          // Re-run the simulator with same code (don't reload page)
+          runSimulator(currentGameCode);
+        }
       };
 
-      window.addEventListener("message", handleMessage);
+      window.addEventListener("message", messageHandler);
       frame.src = SIM_URL;
     }
 
