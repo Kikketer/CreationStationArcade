@@ -72,6 +72,8 @@ CHROMIUM_FLAGS=(
     --ignore-gpu-blocklist
     --enable-gpu-rasterization
     --use-gl=egl
+    --hide-scrollbars
+    --suppress-message-center-popups
     --remote-debugging-port=9222
 )
 

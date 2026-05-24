@@ -80,6 +80,14 @@ function isGameRunning() {
 }
 
 function spawnGameChromium(gameName) {
+  // Clear previous game user data to prevent "restore session" prompts
+  const gameUserDir = "/tmp/chromium-arcade-game";
+  try {
+    require("child_process").execSync(`rm -rf "${gameUserDir}"`);
+  } catch (e) {
+    // Ignore cleanup errors
+  }
+
   const chromiumBin = process.env.CHROMIUM_BIN || 
     require("child_process").execSync("which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo ''").toString().trim();
   
@@ -105,11 +113,15 @@ function spawnGameChromium(gameName) {
     "--disable-background-networking",
     "--disable-sync",
     "--disable-default-apps",
-    "--disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
+    "--disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,RequestTabletSite,WebRTC,AccessibilityCache,AutofillServerCommunication",
     "--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy",
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",
     "--use-gl=egl",
+    "--hide-scrollbars",
+    "--suppress-message-center-popups",
+    "--force-kiosk-mode",
+    "--app",
     gameUrl
   ];
 
