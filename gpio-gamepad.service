@@ -1,0 +1,17 @@
+[Unit]
+Description=GPIO Virtual Gamepad Driver
+After=systemd-modules-load.service
+Wants=systemd-modules-load.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/pi/CreationStationArcade-run
+ExecStart=/usr/bin/python3 /home/pi/CreationStationArcade-run/gpio-gamepad.py
+Restart=always
+RestartSec=3
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
