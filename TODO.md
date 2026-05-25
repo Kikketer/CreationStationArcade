@@ -106,6 +106,8 @@
 | `server.js` | Node HTTP server, spawns game Chromium | Ready |
 | `menu-launcher.sh` | Launches menu Chromium + server | Ready |
 | `kill-to-menu.sh` | Kills game Chromium | Ready |
+| `install/kiosk-setup.sh` | Pi 5 one-shot kiosk setup (with `--gpio-controllers` option) | ✅ Dual-chromium |
+| `install/debian-x86-setup.sh` | Debian x86 one-shot kiosk setup (USB controllers) | ✅ Dual-chromium |
 | `gpio-monitor.py` | GPIO monitor + inactivity timeout | Ready |
 | `gpio-gamepad.py` | Virtual USB HID gamepads | ✅ Tested & Working |
 | `gpio-gamepad.service` | Systemd service for gamepad | Ready |
@@ -123,11 +125,14 @@
 ## Quick Commands
 
 ```bash
-# Full kiosk setup (USB controllers)
+# Raspberry Pi 5 kiosk setup (USB controllers)
 bash install/kiosk-setup.sh
 
-# Full kiosk setup with GPIO virtual gamepads
+# Raspberry Pi 5 kiosk setup with GPIO virtual gamepads
 bash install/kiosk-setup.sh --gpio-controllers
+
+# Debian/Ubuntu x86 kiosk setup (USB controllers, dual-chromium)
+bash install/debian-x86-setup.sh
 
 # Start GPIO monitor manually
 sudo python3 /home/pi/CreationStationArcade-run/gpio-monitor.py
@@ -159,6 +164,29 @@ git reset --hard origin/chromium-kiosk
 rsync -a --delete --exclude ".git" --exclude "arcade.log" ./ ../CreationStationArcade-run/
 ```
 
+## Fresh Install
+
+**Raspberry Pi 5 (with GPIO gamepads):**
+```bash
+cd /home/pi/CreationStationArcade
+bash install/kiosk-setup.sh --gpio-controllers
+sudo reboot
+```
+
+**Raspberry Pi 5 (USB controllers only):**
+```bash
+cd /home/pi/CreationStationArcade
+bash install/kiosk-setup.sh
+sudo reboot
+```
+
+**Debian/Ubuntu x86 (USB controllers):**
+```bash
+cd ~/CreationStationArcade
+bash install/debian-x86-setup.sh
+sudo reboot
+```
+
 ---
 
-Last Updated: May 24, 2026
+Last Updated: May 25, 2026

@@ -1,11 +1,14 @@
 #!/bin/bash
 # debian-x86-setup.sh — one-shot Debian x86 setup for Creation Station Arcade kiosk mode
 # For Intel/AMD desktop/laptop systems (NOT Raspberry Pi)
+# Uses dual-chromium architecture: menu Chromium (always-on) + game Chromium (spawned)
+# Assumes standard USB gamepads (no GPIO)
+#
 # This script:
 #   1. Installs required packages
 #   2. Configures auto-login and Xorg
 #   3. Creates runtime folder from git repo
-#   4. Sets up Chromium kiosk with proper flags
+#   4. Sets up dual-chromium kiosk with menu-launcher.sh
 # Usage: bash install/debian-x86-setup.sh (run from repo root)
 
 set -e
@@ -37,15 +40,14 @@ sudo apt-get install -y \
     npm \
     xserver-xorg \
     xinit \
-    openbox \
     unclutter \
     xdotool \
     git \
+    rsync \
     mesa-utils \
     alsa-utils \
     pulseaudio \
     pulseaudio-utils \
-    feh \
     >> "$LOG" 2>&1
 log "Packages installed."
 
@@ -72,155 +74,235 @@ log "Auto-login configured for user: $USER_NAME"
 log "Configuring Xorg to start on TTY1..."
 PROFILE="$HOME/.bash_profile"
 
-# Add startx block first (before DISPLAY export, since we check -z "$DISPLAY")
-STARTX_BLOCK='# Auto-start X on TTY1
+# Use 'startx' without 'exec' to avoid login loop issues
+STARTX_BLOCK='# Auto-start X on TTY1 (Debian x86 kiosk)
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    exec startx
+    # Wait for network before starting
+    until ping -c1 8.8.8.8 >/dev/null 2>&1; do
+        echo "Waiting for network..."
+        sleep 2
+    done
+    startx -- -nocursor
 fi
 
 # DISPLAY for X sessions
 export DISPLAY=:0'
 
-if ! grep -qF "exec startx" "$PROFILE" 2>/dev/null; then
+if ! grep -qF "startx -- -nocursor" "$PROFILE" 2>/dev/null; then
+    # Remove old exec startx blocks if present
+    sed -i '/exec startx/d' "$PROFILE" 2>/dev/null || true
     echo "$STARTX_BLOCK" >> "$PROFILE"
 fi
 
-# ── 5. Xorg config (openbox, no login manager) ───────────────────────────────
+# ── 5. Xorg config (.xinitrc runs menu-launcher from runtime folder) ──────────
 XINITRC="$HOME/.xinitrc"
-cat > "$XINITRC" <<'XEOF'
-#!/bin/sh
+cat > "$XINITRC" <<XEOF
+#!/bin/bash
 # Start audio system
-pulseaudio --start &
-# Hide cursor after 1s of inactivity
-unclutter -idle 1 -root &
-# Disable screen saver / blanking
+pulseaudio --start 2>/dev/null || true
+
+# Disable screen blanking and power management
 xset s off
 xset s noblank
 xset -dpms
-# Let openbox manage the window (bare WM for kiosk)
-exec openbox-session
+
+# Hide cursor
+unclutter -idle 0.1 -root &
+
+# Launch arcade from runtime folder (dual-chromium mode)
+RUN_DIR="$RUN_DIR"
+if [ -f "\$RUN_DIR/menu-launcher.sh" ]; then
+    cd "\$RUN_DIR"
+    exec bash menu-launcher.sh
+else
+    # Fallback if runtime folder not ready
+    echo "ERROR: Runtime folder not found at \$RUN_DIR" > /tmp/xinitrc-error
+    exec xterm
+fi
 XEOF
 chmod +x "$XINITRC"
-log "Xorg startx configured."
+log ".xinitrc configured for dual-chromium mode."
 
 # ── 6. Create runtime folder (sync from repo) ────────────────────────────────
 log "Creating runtime folder at $RUN_DIR..."
-# Remove existing runtime directory to avoid permission issues
-if [ -d "$RUN_DIR" ]; then
-    rm -rf "$RUN_DIR"
-fi
 mkdir -p "$RUN_DIR"
 
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/
+    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/
 else
-    # Copy without .git directory
-    find "$REPO_DIR" -maxdepth 1 -not -name ".git" -not -name "." -exec cp -r {} "$RUN_DIR"/ \;
+    cp -a "$REPO_DIR"/ "$RUN_DIR"/
 fi
 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/menu-launcher.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/kill-to-menu.sh" 2>/dev/null || true
 log "Runtime folder created."
 
-# ── 7. Create x86-optimized launcher ──────────────────────────────────────────
-log "Creating x86-optimized launcher..."
-cat > "$RUN_DIR/launcher.sh" <<LAUNCHER_EOF
+# ── 7. Create x86 menu-launcher (dual-chromium) ─────────────────────────────
+log "Creating x86-optimized menu-launcher..."
+cat > "$RUN_DIR/menu-launcher.sh" <<LAUNCHER_EOF
 #!/bin/bash
-# launcher.sh - x86 Debian optimized launcher for Creation Station Arcade
-# Run from runtime folder: cd ~/CreationStationArcade-run && bash launcher.sh
+# menu-launcher.sh - x86 Debian dual-chromium launcher
+# Menu Chromium (always-on) + Game Chromium (spawned by server.js)
 
 LOG_FILE="\$HOME/arcade.log"
 PID_FILE="/tmp/arcade-server.pid"
-CHROMIUM_PID_FILE="/tmp/arcade-chromium.pid"
+MENU_CHROMIUM_PID_FILE="/tmp/arcade-menu-chromium.pid"
+
+SCRIPT_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+RUN_DIR="\$SCRIPT_DIR"
+SOURCE_DIR="\${CSA_SOURCE_DIR:-\${RUN_DIR%-run}}"
 
 # Find chromium
 CHROMIUM_BIN=\$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null)
-
 if [ -z "\$CHROMIUM_BIN" ]; then
-    echo "[\$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Chromium not found" >> \$LOG_FILE
+    echo "[\$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Chromium not found" >> "\$LOG_FILE"
     exit 1
 fi
 
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Using Chromium: \$CHROMIUM_BIN" >> \$LOG_FILE
+log() {
+    echo "[\$(date +'%Y-%m-%d %H:%M:%S')] \$*" | tee -a "\$LOG_FILE"
+}
+
+log "=== Menu Launcher Starting (Dual-Chromium Mode) ==="
 
 # Kill any existing processes
 kill \$(cat \$PID_FILE 2>/dev/null) 2>/dev/null || true
-kill \$(cat \$CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
+kill \$(cat \$MENU_CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
 pkill -f "chromium.*localhost:3000" 2>/dev/null || true
 sleep 1
 
+# Sync from source if available
+if [ -d "\$SOURCE_DIR/.git" ]; then
+    log "Syncing from \$SOURCE_DIR to \$RUN_DIR"
+    rsync -a --delete --exclude ".git" --exclude "arcade.log" "\$SOURCE_DIR"/ "\$RUN_DIR"/ >> "\$LOG_FILE" 2>&1
+    log "Sync complete"
+fi
+
 # Start Node server
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Starting Node server..." >> \$LOG_FILE
-cd "\$(dirname "\$0")"
-node server.js >> \$LOG_FILE 2>&1 &
+log "Starting Node server..."
+cd "\$RUN_DIR"
+node server.js >> "\$LOG_FILE" 2>&1 &
 SERVER_PID=\$!
-echo \$SERVER_PID > \$PID_FILE
+echo \$SERVER_PID > "\$PID_FILE"
 
 # Wait for server
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Waiting for server..." >> \$LOG_FILE
+log "Waiting for server..."
 for i in {1..30}; do
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
-        echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Server ready" >> \$LOG_FILE
+    if curl -s http://localhost:3000 >/dev/null 2>&1; then
+        log "Server ready (server.js will spawn game Chromium when needed)"
         break
     fi
     sleep 1
 done
 
-# Check GPU acceleration
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Checking GPU acceleration..." >> \$LOG_FILE
-if command -v glxinfo >/dev/null 2>&1; then
-    glxinfo | grep -E "(direct rendering|OpenGL renderer)" >> \$LOG_FILE 2>&1 || echo "No glxinfo output" >> \$LOG_FILE
-else
-    echo "glxinfo not available" >> \$LOG_FILE
+# Common Chromium flags
+CHROMIUM_FLAGS=(
+    --user-data-dir=/tmp/chromium-arcade-menu
+    --noerrdialogs
+    --disable-infobars
+    --no-first-run
+    --disable-session-crashed-bubble
+    --no-default-browser-check
+    --disable-pinch
+    --disable-extensions
+    --disable-background-networking
+    --disable-sync
+    --disable-default-apps
+    --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies
+    --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy
+    --ignore-gpu-blocklist
+    --enable-gpu-rasterization
+    --hide-scrollbars
+    --suppress-message-center-popups
+)
+
+# Launch MENU Chromium (always running, kiosk mode, bottom layer)
+log "Launching MENU Chromium (kiosk, always-on)..."
+"\$CHROMIUM_BIN" \\
+    --user-data-dir=/tmp/chromium-arcade-menu \\
+    --kiosk \\
+    --window-position=0,0 \\
+    --window-size=1920,1080 \\
+    --start-fullscreen \\
+    "\${CHROMIUM_FLAGS[@]}" \\
+    http://localhost:3000/ >> "\$LOG_FILE" 2>&1 &
+
+MENU_PID=\$!
+echo \$MENU_PID > "\$MENU_CHROMIUM_PID_FILE"
+log "Menu Chromium started (PID: \$MENU_PID)"
+
+# Wait for menu window to appear
+sleep 3
+
+# Focus the menu window
+if command -v xdotool >/dev/null 2>&1; then
+    for winclass in "chromium" "Chromium"; do
+        WIN_ID=\$(xdotool search --onlyvisible --class "\$winclass" 2>/dev/null | head -1)
+        if [ -n "\$WIN_ID" ]; then
+            xdotool windowfocus "\$WIN_ID" 2>/dev/null || true
+            xdotool windowactivate "\$WIN_ID" 2>/dev/null || true
+            log "Menu window focused"
+            break
+        fi
+    done
 fi
 
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> \$LOG_FILE
-"\$CHROMIUM_BIN" \\
-    --user-data-dir=/tmp/chromium-arcade \\
-    --kiosk \\
-    --app=http://localhost:3000 \\
-    --noerrdialogs \\
-    --disable-infobars \\
-    --no-first-run \\
-    --disable-session-crashed-bubble \\
-    --disable-features=TranslateUI \\
-    --no-default-browser-check \\
-    --disable-pinch \\
-    --disable-extensions \\
-    --disable-background-networking \\
-    --disable-sync \\
-    --disable-default-apps \\
-    --disable-component-extensions-with-background-pages \\
-    --enable-gpu-rasterization \\
-    --enable-zero-copy \\
-    --ignore-gpu-blacklist \\
-    http://localhost:3000 >> \$LOG_FILE 2>&1 &
+# Monitor loop - just keep menu running, server handles game spawning
+while true; do
+    # Check if menu died (restart if so)
+    if ! kill -0 "\$MENU_PID" 2>/dev/null; then
+        log "WARNING: Menu Chromium died, restarting..."
+        "\$CHROMIUM_BIN" \\
+            --user-data-dir=/tmp/chromium-arcade-menu \\
+            --kiosk \\
+            --window-position=0,0 \\
+            --window-size=1920,1080 \\
+            --start-fullscreen \\
+            "\${CHROMIUM_FLAGS[@]}" \\
+            http://localhost:3000/ >> "\$LOG_FILE" 2>&1 &
+        MENU_PID=\$!
+        echo \$MENU_PID > "\$MENU_CHROMIUM_PID_FILE"
+        sleep 3
+    fi
+    
+    sleep 2
+done
 
-CHROMIUM_PID=\$!
-echo \$CHROMIUM_PID > \$CHROMIUM_PID_FILE
-
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Chromium started (PID: \$CHROMIUM_PID)" >> \$LOG_FILE
-wait \$CHROMIUM_PID
-echo "[\$(date +'%Y-%m-%d %H:%M:%S')] Chromium exited" >> \$LOG_FILE
-
-# Cleanup
+log "=== Menu Launcher exited ==="
 kill \$SERVER_PID 2>/dev/null || true
-rm -f \$PID_FILE \$CHROMIUM_PID_FILE
+rm -f "\$PID_FILE" "\$MENU_CHROMIUM_PID_FILE"
 LAUNCHER_EOF
 
-chmod +x "$RUN_DIR/launcher.sh"
-log "x86 launcher created."
+chmod +x "$RUN_DIR/menu-launcher.sh"
+log "x86 menu-launcher (dual-chromium) created."
 
-# ── 8. Openbox autostart — launch the arcade ─────────────────────────────────
-OPENBOX_DIR="$HOME/.config/openbox"
-mkdir -p "$OPENBOX_DIR"
-cat > "$OPENBOX_DIR/autostart" <<OEOF
-# Creation Station Arcade kiosk autostart with splash screen
-# Runtime folder: $RUN_DIR
-$RUN_DIR/install/openbox-autostart-splash.sh &
-OEOF
-log "Openbox autostart configured with splash screen."
+# ── 8. Git update service ─────────────────────────────────────────────────────
+log "Configuring background git updates..."
+sudo tee /etc/systemd/system/arcade-git-update.service > /dev/null <<EOF
+[Unit]
+Description=Arcade Git Update on Boot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=$USER_NAME
+WorkingDirectory=$REPO_DIR
+Environment="CSA_SOURCE_DIR=$REPO_DIR"
+Environment="RUN_DIR=$RUN_DIR"
+ExecStart=$REPO_DIR/pullFromGit.sh
+ExecStartPost=/bin/bash -c 'if command -v rsync >/dev/null 2>&1; then rsync -a --delete --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/; else cp -a "$REPO_DIR"/ "$RUN_DIR"/; fi'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable arcade-git-update.service
+log "Git update service configured."
 
 # ── 9. Suppress boot messages (Debian x86 paths) ────────────────────────────
 log "Suppressing boot messages..."
@@ -239,9 +321,14 @@ log "=== Setup complete. Reboot to activate. ==="
 echo ""
 echo "Run: sudo reboot"
 echo ""
-echo "After reboot, the arcade will auto-start."
+echo "After reboot, the arcade will auto-start in dual-chromium kiosk mode."
 echo "Runtime folder: $RUN_DIR"
 echo "Source folder:  $REPO_DIR"
 echo ""
+echo "Dual-chromium architecture:"
+echo "  - Menu Chromium: always running (http://localhost:3000/)"
+echo "  - Game Chromium: spawned by server.js when game selected"
+echo "  - Kill button: returns to menu instantly"
+echo ""
 echo "To manually test first:"
-echo "  cd $RUN_DIR && bash launcher.sh"
+echo "  cd $RUN_DIR && bash menu-launcher.sh"
