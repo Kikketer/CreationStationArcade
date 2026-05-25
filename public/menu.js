@@ -220,7 +220,9 @@ document.addEventListener('keydown', (e) => {
     case 'ArrowLeft':  e.preventDefault(); move('left'); break;
     case 'ArrowRight': e.preventDefault(); move('right'); break;
     case 'Enter':
-    case ' ':          e.preventDefault(); selectGame(); break;
+    case ' ':
+    case 'z':
+    case 'Z':          e.preventDefault(); selectGame(); break;
   }
 });
 

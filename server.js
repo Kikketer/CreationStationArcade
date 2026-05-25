@@ -101,7 +101,7 @@ function isGameRunning() {
   }
 }
 
-function spawnGameChromium(gameName) {
+function spawnGameChromium(gameName, gameFile) {
   // Clear previous game user data to prevent "restore session" prompts
   const gameUserDir = "/tmp/chromium-arcade-game";
   try {
@@ -227,7 +227,7 @@ function handleLaunchGame(res, gameName, gameFile) {
   }
 
   // Spawn game Chromium
-  gameProcess = spawnGameChromium(gameName);
+  gameProcess = spawnGameChromium(gameName, gameFile);
   gameLaunchTime = now;
 
   if (!gameProcess) {
