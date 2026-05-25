@@ -150,7 +150,8 @@ function spawnGameChromium(gameName, gameFile) {
   
   const proc = spawn(chromiumBin, args, {
     detached: false,
-    stdio: "ignore"
+    stdio: "ignore",
+    env: { ...process.env, DISPLAY: process.env.DISPLAY || ':0' }
   });
 
   // Write PID file for kill-to-menu.sh

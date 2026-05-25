@@ -94,8 +94,15 @@ function createGameCards() {
     players.className = 'player-count';
     players.textContent = `${game.playerCount}P`;
 
+    // Launch indicator (shows when selected)
+    const launchInd = document.createElement('div');
+    launchInd.className = 'launch-indicator';
+    launchInd.textContent = '▼';
+    launchInd.style.cssText = 'position:absolute;top:1px;left:50%;transform:translateX(-50%);font-size:4px;color:#e76e55;display:none;';
+
     card.appendChild(img);
     card.appendChild(players);
+    card.appendChild(launchInd);
 
     // Click to select
     card.addEventListener('click', () => {
@@ -104,7 +111,7 @@ function createGameCards() {
     });
 
     gameList.appendChild(card);
-    cardElements.push({ card, img, game });
+    cardElements.push({ card, img, game, launchInd });
   });
 
   updateSelection();
@@ -117,6 +124,7 @@ function updateSelection() {
     const prev = cardElements[previousSelectedIndex];
     if (prev) {
       prev.card.classList.remove('selected');
+      if (prev.launchInd) prev.launchInd.style.display = 'none';
       if (prev.img.dataset.staticSrc && prev.img.src !== prev.img.dataset.staticSrc) {
         prev.img.src = prev.img.dataset.staticSrc;
       }
@@ -127,6 +135,7 @@ function updateSelection() {
   const curr = cardElements[selectedIndex];
   if (curr) {
     curr.card.classList.add('selected');
+    if (curr.launchInd) curr.launchInd.style.display = 'block';
     // Try animated GIF if not already loaded
     if (curr.img.dataset.animSrc && !curr.img.src.endsWith('.gif')) {
       const animImg = new Image();
@@ -212,8 +221,22 @@ async function loadGames() {
   }
 }
 
-// Keyboard input
-document.addEventListener('keydown', (e) => {
+// Aggressive focus management for kiosk mode
+function ensureFocus() {
+  if (document.activeElement !== document.body) {
+    document.body.focus();
+  }
+}
+window.addEventListener('load', () => {
+  document.body.tabIndex = 0;
+  document.body.focus();
+  setInterval(ensureFocus, 100);
+});
+window.addEventListener('blur', () => setTimeout(() => document.body.focus(), 10));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) document.body.focus(); });
+
+// Keyboard input - multiple listeners for kiosk compatibility
+function handleKey(e) {
   switch(e.key) {
     case 'ArrowUp':    e.preventDefault(); move('up'); break;
     case 'ArrowDown':  e.preventDefault(); move('down'); break;
@@ -224,7 +247,9 @@ document.addEventListener('keydown', (e) => {
     case 'z':
     case 'Z':          e.preventDefault(); selectGame(); break;
   }
-});
+}
+window.addEventListener('keydown', handleKey, true);
+document.addEventListener('keydown', handleKey, true);
 
 // Gamepad input
 function pollGamepads() {
