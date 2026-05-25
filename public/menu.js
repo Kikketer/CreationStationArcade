@@ -80,8 +80,8 @@ function createGameCards() {
     img.className = 'game-image';
     img.alt = '';
 
-    // Image sources: static PNG default, GIF when selected
-    const baseName = game.image ? game.image.replace(/\.[^.]+$/, '') : game.name.toLowerCase().replace(/\s+/g, '');
+    // Image sources: derive from file field (e.g., Game.js -> Game.png, Game.gif)
+    const baseName = game.file.replace(/\.[^.]+$/, '');
     img.dataset.staticSrc = `/games/${baseName}.png`;
     img.dataset.animSrc = `/games/${baseName}.gif`;
 
