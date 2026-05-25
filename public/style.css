@@ -3,6 +3,7 @@
 * {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  box-sizing: border-box;
 }
 
 html, body {
@@ -32,7 +33,7 @@ html, body {
   /* Scale to fill screen, maintaining aspect ratio */
   transform: scale(var(--scale, 1));
   transform-origin: center center;
-  background: #212529;
+  background: black;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -41,14 +42,16 @@ html, body {
 /* Header */
 header.nes-container {
   flex-shrink: 0;
-  padding: 4px !important;
-  margin: 4px !important;
+  padding: 1px !important;
+  margin: 0 !important;
+  border-bottom: 0px;
 }
 
-header h1 {
-  font-size: 8px !important;
-  margin: 0;
-  line-height: 1;
+header #logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
 }
 
 /* Game list - 2 column grid at virtual resolution */
@@ -56,12 +59,12 @@ header h1 {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px;
+  padding: 1px 2px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px;
   align-content: start;
-  scroll-padding: 4px 0;
+  scroll-padding: 2px 0;
 }
 
 /* Hide scrollbar but keep functionality */
@@ -123,6 +126,5 @@ header h1 {
   text-align: center;
   padding: 8px;
   font-size: 4px;
-  color: #adafbc;
   grid-column: 1 / -1;
 }

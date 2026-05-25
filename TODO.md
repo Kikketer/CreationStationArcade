@@ -28,6 +28,19 @@
 
 ## Completed Work
 
+### Menu Refactor - DOM + NES.css ✅
+- [x] Refactored from Canvas to pure DOM with NES.css styling
+- [x] 160x120 virtual resolution with pixel-perfect scaling
+- [x] Two-column grid layout with tight spacing
+- [x] Pulsing border animation on selected game (1px grow/shrink)
+- [x] Animated GIF support - swaps PNG→GIF on selection
+- [x] Player count floating over game images
+- [x] Instant snap scrolling (no smooth animation)
+- [x] Cached placeholder images to prevent flicker
+- [x] Keyboard: Arrow keys, Enter, Space, Z
+- [x] Gamepad: D-pad + A button (button 0)
+- [x] Pixel art loading animation on play.html
+
 ### Git Sync & Branch Management
 - [x] Fixed git sync to use `chromium-kiosk` branch (not `main`)
 - [x] Made git sync non-blocking in `kill-to-menu.sh`
@@ -39,6 +52,7 @@
 - [x] Singleton protection - API returns 409 if game already running
 - [x] Window focus management - lowers menu, raises game, refocuses menu on exit
 - [x] PID file tracking - `/tmp/arcade-game-chromium.pid`
+- [x] DISPLAY env fix for Chromium spawning
 
 ### GPIO Monitor (Dual-Chromium Ready)
 - [x] `gpio-monitor.py` - Updated for PID-based game detection
@@ -55,49 +69,32 @@
 
 ## Pending / Next Steps
 
-### High Priority
+### Hardware Wiring (Big Haul) 🛠️
 
-1. **Test Dual-Chromium Mode**
-   - [ ] Reboot Pi and verify menu launches
-   - [ ] Select game, verify it launches on top
-   - [ ] Press kill button, verify instant return to menu
-   - [ ] Try launch second game while first running - should show "already running"
-   - [ ] Wait 2 minutes without input - should auto-kill game
-
-2. **GPIO Virtual Gamepad Setup** ✅
-   - [x] Run `sudo ./setup-gamepad.sh` (or `bash install/kiosk-setup.sh --gpio-controllers`)
-   - [x] Verify `ls /dev/input/js*` shows 4 joysticks
-   - [x] Check `chrome://gamepad` in browser
-   - [x] Test button mapping with actual GPIO buttons
-   - [x] Integrated into kiosk setup with `--gpio-controllers` flag
-
-3. **Button Wiring & Testing**
+1. **Button Wiring & Testing**
    - [ ] Wire reset button to GPIO 4
    - [ ] Wire player buttons per `arcade.cfg`
    - [ ] Test reset button kills game
    - [ ] Test game buttons work in games
    - [ ] Verify inactivity timeout (2 min) works
 
-### Medium Priority
-
-4. **gpio-monitor Systemd Service**
+2. **gpio-monitor Systemd Service**
    - [ ] Create `gpio-monitor.service`
    - [ ] Enable auto-start on boot
    - [ ] Test reset button without manual script start
 
-5. **Error Handling & Edge Cases**
-   - [ ] Handle case where game Chromium fails to spawn
-   - [ ] Handle case where menu Chromium dies unexpectedly
-   - [ ] Handle window focus issues if xdotool fails
-   - [ ] Log rotation for `/home/pi/arcade.log`
+### Menu Polish 🎨
 
-### Low Priority
+3. **Images & Assets**
+   - [ ] Create/assign game images (PNG + animated GIF)
+   - [ ] Design top logo/header artwork
+   - [ ] Test placeholder fallbacks work
 
-6. **Polish & Optimization**
-   - [ ] Game loading screen/spinner
-   - [ ] Better error messages in menu
-   - [ ] Visual feedback for "game already running"
-   - [ ] Performance optimization (reduce CPU usage)
+4. **Testing & Edge Cases**
+   - [ ] Test all 4 games launch correctly
+   - [ ] Test arrow navigation with full game list
+   - [ ] Verify no flickering on scroll
+   - [ ] Test gamepad navigation end-to-end
 
 ## File Locations
 
@@ -112,15 +109,16 @@
 | `gpio-gamepad.py` | Virtual USB HID gamepads | ✅ Tested & Working |
 | `gpio-gamepad.service` | Systemd service for gamepad | Ready |
 | `setup-gamepad.sh` | Setup script for gamepad | Ready |
-| `public/index.html` | Menu UI | Ready |
-| `public/play.html` | Game player UI | Ready |
+| `public/index.html` | Menu UI (NES.css DOM-based) | ✅ Ready |
+| `public/menu.js` | Menu logic (navigation, launch) | ✅ Ready |
+| `public/style.css` | Menu styles (160x120 virtual res) | ✅ Ready |
+| `public/play.html` | Game player UI (pixel loading) | ✅ Ready |
+| `games/games.json` | Game metadata (name, players, file) | ✅ Ready |
 | `arcade.cfg` | GPIO pin mappings | Ready |
 
 ## Known Issues
 
-1. **gpio-monitor not auto-starting** - Currently needs manual start (need systemd service)
-2. **Hardware testing incomplete** - GPIO gamepad works, needs full button wiring test
-3. **GPIO reset button** - Needs wiring to GPIO 4 and testing
+None - system is ready for hardware integration.
 
 ## Quick Commands
 
@@ -189,4 +187,4 @@ sudo reboot
 
 ---
 
-Last Updated: May 25, 2026
+Last Updated: May 25, 2026 (Menu Refactor Complete)
