@@ -5,7 +5,11 @@
 #   2. Configures auto-login and Xorg (with Pi 5 GPU fix)
 #   3. Creates runtime folder from git repo
 #   4. Configures boot messages
-# Usage: bash install/kiosk-setup.sh (run from repo root)
+# Usage: bash install/kiosk-setup.sh [--gpio-controllers] (run from repo root)
+#
+# Options:
+#   --gpio-controllers  Enable GPIO virtual gamepads (RPi.GPIO + uhid)
+#                       Without this flag, setup assumes standard USB controllers
 
 set -e
 
@@ -13,11 +17,34 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_DIR="${REPO_DIR}-run"
 LOG="$HOME/arcade-setup.log"
 
+# Parse arguments
+GPIO_CONTROLLERS=false
+for arg in "$@"; do
+    case $arg in
+        --gpio-controllers)
+            GPIO_CONTROLLERS=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: bash install/kiosk-setup.sh [--gpio-controllers]"
+            echo ""
+            echo "Options:"
+            echo "  --gpio-controllers  Enable GPIO virtual gamepads"
+            echo "                      (requires RPi.GPIO + uhid Python module)"
+            echo "  --help, -h          Show this help message"
+            echo ""
+            echo "Without --gpio-controllers, setup assumes standard USB gamepads."
+            exit 0
+            ;;
+    esac
+done
+
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 log "=== Creation Station Arcade Kiosk Setup ==="
 log "Repo: $REPO_DIR"
 log "Runtime: $RUN_DIR"
+log "GPIO Controllers: $GPIO_CONTROLLERS"
 
 # ── 0. Verify we're in a git repo ─────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
@@ -146,7 +173,47 @@ chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/install/hdmi-audio-fix.sh" 2>/dev/null || true
 log "Runtime folder created."
 
-# ── 8. Git update service ─────────────────────────────────────────────────────
+# ── 8. GPIO virtual gamepad setup (optional) ──────────────────────────────────
+if [ "$GPIO_CONTROLLERS" = true ]; then
+    log "Setting up GPIO virtual gamepads..."
+    
+    # Install Python dependencies
+    log "Installing Python dependencies..."
+    sudo apt-get install -y python3-pip python3-rpi.gpio >> "$LOG" 2>&1
+    
+    # Install uhid Python module
+    log "Installing uhid Python module..."
+    sudo pip3 install uhid --break-system-packages >> "$LOG" 2>&1 || {
+        log "WARNING: Failed to install uhid module. GPIO gamepads may not work."
+    }
+    
+    # Load and enable uhid kernel module
+    log "Configuring uhid kernel module..."
+    sudo modprobe uhid 2>/dev/null || log "WARNING: Could not load uhid module"
+    echo "uhid" | sudo tee /etc/modules-load.d/uhid.conf > /dev/null
+    
+    # Copy GPIO gamepad files to runtime
+    log "Copying GPIO gamepad files to runtime..."
+    cp -f "$REPO_DIR/gpio-gamepad.py" "$RUN_DIR/" 2>/dev/null || true
+    cp -f "$REPO_DIR/arcade.cfg" "$RUN_DIR/" 2>/dev/null || true
+    
+    # Install systemd service
+    log "Installing gpio-gamepad systemd service..."
+    sudo cp -f "$REPO_DIR/gpio-gamepad.service" /etc/systemd/system/
+    sudo systemctl daemon-reload >> "$LOG" 2>&1
+    sudo systemctl enable gpio-gamepad.service >> "$LOG" 2>&1
+    sudo systemctl start gpio-gamepad.service >> "$LOG" 2>&1 || {
+        log "WARNING: Could not start gpio-gamepad service (may need reboot)"
+    }
+    
+    log "GPIO virtual gamepad setup complete."
+    log "Verify with: ls /dev/input/js* after reboot"
+else
+    log "Skipping GPIO setup (--gpio-controllers not specified)"
+    log "Assuming standard USB controllers will be used"
+fi
+
+# ── 9. Git update service ─────────────────────────────────────────────────────
 log "Configuring background git updates..."
 # Create systemd service for git pull on boot
 sudo tee /etc/systemd/system/arcade-git-update.service > /dev/null <<EOF
@@ -172,7 +239,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable arcade-git-update.service
 log "Git update service configured."
 
-# ── 9. Suppress boot messages ─────────────────────────────────────────────────
+# ── 10. Suppress boot messages ────────────────────────────────────────────────
 log "Suppressing boot messages..."
 CMDLINE="/boot/cmdline.txt"
 if [ -f "$CMDLINE" ]; then
@@ -192,3 +259,8 @@ echo ""
 echo "After reboot, the arcade will auto-start."
 echo "Runtime folder: $RUN_DIR"
 echo "Source folder:  $REPO_DIR"
+if [ "$GPIO_CONTROLLERS" = true ]; then
+    echo ""
+    echo "GPIO virtual gamepads enabled."
+    echo "Verify gamepads: ls /dev/input/js*"
+fi

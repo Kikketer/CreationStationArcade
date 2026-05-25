@@ -47,11 +47,11 @@
 - [x] Inactivity monitor kills game after 2 minutes
 - [x] Timer resets when back at menu
 
-### Virtual USB Gamepad (Pending Testing)
-- [x] `gpio-gamepad.py` - Creates 4 virtual USB HID gamepads from GPIO
+### Virtual USB Gamepad ✅ (Tested & Working)
+- [x] `gpio-gamepad.py` - Creates 4 virtual USB HID gamepads from GPIO (16-button descriptor)
 - [x] `gpio-gamepad.service` - Systemd auto-start service
 - [x] `setup-gamepad.sh` - One-command setup script
-- [ ] **NOT YET TESTED** - Needs installation and verification
+- [x] **TESTED** - Works with MakeCode Arcade (buttons 0-1 for A/B, 12-15 for D-pad)
 
 ## Pending / Next Steps
 
@@ -64,11 +64,12 @@
    - [ ] Try launch second game while first running - should show "already running"
    - [ ] Wait 2 minutes without input - should auto-kill game
 
-2. **GPIO Virtual Gamepad Setup**
-   - [ ] Run `sudo ./setup-gamepad.sh`
-   - [ ] Verify `ls /dev/input/js*` shows 4 joysticks
-   - [ ] Check `chrome://gamepad` in browser
-   - [ ] Test button mapping with actual GPIO buttons
+2. **GPIO Virtual Gamepad Setup** ✅
+   - [x] Run `sudo ./setup-gamepad.sh` (or `bash install/kiosk-setup.sh --gpio-controllers`)
+   - [x] Verify `ls /dev/input/js*` shows 4 joysticks
+   - [x] Check `chrome://gamepad` in browser
+   - [x] Test button mapping with actual GPIO buttons
+   - [x] Integrated into kiosk setup with `--gpio-controllers` flag
 
 3. **Button Wiring & Testing**
    - [ ] Wire reset button to GPIO 4
@@ -106,7 +107,7 @@
 | `menu-launcher.sh` | Launches menu Chromium + server | Ready |
 | `kill-to-menu.sh` | Kills game Chromium | Ready |
 | `gpio-monitor.py` | GPIO monitor + inactivity timeout | Ready |
-| `gpio-gamepad.py` | Virtual USB HID gamepads | Ready (untested) |
+| `gpio-gamepad.py` | Virtual USB HID gamepads | ✅ Tested & Working |
 | `gpio-gamepad.service` | Systemd service for gamepad | Ready |
 | `setup-gamepad.sh` | Setup script for gamepad | Ready |
 | `public/index.html` | Menu UI | Ready |
@@ -115,17 +116,23 @@
 
 ## Known Issues
 
-1. **gpio-monitor not auto-starting** - Currently needs manual start
-2. **gpio-gamepad not installed** - Needs `sudo ./setup-gamepad.sh`
-3. **Untested on real hardware** - All GPIO code written but not verified
+1. **gpio-monitor not auto-starting** - Currently needs manual start (need systemd service)
+2. **Hardware testing incomplete** - GPIO gamepad works, needs full button wiring test
+3. **GPIO reset button** - Needs wiring to GPIO 4 and testing
 
 ## Quick Commands
 
 ```bash
+# Full kiosk setup (USB controllers)
+bash install/kiosk-setup.sh
+
+# Full kiosk setup with GPIO virtual gamepads
+bash install/kiosk-setup.sh --gpio-controllers
+
 # Start GPIO monitor manually
 sudo python3 /home/pi/CreationStationArcade-run/gpio-monitor.py
 
-# Setup virtual gamepads
+# Setup virtual gamepads manually
 sudo /home/pi/CreationStationArcade/setup-gamepad.sh
 
 # Kill game and return to menu
