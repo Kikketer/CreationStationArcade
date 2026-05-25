@@ -25,16 +25,13 @@
       align-items: center;
     }
 
-    #status h2 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      background: linear-gradient(90deg, #e040fb, #40c4ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+    #loading-anim {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      width: 128px;
+      height: 32px;
+      background: #000;
     }
-
-    #status p { color: #666688; font-size: 0.9rem; }
 
     #back-hint {
       position: fixed;
@@ -60,8 +57,7 @@
 </head>
 <body>
   <div id="status">
-    <h2 id="game-title">Loading…</h2>
-    <p id="game-msg">Preparing simulator</p>
+    <canvas id="loading-anim" width="32" height="8"></canvas>
   </div>
 
   <div id="back-hint">Press <b>Esc</b> or Kill button to return to menu</div>
@@ -211,24 +207,47 @@
       frame.src = SIM_URL;
     }
 
+    // ── Pixel Loading Animation ────────────────────────────────────────────────
+    const loadingCanvas = document.getElementById('loading-anim');
+    const ctx = loadingCanvas.getContext('2d');
+    let animFrame = 0;
+    
+    function drawLoading() {
+      ctx.clearRect(0, 0, 32, 8);
+      ctx.fillStyle = '#adafbc';
+      // Draw 4 dots that animate
+      const offset = Math.floor(animFrame / 8) % 4;
+      for (let i = 0; i < 4; i++) {
+        const x = 4 + i * 8;
+        const y = 2 + (i === offset ? 2 : 0);
+        ctx.fillRect(x, y, 4, 4);
+      }
+      animFrame++;
+    }
+    
+    const loadingInterval = setInterval(drawLoading, 100);
+
     // ── Init ──────────────────────────────────────────────────────────────────
     async function init() {
       if (!gameName) {
-        document.getElementById("game-title").textContent = "No game selected";
-        document.getElementById("game-msg").textContent = "Return to menu and pick a game.";
+        clearInterval(loadingInterval);
+        ctx.clearRect(0, 0, 32, 8);
+        ctx.fillStyle = '#adafbc';
+        ctx.fillRect(4, 2, 4, 4);
         return;
       }
 
-      document.getElementById("game-title").textContent = gameName;
-      document.getElementById("game-msg").textContent = "Loading…";
       startHeartbeat();
 
       try {
         const code = await loadGame();
-        document.getElementById("game-msg").textContent = "Starting simulator…";
+        clearInterval(loadingInterval);
         runSimulator(code);
       } catch (err) {
-        document.getElementById("game-msg").textContent = `Error: ${err.message}`;
+        clearInterval(loadingInterval);
+        ctx.clearRect(0, 0, 32, 8);
+        ctx.fillStyle = '#e76e55';
+        ctx.fillRect(4, 2, 24, 4);
       }
     }
 

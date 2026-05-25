@@ -94,15 +94,8 @@ function createGameCards() {
     players.className = 'player-count';
     players.textContent = `${game.playerCount}P`;
 
-    // Launch indicator (shows when selected)
-    const launchInd = document.createElement('div');
-    launchInd.className = 'launch-indicator';
-    launchInd.textContent = '▼';
-    launchInd.style.cssText = 'position:absolute;top:1px;left:50%;transform:translateX(-50%);font-size:4px;color:#e76e55;display:none;';
-
     card.appendChild(img);
     card.appendChild(players);
-    card.appendChild(launchInd);
 
     // Click to select
     card.addEventListener('click', () => {
@@ -111,7 +104,7 @@ function createGameCards() {
     });
 
     gameList.appendChild(card);
-    cardElements.push({ card, img, game, launchInd });
+    cardElements.push({ card, img, game });
   });
 
   updateSelection();
@@ -124,7 +117,6 @@ function updateSelection() {
     const prev = cardElements[previousSelectedIndex];
     if (prev) {
       prev.card.classList.remove('selected');
-      if (prev.launchInd) prev.launchInd.style.display = 'none';
       if (prev.img.dataset.staticSrc && prev.img.src !== prev.img.dataset.staticSrc) {
         prev.img.src = prev.img.dataset.staticSrc;
       }
@@ -135,7 +127,6 @@ function updateSelection() {
   const curr = cardElements[selectedIndex];
   if (curr) {
     curr.card.classList.add('selected');
-    if (curr.launchInd) curr.launchInd.style.display = 'block';
     // Try animated GIF if not already loaded
     if (curr.img.dataset.animSrc && !curr.img.src.endsWith('.gif')) {
       const animImg = new Image();
@@ -154,14 +145,12 @@ function updateSelection() {
   previousSelectedIndex = selectedIndex;
 }
 
-// Navigation with grid layout awareness
+// Navigation with grid layout awareness (2 columns fixed)
 function move(dir) {
   if (!games.length || isLaunching) return;
 
   const cards = cardElements.length;
-  const gridEl = gameList;
-  const computedStyle = window.getComputedStyle(gridEl);
-  const columns = computedStyle.gridTemplateColumns.split(' ').length;
+  const columns = 2; // Fixed 2-column layout
 
   switch(dir) {
     case 'up':
@@ -249,7 +238,6 @@ function handleKey(e) {
   }
 }
 window.addEventListener('keydown', handleKey, true);
-document.addEventListener('keydown', handleKey, true);
 
 // Gamepad input
 function pollGamepads() {
