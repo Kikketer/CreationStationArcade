@@ -59,8 +59,9 @@ header h1 {
   padding: 4px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  gap: 2px;
   align-content: start;
+  scroll-padding: 4px 0;
 }
 
 /* Hide scrollbar but keep functionality */
@@ -69,52 +70,50 @@ header h1 {
   display: none;
 }
 
-/* Game cards at virtual 160x120 resolution */
+/* Game cards - positioned for floating elements */
 .game-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
   cursor: pointer;
-  border: 2px solid transparent;
   background: #000;
+  border: none;
+  padding: 0;
+  margin: 1px 0;
+  contain: layout style;
+  will-change: transform;
 }
 
 .game-card.selected {
-  border-color: #e76e55;
   animation: pulse-border 1s steps(2) infinite;
 }
 
 @keyframes pulse-border {
-  0%, 100% { outline: 1px solid #e76e55; outline-offset: 1px; }
-  50% { outline: 1px solid #f7d51d; outline-offset: 2px; }
+  0%, 100% { outline: 1px solid #e76e55; outline-offset: 0px; }
+  50% { outline: 1px solid #f7d51d; outline-offset: 1px; }
 }
 
-/* Game image - 60x32 pixels at virtual resolution */
+/* Game image - tight fit with pulsing border right against it */
 .game-card .game-image {
   width: 60px;
   height: 32px;
   object-fit: cover;
   background: #000;
-  border: 1px solid #000;
   display: block;
 }
 
-.game-card .game-title {
-  font-size: 4px;
-  text-align: center;
-  line-height: 1;
-  max-width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
+/* Player count floating over image bottom-right */
 .game-card .player-count {
-  font-size: 3px;
-  color: #adafbc;
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  font-size: 4px;
+  color: #fff;
+  background: #000;
+  padding: 0 1px;
   line-height: 1;
+  text-shadow: none;
 }
 
 /* Loading state */

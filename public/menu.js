@@ -8,9 +8,11 @@ const GAMEPAD_REPEAT_DELAY = 200;
 // State
 let games = [];
 let selectedIndex = 0;
+let previousSelectedIndex = -1;
 let cardElements = [];
 let lastGamepadInput = 0;
 let isLaunching = false;
+let placeholderCache = {};
 
 // DOM elements
 const gameList = document.getElementById('game-list');
@@ -34,6 +36,9 @@ window.addEventListener('resize', updateScale);
 
 // Generate placeholder image (60x32 for 160x120 virtual resolution)
 function generatePlaceholderImage(name) {
+  // Return cached version if available
+  if (placeholderCache[name]) return placeholderCache[name];
+
   const c = document.createElement('canvas');
   c.width = 60;
   c.height = 32;
@@ -55,7 +60,9 @@ function generatePlaceholderImage(name) {
     ctx.fillRect(px & 0xFC, py & 0xFC, 4, 4);
   }
 
-  return c.toDataURL();
+  const dataUrl = c.toDataURL();
+  placeholderCache[name] = dataUrl;
+  return dataUrl;
 }
 
 // Create game cards
@@ -71,7 +78,7 @@ function createGameCards() {
     // Image
     const img = document.createElement('img');
     img.className = 'game-image';
-    img.alt = game.name;
+    img.alt = '';
 
     // Image sources: static PNG default, GIF when selected
     const baseName = game.image ? game.image.replace(/\.[^.]+$/, '') : game.name.toLowerCase().replace(/\s+/g, '');
@@ -82,18 +89,12 @@ function createGameCards() {
     img.src = img.dataset.staticSrc;
     img.onerror = () => { img.src = generatePlaceholderImage(game.name); };
 
-    // Title
-    const title = document.createElement('div');
-    title.className = 'game-title';
-    title.textContent = game.name;
-
-    // Player count
+    // Player count (floating over image)
     const players = document.createElement('div');
     players.className = 'player-count';
     players.textContent = `${game.playerCount}P`;
 
     card.appendChild(img);
-    card.appendChild(title);
     card.appendChild(players);
 
     // Click to select
@@ -109,27 +110,39 @@ function createGameCards() {
   updateSelection();
 }
 
-// Update selection and scroll into view
+// Update selection - only touch changed cards to prevent reflow
 function updateSelection() {
-  cardElements.forEach(({ card, img }, index) => {
-    if (index === selectedIndex) {
-      card.classList.add('selected');
-      // Try animated GIF
-      if (img.dataset.animSrc && !img.src.endsWith('.gif')) {
-        const animImg = new Image();
-        animImg.onload = () => { img.src = img.dataset.animSrc; };
-        animImg.src = img.dataset.animSrc;
-      }
-      // Scroll into view smoothly
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } else {
-      card.classList.remove('selected');
-      // Revert to static
-      if (img.dataset.staticSrc && img.src !== img.dataset.staticSrc) {
-        img.src = img.dataset.staticSrc;
+  // Update previously selected card - remove highlight, revert to static
+  if (previousSelectedIndex >= 0 && previousSelectedIndex !== selectedIndex) {
+    const prev = cardElements[previousSelectedIndex];
+    if (prev) {
+      prev.card.classList.remove('selected');
+      if (prev.img.dataset.staticSrc && prev.img.src !== prev.img.dataset.staticSrc) {
+        prev.img.src = prev.img.dataset.staticSrc;
       }
     }
-  });
+  }
+
+  // Update newly selected card - add highlight, try GIF
+  const curr = cardElements[selectedIndex];
+  if (curr) {
+    curr.card.classList.add('selected');
+    // Try animated GIF if not already loaded
+    if (curr.img.dataset.animSrc && !curr.img.src.endsWith('.gif')) {
+      const animImg = new Image();
+      animImg.onload = () => { curr.img.src = curr.img.dataset.animSrc; };
+      animImg.src = curr.img.dataset.animSrc;
+    }
+    // Scroll into view only if off-screen
+    const rect = curr.card.getBoundingClientRect();
+    const listRect = gameList.getBoundingClientRect();
+    if (rect.top < listRect.top || rect.bottom > listRect.bottom) {
+      curr.card.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    }
+  }
+
+  // Track for next time
+  previousSelectedIndex = selectedIndex;
 }
 
 // Navigation with grid layout awareness
