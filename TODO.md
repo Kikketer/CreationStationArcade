@@ -105,6 +105,8 @@
 | `kill-to-menu.sh` | Kills game Chromium | Ready |
 | `install/kiosk-setup.sh` | Pi 5 one-shot kiosk setup (with `--gpio-controllers` option) | ✅ Dual-chromium |
 | `install/debian-x86-setup.sh` | Debian x86 one-shot kiosk setup (USB controllers) | ✅ Dual-chromium |
+| `setup-usb-controllers.sh` | Configure stable USB controller ordering by physical port | ✅ Stable P1-P4 |
+| `install/usb-controllers.udev` | Udev rules template for USB controller stability | ✅ Template |
 | `gpio-monitor.py` | GPIO monitor + inactivity timeout | Ready |
 | `gpio-gamepad.py` | Virtual USB HID gamepads | ✅ Tested & Working |
 | `gpio-gamepad.service` | Systemd service for gamepad | Ready |
