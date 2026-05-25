@@ -76,6 +76,7 @@
 
     const params = new URLSearchParams(window.location.search);
     const gameName = params.get("game") || "";
+    const gameFile = params.get("file") || (gameName ? gameName + ".js" : "");
 
     // ── Heartbeat ─────────────────────────────────────────────────────────────
     function startHeartbeat() {
@@ -132,7 +133,7 @@
     const frame = document.getElementById("sim-frame");
 
     async function loadGame() {
-      const res = await fetch(`/games/${encodeURIComponent(gameName)}.js`);
+      const res = await fetch(`/games/${encodeURIComponent(gameFile)}`);
       if (!res.ok) throw new Error(`Game file not found (${res.status})`);
       return res.text();
     }

@@ -39,23 +39,45 @@ function serveFile(res, filePath) {
 }
 
 function handleGames(res) {
-  fs.readdir(GAMES_DIR, (err, files) => {
+  const gamesJsonPath = path.join(GAMES_DIR, "games.json");
+
+  fs.readFile(gamesJsonPath, (err, data) => {
     if (err) {
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Cannot read games directory" }));
+      // Fallback to directory scan if games.json doesn't exist
+      fs.readdir(GAMES_DIR, (err, files) => {
+        if (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Cannot read games directory" }));
+          return;
+        }
+        const games = files
+          .filter((f) => f.endsWith(".js") && !f.startsWith("."))
+          .map((f) => ({
+            name: path.basename(f, ".js"),
+            playerCount: 1,
+            image: "",
+            file: f,
+          }));
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        });
+        res.end(JSON.stringify(games));
+      });
       return;
     }
-    const games = files
-      .filter((f) => f.endsWith(".js") && !f.startsWith("."))
-      .map((f) => ({
-        name: path.basename(f, ".js"),
-        file: f,
-      }));
-    res.writeHead(200, {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
-    });
-    res.end(JSON.stringify(games));
+
+    try {
+      const games = JSON.parse(data);
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+      });
+      res.end(JSON.stringify(games));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid games.json format" }));
+    }
   });
 }
 
@@ -96,7 +118,7 @@ function spawnGameChromium(gameName) {
     return null;
   }
 
-  const gameUrl = `http://localhost:${PORT}/play?game=${encodeURIComponent(gameName)}`;
+  const gameUrl = `http://localhost:${PORT}/play?game=${encodeURIComponent(gameName)}&file=${encodeURIComponent(gameFile || gameName)}`;
   
   const args = [
     "--user-data-dir=/tmp/chromium-arcade-game",
@@ -188,7 +210,7 @@ function spawnGameChromium(gameName) {
   return proc;
 }
 
-function handleLaunchGame(res, gameName) {
+function handleLaunchGame(res, gameName, gameFile) {
   // Check if game already running
   if (isGameRunning()) {
     res.writeHead(409, { "Content-Type": "application/json" });
@@ -234,12 +256,13 @@ const server = http.createServer((req, res) => {
 
   if (pathname === "/api/launch-game") {
     const gameName = url.searchParams.get("name") || "";
+    const gameFile = url.searchParams.get("file") || "";
     if (!gameName) {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Missing name parameter" }));
       return;
     }
-    return handleLaunchGame(res, gameName);
+    return handleLaunchGame(res, gameName, gameFile);
   }
 
   if (pathname.startsWith("/games/")) {

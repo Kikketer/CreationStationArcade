@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Paddle the River",
+    "playerCount": 1,
+    "image": "paddle.png",
+    "file": "Paddle_the_River.js"
+  },
+  {
+    "name": "Super Star Story",
+    "playerCount": 1,
+    "image": "starstory.png",
+    "file": "Super_Star_Story.js"
+  },
+  {
+    "name": "Sonic 3 Miniboss",
+    "playerCount": 2,
+    "image": "sonic.png",
+    "file": "Sonic_3_Miniboss.js"
+  },
+  {
+    "name": "Button Tester",
+    "playerCount": 4,
+    "image": "buttons.png",
+    "file": "ButtonTester.js"
+  }
+]

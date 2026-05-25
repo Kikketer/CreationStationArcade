@@ -1,0 +1,129 @@
+/* MadeArcade - 160x120 Virtual Resolution, Scaled */
+
+* {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  user-select: none;
+}
+
+/* CRT container - centers the pixel screen */
+#crt-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+/* Virtual 160x120 screen */
+#pixel-screen {
+  /* Fixed virtual resolution */
+  width: 160px;
+  height: 120px;
+  /* Scale to fill screen, maintaining aspect ratio */
+  transform: scale(var(--scale, 1));
+  transform-origin: center center;
+  background: #212529;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+header.nes-container {
+  flex-shrink: 0;
+  padding: 4px !important;
+  margin: 4px !important;
+}
+
+header h1 {
+  font-size: 8px !important;
+  margin: 0;
+  line-height: 1;
+}
+
+/* Game list - 2 column grid at virtual resolution */
+#game-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  align-content: start;
+}
+
+/* Hide scrollbar but keep functionality */
+#game-list::-webkit-scrollbar {
+  width: 0;
+  display: none;
+}
+
+/* Game cards at virtual 160x120 resolution */
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: #000;
+}
+
+.game-card.selected {
+  border-color: #e76e55;
+  animation: pulse-border 1s steps(2) infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { outline: 1px solid #e76e55; outline-offset: 1px; }
+  50% { outline: 1px solid #f7d51d; outline-offset: 2px; }
+}
+
+/* Game image - 60x32 pixels at virtual resolution */
+.game-card .game-image {
+  width: 60px;
+  height: 32px;
+  object-fit: cover;
+  background: #000;
+  border: 1px solid #000;
+  display: block;
+}
+
+.game-card .game-title {
+  font-size: 4px;
+  text-align: center;
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.game-card .player-count {
+  font-size: 3px;
+  color: #adafbc;
+  line-height: 1;
+}
+
+/* Loading state */
+#game-list:empty::before {
+  content: "LOADING...";
+  display: block;
+  text-align: center;
+  padding: 8px;
+  font-size: 4px;
+  color: #adafbc;
+  grid-column: 1 / -1;
+}
