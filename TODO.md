@@ -60,6 +60,17 @@
 - [x] Reset button kills game Chromium only
 - [x] Inactivity monitor kills game after 2 minutes
 - [x] Timer resets when back at menu
+- [x] **TESTED** - All buttons wired and working (May 25, 2026)
+
+### GPIO Hardware Setup ✅ (Fully Tested)
+- [x] Reset button wired to GPIO 4 (BCM) - active low (ground to pin)
+- [x] All player buttons wired per `arcade.cfg` (active low)
+- [x] `gpio-gamepad.py` - Virtual USB gamepads from GPIO inputs
+- [x] `gpio-gamepad.service` - Auto-start on boot
+- [x] `gpio-monitor.service` - Reset button + inactivity monitoring
+- [x] **TESTED** - 4-player GPIO virtual gamepads working in games
+- [x] **TESTED** - Reset button kills game instantly
+- [x] **TESTED** - 2-minute inactivity timeout working
 
 ### Virtual USB Gamepad ✅ (Tested & Working)
 - [x] `gpio-gamepad.py` - Creates 4 virtual USB HID gamepads from GPIO (16-button descriptor)
@@ -69,19 +80,19 @@
 
 ## Pending / Next Steps
 
-### Hardware Wiring (Big Haul) 🛠️
+### Hardware Wiring (Big Haul) 🛠️ ✅ COMPLETE
 
-1. **Button Wiring & Testing**
-   - [ ] Wire reset button to GPIO 4
-   - [ ] Wire player buttons per `arcade.cfg`
-   - [ ] Test reset button kills game
-   - [ ] Test game buttons work in games
-   - [ ] Verify inactivity timeout (2 min) works
+1. **Button Wiring & Testing** ✅
+   - [x] Wire reset button to GPIO 4
+   - [x] Wire player buttons per `arcade.cfg`
+   - [x] Test reset button kills game
+   - [x] Test game buttons work in games
+   - [x] Verify inactivity timeout (2 min) works
 
-2. **gpio-monitor Systemd Service**
-   - [ ] Create `gpio-monitor.service`
-   - [ ] Enable auto-start on boot
-   - [ ] Test reset button without manual script start
+2. **gpio-monitor Systemd Service** ✅
+   - [x] Create `gpio-monitor.service`
+   - [x] Enable auto-start on boot
+   - [x] Test reset button without manual script start
 
 ### Menu Polish 🎨
 
@@ -221,4 +232,4 @@ ls -la /dev/input/arcade-p*
 
 ---
 
-Last Updated: May 25, 2026 (Menu Refactor Complete)
+Last Updated: May 25, 2026 (GPIO Hardware Fully Tested & Working)

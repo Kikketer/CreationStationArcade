@@ -14,6 +14,7 @@ import glob
 
 # Configuration
 RESET_PIN = 4           # BCM GPIO 4 for reset button (from arcade.cfg BTN_RESET)
+# Reset button is ACTIVE LOW - connect button between GPIO 4 and Ground
 BUTTON_PINS = []        # Loaded from arcade.cfg
 INACTIVITY_SECONDS = 2 * 60  # 2 minutes
 GAME_PID_FILE = "/tmp/arcade-game-chromium.pid"
@@ -217,11 +218,13 @@ def main():
     try:
         GPIO.setmode(GPIO.BCM)
         
-        # Setup reset button
-        GPIO.setup(RESET_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect(RESET_PIN, GPIO.RISING, 
+        # Setup reset button - ACTIVE LOW (connect button to ground)
+        # Pin is HIGH via internal pull-up, goes LOW when button pressed
+        GPIO.setup(RESET_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(RESET_PIN, GPIO.FALLING, 
                              callback=on_reset_press, 
                              bouncetime=300)
+        log(f"Reset button configured: ACTIVE LOW (GPIO {RESET_PIN} to GND)")
         
         # Note: GPIO button activity monitoring disabled - no buttons wired yet
         # When buttons are wired, load from arcade.cfg and setup event detects
