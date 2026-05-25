@@ -1,0 +1,22 @@
+# USB Arcade Controller Persistent Naming
+# Creates stable /dev/input/arcade-p1, arcade-p2, etc based on USB physical port
+# 
+# USB Port Mapping (Pi 5 USB ports):
+# - USB port closest to Ethernet = bus 0, port 1 = Player 1
+# - USB port next to it        = bus 0, port 2 = Player 2  
+# - USB3 port (blue) top       = bus 0, port 3 = Player 3
+# - USB3 port (blue) bottom    = bus 0, port 4 = Player 4
+#
+# To identify your ports: ls -la /dev/input/by-path/ | grep joystick
+
+# Player 1 - USB bus 0, port 1
+SUBSYSTEM=="input", KERNEL=="js[0-9]*", ENV{DEVPATH}=="*usb0/1-1*", SYMLINK+="input/arcade-p1", TAG+="uaccess"
+
+# Player 2 - USB bus 0, port 2  
+SUBSYSTEM=="input", KERNEL=="js[0-9]*", ENV{DEVPATH}=="*usb0/2-1*", SYMLINK+="input/arcade-p2", TAG+="uaccess"
+
+# Player 3 - USB bus 0, port 3
+SUBSYSTEM=="input", KERNEL=="js[0-9]*", ENV{DEVPATH}=="*usb0/3-1*", SYMLINK+="input/arcade-p3", TAG+="uaccess"
+
+# Player 4 - USB bus 0, port 4
+SUBSYSTEM=="input", KERNEL=="js[0-9]*", ENV{DEVPATH}=="*usb0/4-1*", SYMLINK+="input/arcade-p4", TAG+="uaccess"

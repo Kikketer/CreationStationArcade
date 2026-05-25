@@ -132,6 +132,9 @@ bash install/kiosk-setup.sh --gpio-controllers
 # Debian/Ubuntu x86 kiosk setup (USB controllers, dual-chromium)
 bash install/debian-x86-setup.sh
 
+# Configure stable USB controller ordering (run after plugging in controllers)
+sudo bash setup-usb-controllers.sh
+
 # Start GPIO monitor manually
 sudo python3 /home/pi/CreationStationArcade-run/gpio-monitor.py
 
@@ -184,6 +187,35 @@ cd ~/CreationStationArcade
 bash install/debian-x86-setup.sh
 sudo reboot
 ```
+
+---
+
+## USB Controller Stability (Multi-Player Setup)
+
+**Problem:** USB controllers get random `js0`, `js1`, `js2` assignments on each boot.
+**Solution:** Udev rules create stable device names based on **USB physical port**.
+
+**After setup:**
+- `arcade-p1` → Player 1 controller (always same USB port)
+- `arcade-p2` → Player 2 controller (always same USB port)
+- `arcade-p3` → Player 3 controller
+- `arcade-p4` → Player 4 controller
+
+**Setup Steps:**
+1. Plug each controller into its intended USB port
+2. Run: `sudo bash setup-usb-controllers.sh`
+3. Follow prompts to identify ports and install rules
+4. Reboot
+
+**Verify after reboot:**
+```bash
+ls -la /dev/input/arcade-p*
+# Should show stable symlinks like: arcade-p1 -> js4
+```
+
+**This works on both:**
+- Raspberry Pi 5 (with USB controllers instead of GPIO)
+- Debian/Ubuntu x86 systems
 
 ---
 

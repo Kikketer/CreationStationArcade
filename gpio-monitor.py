@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # gpio-monitor.py - GPIO button monitor + inactivity timeout for Dual-Chromium kiosk
-# Watches reset button, monitors GPIO activity, kills game Chromium after inactivity
+# Watches reset button, monitors GPIO activity AND USB gamepad activity, kills game Chromium after inactivity
 
 import RPi.GPIO as GPIO
 import time
@@ -8,6 +8,9 @@ import subprocess
 import os
 import threading
 import signal
+import struct
+import select
+import glob
 
 # Configuration
 RESET_PIN = 4           # BCM GPIO 4 for reset button (from arcade.cfg BTN_RESET)
@@ -18,6 +21,7 @@ GAME_PID_FILE = "/tmp/arcade-game-chromium.pid"
 # State
 _last_activity = time.monotonic()
 _in_game = False
+_joystick_fds = []      # Open joystick device file descriptors
 
 os.environ["DISPLAY"] = ":0"
 
@@ -81,6 +85,67 @@ def on_reset_press(channel):
     log(f"Reset button pressed on pin {channel}")
     kill_game_chromium()
 
+def open_joystick_devices():
+    """Open all available joystick devices for monitoring"""
+    global _joystick_fds
+    # Close existing
+    for fd in _joystick_fds:
+        try:
+            os.close(fd)
+        except:
+            pass
+    _joystick_fds = []
+    
+    # First, try stable arcade-p* names (if udev rules configured)
+    # These are stable across reboots (arcade-p1 always = same physical port)
+    for player in range(1, 5):
+        stable_path = f"/dev/input/arcade-p{player}"
+        if os.path.exists(stable_path):
+            try:
+                fd = os.open(stable_path, os.O_RDONLY | os.O_NONBLOCK)
+                _joystick_fds.append(fd)
+                log(f"Monitoring stable joystick: {stable_path}")
+            except Exception as e:
+                log(f"Could not open {stable_path}: {e}")
+    
+    # If no stable devices found, fall back to js* (kernel-assigned, may vary)
+    if not _joystick_fds:
+        log("No stable arcade-p* devices found, using js* devices (order may vary)")
+        for js_path in sorted(glob.glob("/dev/input/js*")):
+            try:
+                fd = os.open(js_path, os.O_RDONLY | os.O_NONBLOCK)
+                _joystick_fds.append(fd)
+                log(f"Monitoring joystick: {js_path}")
+            except Exception as e:
+                log(f"Could not open {js_path}: {e}")
+    
+    return len(_joystick_fds)
+
+def check_joystick_activity():
+    """Check if any joystick has activity. Returns True if activity detected."""
+    global _joystick_fds
+    if not _joystick_fds:
+        return False
+    
+    try:
+        # Use select to check for readable data (non-blocking)
+        readable, _, _ = select.select(_joystick_fds, [], [], 0)
+        if readable:
+            for fd in readable:
+                try:
+                    # Read and discard the event (just need to know there was activity)
+                    data = os.read(fd, 8)
+                    if data:
+                        return True
+                except (OSError, BlockingIOError):
+                    pass
+    except (OSError, ValueError):
+        # Joystick disconnected? Try to reopen
+        log("Joystick select failed, attempting to reopen devices")
+        open_joystick_devices()
+    
+    return False
+
 def kill_game_chromium():
     """Kill game Chromium process directly via PID file"""
     pid = get_game_pid()
@@ -114,19 +179,34 @@ def inactivity_monitor():
     """Background thread: kill game Chromium if inactive"""
     global _last_activity
     log("Inactivity monitor thread started")
+    
+    # Open joystick devices
+    js_count = open_joystick_devices()
+    log(f"Monitoring {js_count} USB joystick(s) for activity")
+    
     while True:
-        time.sleep(5)
-
+        time.sleep(1)  # Check every second for joystick activity
+        
+        # Check for USB gamepad activity (always, even when not in game)
+        if check_joystick_activity():
+            _last_activity = time.monotonic()
+            log("USB gamepad activity detected")
+        
+        # Check every 5 seconds for inactivity timeout
+        # (use counter to avoid checking too frequently)
+        if int(time.monotonic()) % 5 != 0:
+            continue
+        
         # Check if game is running
         game_running = is_game_running()
-        log(f"Check: game_running={game_running}")
-
+        
         if game_running:
             inactive_time = time.monotonic() - _last_activity
-            log(f"In game, inactive for {int(inactive_time)}s (timeout: {INACTIVITY_SECONDS}s)")
             if inactive_time > INACTIVITY_SECONDS:
                 log(f"TIMEOUT! Inactive for {int(inactive_time)}s in game, killing game Chromium")
                 kill_game_chromium()
+            else:
+                log(f"In game, inactive for {int(inactive_time)}s (timeout: {INACTIVITY_SECONDS}s)")
         else:
             # Reset timer when back at menu (so fresh start next game)
             _last_activity = time.monotonic()
@@ -143,10 +223,12 @@ def main():
                              callback=on_reset_press, 
                              bouncetime=300)
         
-        # Note: Button activity monitoring disabled - no buttons wired yet
+        # Note: GPIO button activity monitoring disabled - no buttons wired yet
         # When buttons are wired, load from arcade.cfg and setup event detects
+        # USB gamepad monitoring is active via joystick thread
         _last_activity = time.monotonic()
-        log("Note: Button activity monitoring disabled (no buttons wired)")
+        log("Note: GPIO button monitoring disabled (no buttons wired)")
+        log("Note: USB gamepad monitoring active (via /dev/input/js*)")
         
         # Start inactivity monitor thread
         monitor_thread = threading.Thread(target=inactivity_monitor, daemon=True)
