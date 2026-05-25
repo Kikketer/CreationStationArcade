@@ -35,82 +35,60 @@ except ImportError:
 
 LOG_FILE = "/home/pi/arcade.log"
 
-# Standard USB HID Gamepad Report Descriptor (6 buttons + D-pad)
-# This creates a standard USB gamepad that browsers recognize
+# USB HID Gamepad Report Descriptor (16 buttons)
+# MakeCode Arcade expects: 0=A, 1=B, 9=Menu, 12=Up, 13=Down, 14=Left, 15=Right
+# We use buttons 12-15 for D-pad instead of hat switch for compatibility
 GAMEPAD_REPORT_DESCRIPTOR = bytes([
     0x05, 0x01,        # Usage Page (Generic Desktop)
     0x09, 0x05,        # Usage (Game Pad)
     0xa1, 0x01,        # Collection (Application)
     0xa1, 0x00,        #   Collection (Physical)
     
-    # D-pad (Hat switch)
-    0x09, 0x39,        #   Usage (Hat switch)
-    0x15, 0x00,        #   Logical Minimum (0)
-    0x25, 0x07,        #   Logical Maximum (7)
-    0x35, 0x00,        #   Physical Minimum (0)
-    0x46, 0x3b, 0x01,  #   Physical Maximum (315)
-    0x65, 0x14,        #   Unit (Degrees, English Rotation)
-    0x75, 0x04,        #   Report Size (4)
-    0x95, 0x01,        #   Report Count (1)
-    0x81, 0x42,        #   Input (Data, Variable, Absolute, Null State)
-    
-    # Padding (4 bits to byte-align)
-    0x75, 0x04,        #   Report Size (4)
-    0x95, 0x01,        #   Report Count (1)
-    0x81, 0x01,        #   Input (Constant)
-    
-    # Buttons (6 buttons: A, B, X, Y, LB, RB)
+    # Buttons (16 buttons: A, B, X, Y, LB, RB, back, start, L3, R3, unassigned, unassigned, Up, Down, Left, Right)
     0x05, 0x09,        #   Usage Page (Button)
     0x19, 0x01,        #   Usage Minimum (Button 1)
-    0x29, 0x06,        #   Usage Maximum (Button 6)
+    0x29, 0x10,        #   Usage Maximum (Button 16)
     0x15, 0x00,        #   Logical Minimum (0)
     0x25, 0x01,        #   Logical Maximum (1)
     0x75, 0x01,        #   Report Size (1)
-    0x95, 0x06,        #   Report Count (6)
+    0x95, 0x10,        #   Report Count (16)
     0x81, 0x02,        #   Input (Data, Variable, Absolute)
-    
-    # Padding (2 bits to byte-align)
-    0x75, 0x02,        #   Report Size (2)
-    0x95, 0x01,        #   Report Count (1)
-    0x81, 0x01,        #   Input (Constant)
     
     0xc0,              #   End Collection
     0xc0,              # End Collection
 ])
 
 # Gamepad button mapping (bit positions in report)
-# Report format: [Hat(4 bits) | Padding(4 bits)] [Buttons(6 bits) | Padding(2 bits)]
-# Hat: 0=up, 1=up-right, 2=right, 3=down-right, 4=down, 5=down-left, 6=left, 7=up-left, 8=neutral
+# Report format: 2 bytes, 16 buttons (little-endian bit order)
+# MakeCode Arcade expects: 0=A, 1=B, 12=Up, 13=Down, 14=Left, 15=Right
 BUTTON_A = 0
 BUTTON_B = 1
-BUTTON_X = 2  # Unused but mapped
-BUTTON_Y = 3  # Unused but mapped
-BUTTON_LB = 4  # Unused but mapped
-BUTTON_RB = 5  # Unused but mapped
-
-HAT_NEUTRAL = 8
-HAT_UP = 0
-HAT_UP_RIGHT = 1
-HAT_RIGHT = 2
-HAT_DOWN_RIGHT = 3
-HAT_DOWN = 4
-HAT_DOWN_LEFT = 5
-HAT_LEFT = 6
-HAT_UP_LEFT = 7
+BUTTON_X = 2   # Unused
+BUTTON_Y = 3   # Unused
+BUTTON_LB = 4  # Unused
+BUTTON_RB = 5  # Unused
+BUTTON_BACK = 6   # Unused
+BUTTON_START = 7  # Unused (Menu button)
+BUTTON_L3 = 8   # Unused
+BUTTON_R3 = 9   # Unused
+BUTTON_10 = 10  # Unused
+BUTTON_11 = 11  # Unused
+BUTTON_UP = 12
+BUTTON_DOWN = 13
+BUTTON_LEFT = 14
+BUTTON_RIGHT = 15
 
 class VirtualGamepad:
-    """A single virtual USB gamepad"""
+    """A single virtual USB gamepad with 16 buttons"""
     
     def __init__(self, player_num, pin_config):
         self.player_num = player_num
         self.pin_config = pin_config  # dict: { 'up': pin, 'down': pin, ... }
         
-        # Current state
-        self.hat = HAT_NEUTRAL
-        self.buttons = 0  # 6 bits
+        # Current state - 16 buttons (bits 0-15)
+        self.buttons = 0  # 16 bits: [RB,LB,Y,X,B,A,unused...,R,L,D,U]
         
         # Previous state for edge detection
-        self.prev_hat = HAT_NEUTRAL
         self.prev_buttons = 0
         
         # Create uhid device
@@ -121,72 +99,60 @@ class VirtualGamepad:
             report_descriptor=GAMEPAD_REPORT_DESCRIPTOR,
         )
         
-        self.device.open()
+        # Wait for device to be ready (new uhid API)
+        self.device.wait_for_start()
         log(f"Player {player_num}: Virtual gamepad created")
         
         # Initial report
         self.send_report()
     
     def send_report(self):
-        """Send current state to USB HID"""
-        # Pack: hat (4 bits) + padding (4 bits), buttons (6 bits) + padding (2 bits)
-        hat_byte = (self.hat & 0x0F) | 0x80  # Add null state bit
-        btn_byte = self.buttons & 0x3F
-        report = bytes([hat_byte, btn_byte])
+        """Send current state to USB HID - 2 bytes, 16 buttons little-endian"""
+        # Report is 2 bytes: [buttons 0-7], [buttons 8-15]
+        report = bytes([self.buttons & 0xFF, (self.buttons >> 8) & 0xFF])
         self.device.send_input(report)
     
     def update(self, pin_states):
         """Update state based on GPIO pin readings"""
-        # Calculate hat direction
-        up = pin_states.get(self.pin_config['up'], 1) == 0  # Active low
+        # Read GPIO states (active low)
+        up = pin_states.get(self.pin_config['up'], 1) == 0
         down = pin_states.get(self.pin_config['down'], 1) == 0
         left = pin_states.get(self.pin_config['left'], 1) == 0
         right = pin_states.get(self.pin_config['right'], 1) == 0
-        
-        # Determine hat value (D-pad)
-        if up and right:
-            self.hat = HAT_UP_RIGHT
-        elif up and left:
-            self.hat = HAT_UP_LEFT
-        elif down and right:
-            self.hat = HAT_DOWN_RIGHT
-        elif down and left:
-            self.hat = HAT_DOWN_LEFT
-        elif up:
-            self.hat = HAT_UP
-        elif down:
-            self.hat = HAT_DOWN
-        elif left:
-            self.hat = HAT_LEFT
-        elif right:
-            self.hat = HAT_RIGHT
-        else:
-            self.hat = HAT_NEUTRAL
-        
-        # Calculate buttons
         a_pressed = pin_states.get(self.pin_config['a'], 1) == 0
         b_pressed = pin_states.get(self.pin_config['b'], 1) == 0
         
-        self.buttons = 0
+        # Build button state (16 bits)
+        new_buttons = 0
         if a_pressed:
-            self.buttons |= (1 << BUTTON_A)
+            new_buttons |= (1 << BUTTON_A)
         if b_pressed:
-            self.buttons |= (1 << BUTTON_B)
+            new_buttons |= (1 << BUTTON_B)
+        if up:
+            new_buttons |= (1 << BUTTON_UP)
+        if down:
+            new_buttons |= (1 << BUTTON_DOWN)
+        if left:
+            new_buttons |= (1 << BUTTON_LEFT)
+        if right:
+            new_buttons |= (1 << BUTTON_RIGHT)
         
         # Send report if changed
-        if self.hat != self.prev_hat or self.buttons != self.prev_buttons:
+        if new_buttons != self.buttons:
+            self.buttons = new_buttons
             self.send_report()
-            self.prev_hat = self.hat
-            self.prev_buttons = self.buttons
             
             # Debug logging
-            if self.buttons or self.hat != HAT_NEUTRAL:
+            if self.buttons:
                 btn_str = ""
-                if a_pressed:
-                    btn_str += "A"
-                if b_pressed:
-                    btn_str += "B"
-                dir_str = ["U", "UR", "R", "DR", "D", "DL", "L", "UL", "-"][self.hat if self.hat <= 7 else 8]
+                if a_pressed: btn_str += "A"
+                if b_pressed: btn_str += "B"
+                dir_str = ""
+                if up: dir_str += "U"
+                if down: dir_str += "D"
+                if left: dir_str += "L"
+                if right: dir_str += "R"
+                if not dir_str: dir_str = "-"
                 log(f"P{self.player_num}: {dir_str} {btn_str}")
 
 
@@ -325,7 +291,10 @@ def main():
     finally:
         GPIO.cleanup()
         for gp in gamepads.values():
-            gp.device.destroy()
+            try:
+                gp.device.destroy()
+            except:
+                pass
         log("Cleanup complete")
 
 
