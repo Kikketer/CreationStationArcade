@@ -259,8 +259,7 @@ User=pi
 WorkingDirectory=$REPO_DIR
 Environment="CSA_SOURCE_DIR=$REPO_DIR"
 Environment="RUN_DIR=$RUN_DIR"
-ExecStart=$REPO_DIR/pullFromGit.sh
-ExecStartPost=/bin/bash -c 'if command -v rsync >/dev/null 2>&1; then rsync -a --delete --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/; else cp -a "$REPO_DIR"/ "$RUN_DIR"/; fi'
+ExecStart=/bin/bash $REPO_DIR/pullFromGit.sh
 
 [Install]
 WantedBy=multi-user.target
