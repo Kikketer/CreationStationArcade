@@ -4,7 +4,7 @@
  */
 
 const GAMEPAD_REPEAT_DELAY = 200;
-const IDLE_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
+const IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 // State
 let games = [];
@@ -221,20 +221,28 @@ async function loadGames() {
 // ---- Scene / idle management ----
 
 function showScene(name) {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = null;
+
   if (name === 'menu') {
     sceneMenu.classList.remove('hidden');
     sceneAttract.classList.add('hidden');
     currentScene = 'menu';
+    // After idle period on menu, switch to attract
+    idleTimer = setTimeout(() => showScene('attract'), IDLE_TIMEOUT_MS);
   } else {
     sceneMenu.classList.add('hidden');
     sceneAttract.classList.remove('hidden');
     currentScene = 'attract';
+    // After same period on attract, switch back to menu
+    idleTimer = setTimeout(() => showScene('menu'), IDLE_TIMEOUT_MS);
   }
 }
 
 function resetIdleTimer() {
   lastActivityTime = Date.now();
   if (idleTimer) clearTimeout(idleTimer);
+  // Only schedule attract timeout when on menu (user is active)
   idleTimer = setTimeout(() => showScene('attract'), IDLE_TIMEOUT_MS);
 }
 
@@ -245,9 +253,8 @@ function onActivity() {
   resetIdleTimer();
 }
 
-// Start in attract mode; any button press will switch to menu
+// Start in attract mode; timer will flip to menu after timeout
 showScene('attract');
-resetIdleTimer();
 
 // ---- Aggressive focus management for kiosk mode ----
 function ensureFocus() {
