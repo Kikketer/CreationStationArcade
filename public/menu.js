@@ -265,8 +265,9 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) docu
 
 // Keyboard input - multiple listeners for kiosk compatibility
 function handleKey(e) {
+  const wasAttract = currentScene !== 'menu';
   onActivity();
-  if (currentScene !== 'menu') return; // absorbed into menu, don't act yet
+  if (wasAttract) return; // wakeup press only - don't act
   switch(e.key) {
     case 'ArrowUp':    e.preventDefault(); move('up'); break;
     case 'ArrowDown':  e.preventDefault(); move('down'); break;
@@ -301,8 +302,10 @@ function pollGamepads() {
 
     const anyPressed = up || down || left || right || a;
     if (anyPressed) {
+      const wasAttract = currentScene !== 'menu';
       onActivity();
       lastGamepadInput = now;
+      if (wasAttract) continue; // wakeup press only - don't act
     }
     if (currentScene !== 'menu') continue;
 
