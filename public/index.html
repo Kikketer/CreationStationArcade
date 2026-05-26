@@ -11,13 +11,30 @@
 <body>
   <div id="crt-container">
     <div id="pixel-screen">
-      <header class="nes-container">
-        <img id="logo" src="/games/logo.gif" alt="MadeArcade" onerror="this.src='/games/logo.png'" />
-      </header>
 
-      <main id="game-list" class="nes-container">
-        <!-- Game cards rendered here -->
-      </main>
+      <!-- Scene: menu (game list) -->
+      <div id="scene-menu" class="hidden">
+        <header class="nes-container">
+          <img id="logo" src="/games/logo.gif" alt="MadeArcade" onerror="this.src='/games/logo.png'" />
+        </header>
+        <main id="game-list" class="nes-container">
+          <!-- Game cards rendered here -->
+        </main>
+      </div>
+
+      <!-- Scene: attract (idle slideshow) -->
+      <div id="scene-attract">
+        <div id="attract-logo-wrap">
+          <img id="attract-logo" src="/games/logo-tall.png" alt="MadeArcade" />
+        </div>
+        <div id="attract-text">
+          <p>These games were made by students of the
+          <span class="highlight">"Make Video Games"</span>
+          class.</p>
+          <p>Sign up today!</p>
+        </div>
+      </div>
+
     </div>
   </div>
   <script src="menu.js"></script>

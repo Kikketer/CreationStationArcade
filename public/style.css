@@ -1,5 +1,8 @@
 /* MadeArcade - 160x120 Virtual Resolution, Scaled */
 
+/* Utility */
+.hidden { display: none !important; }
+
 * {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -126,4 +129,57 @@ header #logo {
   padding: 8px;
   font-size: 4px;
   grid-column: 1 / -1;
+}
+
+/* Scene containers - fill pixel-screen */
+#scene-menu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+#scene-attract {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  gap: 4px;
+}
+
+#attract-logo-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#attract-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+#attract-text {
+  text-align: center;
+  padding: 0 4px;
+  text-wrap: balance;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#attract-text p {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 4px;
+  color: #fff;
+  line-height: 1.6;
+  margin: 0;
+}
+
+#attract-text .highlight {
+  color: #f7d51d;
 }

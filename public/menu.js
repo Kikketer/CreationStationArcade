@@ -4,6 +4,7 @@
  */
 
 const GAMEPAD_REPEAT_DELAY = 200;
+const IDLE_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 
 // State
 let games = [];
@@ -14,9 +15,16 @@ let lastGamepadInput = 0;
 let isLaunching = false;
 let placeholderCache = {};
 
+// Scene state: 'menu' | 'attract'
+let currentScene = 'attract';
+let idleTimer = null;
+let lastActivityTime = Date.now();
+
 // DOM elements
 const gameList = document.getElementById('game-list');
 const pixelScreen = document.getElementById('pixel-screen');
+const sceneMenu = document.getElementById('scene-menu');
+const sceneAttract = document.getElementById('scene-attract');
 
 // Virtual resolution
 const VIRTUAL_W = 160;
@@ -210,7 +218,38 @@ async function loadGames() {
   }
 }
 
-// Aggressive focus management for kiosk mode
+// ---- Scene / idle management ----
+
+function showScene(name) {
+  if (name === 'menu') {
+    sceneMenu.classList.remove('hidden');
+    sceneAttract.classList.add('hidden');
+    currentScene = 'menu';
+  } else {
+    sceneMenu.classList.add('hidden');
+    sceneAttract.classList.remove('hidden');
+    currentScene = 'attract';
+  }
+}
+
+function resetIdleTimer() {
+  lastActivityTime = Date.now();
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => showScene('attract'), IDLE_TIMEOUT_MS);
+}
+
+function onActivity() {
+  if (currentScene !== 'menu') {
+    showScene('menu');
+  }
+  resetIdleTimer();
+}
+
+// Start in attract mode; any button press will switch to menu
+showScene('attract');
+resetIdleTimer();
+
+// ---- Aggressive focus management for kiosk mode ----
 function ensureFocus() {
   if (document.activeElement !== document.body) {
     document.body.focus();
@@ -226,6 +265,8 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) docu
 
 // Keyboard input - multiple listeners for kiosk compatibility
 function handleKey(e) {
+  onActivity();
+  if (currentScene !== 'menu') return; // absorbed into menu, don't act yet
   switch(e.key) {
     case 'ArrowUp':    e.preventDefault(); move('up'); break;
     case 'ArrowDown':  e.preventDefault(); move('down'); break;
@@ -258,11 +299,18 @@ function pollGamepads() {
     const right = pad.buttons[15]?.pressed || pad.axes[0] > 0.5;
     const a = pad.buttons[0]?.pressed;
 
-    if (up)    { move('up'); lastGamepadInput = now; }
-    else if (down)  { move('down'); lastGamepadInput = now; }
-    else if (left)  { move('left'); lastGamepadInput = now; }
-    else if (right) { move('right'); lastGamepadInput = now; }
-    else if (a)     { selectGame(); lastGamepadInput = now; }
+    const anyPressed = up || down || left || right || a;
+    if (anyPressed) {
+      onActivity();
+      lastGamepadInput = now;
+    }
+    if (currentScene !== 'menu') continue;
+
+    if (up)    { move('up'); }
+    else if (down)  { move('down'); }
+    else if (left)  { move('left'); }
+    else if (right) { move('right'); }
+    else if (a)     { selectGame(); }
   }
 
   requestAnimationFrame(pollGamepads);
