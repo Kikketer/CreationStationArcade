@@ -5,7 +5,9 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
+const { spawn, exec } = require("child_process");
+
+const STATS_FILE = "/home/pi/arcade-stats.json";
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -59,6 +61,7 @@ function handleGames(res) {
             image: "",
             file: f,
           }));
+        trackNewGames(games);
         res.writeHead(200, {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache",
@@ -70,6 +73,7 @@ function handleGames(res) {
 
     try {
       const games = JSON.parse(data);
+      trackNewGames(games);
       res.writeHead(200, {
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
@@ -212,6 +216,52 @@ function spawnGameChromium(gameName, gameFile) {
   return proc;
 }
 
+function trackGamePlay(gameName) {
+  try {
+    let stats = { buttons: {}, games: {}, first_seen: {}, last_updated: null };
+    try {
+      const data = fs.readFileSync(STATS_FILE, 'utf8');
+      stats = JSON.parse(data);
+    } catch (e) {
+      // File doesn't exist or is invalid, start fresh
+    }
+    stats.games[gameName] = (stats.games[gameName] || 0) + 1;
+    stats.last_updated = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    fs.writeFileSync(STATS_FILE + '.tmp', JSON.stringify(stats, null, 2));
+    fs.renameSync(STATS_FILE + '.tmp', STATS_FILE);
+  } catch (e) {
+    console.error(`[CSA] Failed to track game play: ${e.message}`);
+  }
+}
+
+function trackNewGames(gamesList) {
+  try {
+    let stats = { buttons: {}, games: {}, first_seen: {}, last_updated: null };
+    try {
+      const data = fs.readFileSync(STATS_FILE, 'utf8');
+      stats = JSON.parse(data);
+    } catch (e) {
+      // File doesn't exist or is invalid, start fresh
+    }
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    let newGamesFound = false;
+    for (const game of gamesList) {
+      if (game.name && !stats.first_seen[game.name]) {
+        stats.first_seen[game.name] = now;
+        newGamesFound = true;
+        console.log(`[CSA] New game detected: ${game.name} (added: ${now})`);
+      }
+    }
+    if (newGamesFound) {
+      stats.last_updated = now;
+      fs.writeFileSync(STATS_FILE + '.tmp', JSON.stringify(stats, null, 2));
+      fs.renameSync(STATS_FILE + '.tmp', STATS_FILE);
+    }
+  } catch (e) {
+    console.error(`[CSA] Failed to track new games: ${e.message}`);
+  }
+}
+
 function handleLaunchGame(res, gameName, gameFile) {
   // Check if game already running
   if (isGameRunning()) {
@@ -219,6 +269,9 @@ function handleLaunchGame(res, gameName, gameFile) {
     res.end(JSON.stringify({ error: "Game already running", active: true }));
     return;
   }
+
+  // Track game play
+  trackGamePlay(gameName);
 
   // Check if launch recently happened (debounce)
   const now = Date.now();

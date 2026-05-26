@@ -79,7 +79,6 @@ def on_button_activity(channel):
     """Any button press resets activity timer"""
     global _last_activity
     _last_activity = time.monotonic()
-    log(f"Button activity on pin {channel}")
 
 def on_reset_press(channel):
     """Reset button immediately kills game Chromium"""
@@ -191,7 +190,6 @@ def inactivity_monitor():
         # Check for USB gamepad activity (always, even when not in game)
         if check_joystick_activity():
             _last_activity = time.monotonic()
-            log("USB gamepad activity detected")
         
         # Check every 5 seconds for inactivity timeout
         # (use counter to avoid checking too frequently)

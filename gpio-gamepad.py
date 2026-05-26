@@ -33,6 +33,10 @@ except ImportError:
     print("ERROR: RPi.GPIO not available")
     sys.exit(1)
 
+# Import stats tracking
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import arcade_stats
+
 LOG_FILE = "/home/pi/arcade.log"
 
 # USB HID Gamepad Report Descriptor (16 buttons)
@@ -139,21 +143,23 @@ class VirtualGamepad:
         
         # Send report if changed
         if new_buttons != self.buttons:
+            # Track stats for newly pressed buttons (transition from 0 to 1)
+            newly_pressed = new_buttons & ~self.buttons
+            if newly_pressed & (1 << BUTTON_A):
+                arcade_stats.increment_button(self.player_num, 'a')
+            if newly_pressed & (1 << BUTTON_B):
+                arcade_stats.increment_button(self.player_num, 'b')
+            if newly_pressed & (1 << BUTTON_UP):
+                arcade_stats.increment_button(self.player_num, 'up')
+            if newly_pressed & (1 << BUTTON_DOWN):
+                arcade_stats.increment_button(self.player_num, 'down')
+            if newly_pressed & (1 << BUTTON_LEFT):
+                arcade_stats.increment_button(self.player_num, 'left')
+            if newly_pressed & (1 << BUTTON_RIGHT):
+                arcade_stats.increment_button(self.player_num, 'right')
+            
             self.buttons = new_buttons
             self.send_report()
-            
-            # Debug logging
-            if self.buttons:
-                btn_str = ""
-                if a_pressed: btn_str += "A"
-                if b_pressed: btn_str += "B"
-                dir_str = ""
-                if up: dir_str += "U"
-                if down: dir_str += "D"
-                if left: dir_str += "L"
-                if right: dir_str += "R"
-                if not dir_str: dir_str = "-"
-                log(f"P{self.player_num}: {dir_str} {btn_str}")
 
 
 def log(msg):
