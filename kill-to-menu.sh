@@ -30,24 +30,28 @@ rm -f /tmp/arcade-game-chromium.pid
 
 sleep 1
 
-log "=== Kill-to-menu complete (xinitrc will restart) ==="
+log "=== Kill-to-menu: syncing code ==="
 
-# Exit immediately so xinitrc can restart Chromium quickly
-# Git sync happens in background (may take time on slow wifi)
-(
-    if [ -d "$SOURCE_DIR/.git" ]; then
+if [ -d "$SOURCE_DIR/.git" ]; then
+    # Git pull in background (don't block return to menu, tolerates no network)
+    (
         cd "$SOURCE_DIR"
-        timeout 30s git fetch origin chromium-kiosk >/dev/null 2>&1 || true
-        if git rev-parse --verify origin/chromium-kiosk >/dev/null 2>&1; then
+        BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+        timeout 15s git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1 || true
+        if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
             LOCAL=$(git rev-parse HEAD)
-            REMOTE=$(git rev-parse origin/chromium-kiosk)
+            REMOTE=$(git rev-parse "origin/$BRANCH")
             if [ "$LOCAL" != "$REMOTE" ]; then
-                echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: new commits, updating..." >> "$LOG_FILE"
-                git reset --hard origin/chromium-kiosk >/dev/null 2>&1
-                echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: updated, will sync next restart" >> "$LOG_FILE"
+                echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: updating to origin/$BRANCH" >> "$LOG_FILE"
+                git reset --hard "origin/$BRANCH" >> "$LOG_FILE" 2>&1
             fi
         fi
-    fi
-) &
+    ) &
 
-# Exit - the .xinitrc loop will restart Chromium immediately
+    # Rsync waits (foreground) - fast local copy, ensures -run matches source NOW
+    log "Syncing source to runtime folder..."
+    rsync -a --no-group --no-owner --delete --exclude ".git" --exclude "arcade.log" --exclude ".lgd-*" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+    log "Sync complete"
+fi
+
+log "=== Kill-to-menu complete ==="

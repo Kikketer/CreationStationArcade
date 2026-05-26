@@ -30,10 +30,22 @@ kill $(cat $MENU_CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
 pkill -f "chromium.*localhost:3000" 2>/dev/null || true
 sleep 1
 
-# Sync from source if available (catches background git updates)
+# Pull latest from git and sync to runtime folder
 if [ -d "$SOURCE_DIR/.git" ]; then
+    log "Pulling latest from source repo..."
+    cd "$SOURCE_DIR"
+    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    timeout 10s git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1 || true
+    if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
+        LOCAL=$(git rev-parse HEAD)
+        REMOTE=$(git rev-parse "origin/$BRANCH")
+        if [ "$LOCAL" != "$REMOTE" ]; then
+            log "Git: updating source to origin/$BRANCH"
+            git reset --hard "origin/$BRANCH" >> "$LOG_FILE" 2>&1
+        fi
+    fi
     log "Syncing from $SOURCE_DIR to $RUN_DIR"
-    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+    rsync -a --no-group --no-owner --delete --exclude ".git" --exclude "arcade.log" --exclude ".lgd-*" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
     log "Sync complete"
 fi
 

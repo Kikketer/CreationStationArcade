@@ -21,19 +21,20 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Using Chromium: $CHROMIUM_BIN" >> $LOG_FILE
 # Sync from source to runtime folder (source may have been updated in background)
 if [ -d "$SOURCE_DIR/.git" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
-    # Check if source is on chromium-kiosk branch, update if needed (quick check, 10s timeout)
     cd "$SOURCE_DIR"
-    timeout 10s git fetch origin chromium-kiosk >> "$LOG_FILE" 2>&1 || true
-    if git rev-parse --verify origin/chromium-kiosk >/dev/null 2>&1; then
+    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    # Quick fetch + update (10s timeout so boot isn't delayed if no network)
+    timeout 10s git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1 || true
+    if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
         LOCAL=$(git rev-parse HEAD)
-        REMOTE=$(git rev-parse origin/chromium-kiosk)
+        REMOTE=$(git rev-parse "origin/$BRANCH")
         if [ "$LOCAL" != "$REMOTE" ]; then
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: updating source to origin/chromium-kiosk" >> "$LOG_FILE"
-            git reset --hard origin/chromium-kiosk >> "$LOG_FILE" 2>&1
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] Git: updating source to origin/$BRANCH" >> "$LOG_FILE"
+            git reset --hard "origin/$BRANCH" >> "$LOG_FILE" 2>&1
         fi
     fi
     # Always sync source to runtime folder (catches background updates or local edits)
-    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+    rsync -a --no-group --no-owner --delete --exclude ".git" --exclude "arcade.log" --exclude ".lgd-*" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete" >> "$LOG_FILE"
 fi
 # Kill any existing processes

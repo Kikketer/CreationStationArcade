@@ -24,31 +24,29 @@ fi
 
 cd "$SOURCE_DIR" || exit 0
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: fetching origin" >> "$LOG_FILE"
+# Detect current branch dynamically
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: fetching origin ($BRANCH)" >> "$LOG_FILE"
 if command -v timeout >/dev/null 2>&1; then
-    timeout 15s git fetch origin >> "$LOG_FILE" 2>&1 || true
+    timeout 15s git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1 || true
 else
-    git fetch origin >> "$LOG_FILE" 2>&1 || true
+    git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1 || true
 fi
 
-UPDATED=0
-if git rev-parse --verify origin/main >/dev/null 2>&1; then
-    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: resetting to origin/main" >> "$LOG_FILE"
-        git reset --hard origin/main >> "$LOG_FILE" 2>&1 || true
-        UPDATED=1
+if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/$BRANCH)" ]; then
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: resetting to origin/$BRANCH" >> "$LOG_FILE"
+        git reset --hard "origin/$BRANCH" >> "$LOG_FILE" 2>&1 || true
     fi
 fi
 
-# Sync to runtime folder if updated or if runtime folder is missing files
-if [ $UPDATED -eq 1 ] || [ ! -f "$RUN_DIR/launcher.sh" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: syncing to runtime folder" >> "$LOG_FILE"
-    mkdir -p "$RUN_DIR"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/
-    else
-        rm -rf "$RUN_DIR"
-        cp -a "$SOURCE_DIR" "$RUN_DIR"
-    fi
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: sync complete" >> "$LOG_FILE"
+# Always sync to runtime folder (ensures -run matches source even if no new commits)
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: syncing to runtime folder" >> "$LOG_FILE"
+mkdir -p "$RUN_DIR"
+if command -v rsync >/dev/null 2>&1; then
+    rsync -a --no-group --no-owner --delete --exclude ".git" --exclude "arcade.log" --exclude ".lgd-*" "$SOURCE_DIR"/ "$RUN_DIR"/
+else
+    rm -rf "$RUN_DIR"
+    cp -a "$SOURCE_DIR" "$RUN_DIR"
 fi
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: sync complete" >> "$LOG_FILE"
