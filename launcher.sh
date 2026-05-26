@@ -70,7 +70,7 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --disable-infobars \
     --no-first-run \
     --disable-session-crashed-bubble \
-    --disable-features=TranslateUI \
+    --disable-features=TranslateUI,Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,InfiniteSessionRestore \
     --no-default-browser-check \
     --disable-pinch \
     --disable-extensions \
@@ -79,7 +79,6 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --disable-default-apps \
     --disable-component-extensions-with-background-pages \
     --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy \
-    --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies \
     --ignore-gpu-blocklist \
     --enable-gpu-rasterization \
     --force-gpu-rasterization \

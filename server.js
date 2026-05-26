@@ -137,7 +137,7 @@ function spawnGameChromium(gameName, gameFile) {
     "--disable-background-networking",
     "--disable-sync",
     "--disable-default-apps",
-    "--disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,RequestTabletSite,WebRTC,AccessibilityCache,AutofillServerCommunication",
+    "--disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,RequestTabletSite,WebRTC,AccessibilityCache,AutofillServerCommunication,InfiniteSessionRestore",
     "--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy",
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",

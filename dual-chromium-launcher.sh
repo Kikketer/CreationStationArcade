@@ -68,7 +68,7 @@ CHROMIUM_FLAGS=(
     --disable-background-networking
     --disable-sync
     --disable-default-apps
-    --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies
+    --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,InfiniteSessionRestore
     --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy
     --ignore-gpu-blocklist
     --enable-gpu-rasterization
@@ -138,7 +138,7 @@ while true; do
             --disable-background-networking \
             --disable-sync \
             --disable-default-apps \
-            --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies \
+            --disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,InfiniteSessionRestore \
             --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy \
             --ignore-gpu-blocklist \
             --enable-gpu-rasterization \
