@@ -14,7 +14,7 @@
   {
     "name": "Greedy Pirates",
     "author": "Chris",
-    "playerCount": 1,
+    "playerCount": 2,
     "file": "ChrisGreedyPirates.js"
   },
   {
@@ -32,7 +32,7 @@
   {
     "name": "Super Star Story",
     "author": "Eli",
-    "playerCount": 1,
+    "playerCount": 4,
     "file": "EliSuperStarStory.js"
   },
   {
@@ -50,7 +50,7 @@
   {
     "name": "Cave",
     "author": "Lucian",
-    "playerCount": 1,
+    "playerCount": 2,
     "file": "LucianCave.js"
   },
   {
@@ -74,7 +74,7 @@
   {
     "name": "Zombie",
     "author": "William",
-    "playerCount": 1,
+    "playerCount": 2,
     "file": "WilliamZombie.js"
   },
   {
