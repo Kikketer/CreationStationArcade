@@ -29,12 +29,15 @@ const sceneAttract = document.getElementById('scene-attract');
 // Virtual resolution
 const VIRTUAL_W = 160;
 const VIRTUAL_H = 120;
+// Trim factor: slightly reduces scale to inset from physical mask edges
+// 8/9 ≈ 0.8889 gives exact 8x integer scale on 1920x1080, eliminating sub-pixel wiggle
+const SCALE_TRIM = 8 / 9;
 
 // Calculate scale to fill width or height while maintaining aspect ratio
 function updateScale() {
   const scaleX = window.innerWidth / VIRTUAL_W;
   const scaleY = window.innerHeight / VIRTUAL_H;
-  const scale = Math.min(scaleX, scaleY);
+  const scale = Math.min(scaleX, scaleY) * SCALE_TRIM;
   pixelScreen.style.setProperty('--scale', scale);
 }
 
@@ -233,18 +236,23 @@ function showScene(name) {
     // After idle period on menu, switch to attract
     idleTimer = setTimeout(() => showScene('attract'), IDLE_TIMEOUT_MS);
   } else {
+    // Reload the page when entering attract mode so Chromium gets a clean refresh
+    // (but only if we were previously on the menu — not on initial page load)
+    if (currentScene === 'menu') {
+      location.reload();
+      return;
+    }
     sceneMenu.classList.add('hidden');
     sceneAttract.classList.remove('hidden');
     currentScene = 'attract';
-    // After same period on attract, switch back to menu
     idleTimer = setTimeout(() => showScene('menu'), IDLE_TIMEOUT_MS);
   }
 }
 
 function resetIdleTimer() {
   lastActivityTime = Date.now();
+  if (currentScene !== 'menu') return;
   if (idleTimer) clearTimeout(idleTimer);
-  // Only schedule attract timeout when on menu (user is active)
   idleTimer = setTimeout(() => showScene('attract'), IDLE_TIMEOUT_MS);
 }
 
