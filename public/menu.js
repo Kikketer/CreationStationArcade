@@ -88,8 +88,10 @@ function createGameCards() {
     img.className = 'game-image';
     img.alt = '';
 
-    // Image sources: derive from file field (e.g., Game.js -> Game.png, Game.gif)
-    const baseName = game.file.replace(/\.[^.]+$/, '');
+    // Image sources: use explicit image field, or derive from file field
+    const baseName = game.image
+      ? game.image.replace(/\.[^.]+$/, '')
+      : game.file.replace(/\.[^.]+$/, '');
     img.dataset.staticSrc = `/games/${baseName}.png`;
     img.dataset.animSrc = `/games/${baseName}.gif`;
 
@@ -182,7 +184,7 @@ function move(dir) {
 async function selectGame() {
   if (!games.length || isLaunching) return;
   const game = games[selectedIndex];
-  if (!game) return;
+  if (!game || !game.file) return;
 
   isLaunching = true;
   const card = cardElements[selectedIndex]?.card;

@@ -14,6 +14,7 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const GAMES_DIR = path.join(ROOT, "games");
 const SIM_DIR = path.join(ROOT, "sim");
+const MEDIA_DIR = path.join(ROOT, "media");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -323,6 +324,11 @@ const server = http.createServer((req, res) => {
   if (pathname.startsWith("/games/")) {
     const gameFile = path.basename(pathname);
     return serveFile(res, path.join(GAMES_DIR, gameFile));
+  }
+
+  if (pathname.startsWith("/media/")) {
+    const mediaFile = path.basename(pathname);
+    return serveFile(res, path.join(MEDIA_DIR, mediaFile));
   }
 
   if (pathname.startsWith("/sim/")) {

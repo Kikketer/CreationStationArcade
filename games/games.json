@@ -1,22 +1,87 @@
 [
   {
-    "name": "Paddle the River",
+    "name": "Paddle The River",
+    "author": "Andy",
     "playerCount": 1,
-    "file": "Paddle_the_River.js"
-  },
-  {
-    "name": "Super Star Story",
-    "playerCount": 1,
-    "file": "Super_Star_Story.js"
-  },
-  {
-    "name": "Sonic 3 Miniboss",
-    "playerCount": 2,
-    "file": "Sonic_3_Miniboss.js"
+    "file": "AndyPaddleTheRiver.js"
   },
   {
     "name": "Button Tester",
-    "playerCount": 4,
+    "author": "Chris",
+    "playerCount": 1,
     "file": "ChrisButtonTester.js"
+  },
+  {
+    "name": "Greedy Pirates",
+    "author": "Chris",
+    "playerCount": 1,
+    "file": "ChrisGreedyPirates.js"
+  },
+  {
+    "name": "Vikings Of Four",
+    "author": "Chris",
+    "playerCount": 4,
+    "file": "ChrisVikingsOfFour.js"
+  },
+  {
+    "name": "Sonic Miniboss",
+    "author": "Eli",
+    "playerCount": 1,
+    "file": "EliSonicMiniboss.js"
+  },
+  {
+    "name": "Super Star Story",
+    "author": "Eli",
+    "playerCount": 1,
+    "file": "EliSuperStarStory.js"
+  },
+  {
+    "name": "Bunny Cat",
+    "author": "Evelyn",
+    "playerCount": 1,
+    "file": "EvelynBunnyCat.js"
+  },
+  {
+    "name": "Bubble Slash",
+    "author": "Kaito",
+    "playerCount": 1,
+    "file": "KaitoBubbleSlash.js"
+  },
+  {
+    "name": "Cave",
+    "author": "Lucian",
+    "playerCount": 1,
+    "file": "LucianCave.js"
+  },
+  {
+    "name": "Cat",
+    "author": "Rioji",
+    "playerCount": 1,
+    "file": "RiojiCat.js"
+  },
+  {
+    "name": "Save Yourself",
+    "author": "Scott",
+    "playerCount": 1,
+    "file": "ScottSaveYourself.js"
+  },
+  {
+    "name": "Double Death",
+    "author": "William",
+    "playerCount": 1,
+    "file": "WilliamDoubleDeath.js"
+  },
+  {
+    "name": "Zombie",
+    "author": "William",
+    "playerCount": 1,
+    "file": "WilliamZombie.js"
+  },
+  {
+    "name": "Your Game Here!",
+    "author": "",
+    "playerCount": 1,
+    "file": "",
+    "image": "ChrisYourGame.png"
   }
 ]
