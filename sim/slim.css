@@ -52,10 +52,12 @@ body {
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  aspect-ratio: 4/3;
-  height: 100dvh;
-  /* width: min(100dvw, 100dvh * 4/3); */
-  /* height: min(100dvh, 100dvw * 3/4); */
+  width: 1296px;
+  height: 1040px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% + 32px));
   outline: none;
 }
 
