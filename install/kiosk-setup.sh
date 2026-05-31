@@ -113,11 +113,6 @@ PROFILE="$HOME/.bash_profile"
 # Use 'startx' without 'exec' to avoid login loop issues
 STARTX_BLOCK='# Auto-start X on TTY1 (Pi 5 kiosk)
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    # Wait for network before starting
-    until ping -c1 forthelearnofit.com >/dev/null 2>&1; do
-        echo "Waiting for network..."
-        sleep 2
-    done
     startx -- -nocursor
 fi
 
