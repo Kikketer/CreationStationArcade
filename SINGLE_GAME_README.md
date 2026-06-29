@@ -12,6 +12,31 @@ This branch provides a simplified arcade setup that launches directly to a singl
 
 ## Configuration
 
+### Adding Your Own Games
+
+#### Using the MakeCode Web Converter
+
+1. **Generate your game** using the web application:
+   - Visit: https://www.forthelearnofit.com/desktop
+   - Upload your PNG file to get the JS file back
+
+2. **Add game files to the arcade**:
+   ```bash
+   # Copy the generated files to the games directory
+   cp YourGame.js /home/pi/CreationStationArcade/games/
+   cp YourGame.png /home/pi/CreationStationArcade/games/
+   ```
+
+3. **Configure the single-game launcher**:
+   ```bash
+   # Set the game name (without .js extension)
+   export SINGLE_GAME_NAME="YourGame"
+   
+   # Or edit the launcher script directly
+   nano single-game-launcher.sh
+   # Change: GAME_NAME="${SINGLE_GAME_NAME:-YourGame}"
+   ```
+
 ### Setting the Game
 
 Edit the `GAME_NAME` variable in `single-game-launcher.sh` (line 18):
@@ -27,7 +52,7 @@ Or set the environment variable:
 export SINGLE_GAME_NAME="ChrisGreedyPirates"
 ```
 
-### Available Games
+### Available Pre-built Games
 
 - `AndyPaddleTheRiver` - Paddle The River (1 player)
 - `ChrisGreedyPirates` - Greedy Pirates (2 players)
