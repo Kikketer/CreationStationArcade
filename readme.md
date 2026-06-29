@@ -1,37 +1,194 @@
-# Creation Station Arcade
+# Creation Station Arcade - Single Game Kiosk Mode
 
-How to setup a Raspberry PI 3:
+This branch provides a simplified arcade setup that launches directly to a single game instead of showing a menu. Perfect for dedicated arcade cabinets running one specific game.
 
-1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
-2. Install git: `sudo apt install git`
-3. Clone this repo into a source folder: `git clone https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src`
-4. Run initial setup to create the runtime folder and sync files: `bash /home/pi/CreationStationArcade-src/setup.sh`
-5. Install the boot splash screen to hide boot text and show the arcade logo:
-   - `sudo /home/pi/CreationStationArcade/install/splash-setup.sh`
-   - `sudo reboot`
-   - This installs `fbi`, enables the `arcade-splash` systemd service, and patches `/boot/firmware/cmdline.txt` to suppress kernel boot text.
-6. (If you have no HDMI audio in games) Install the HDMI audio fix and reboot:
-   - `sudo /home/pi/CreationStationArcade/install/hdmi-audio-fix.sh`
-   - `sudo reboot`
-7. Make another user, this will be the "admin" user for the raspberry pi so you can admin the machine
-   - `sudo adduser admin`
-   - `sudo usermod -aG sudo admin`
-8. Create a group that both these users belong to so we can admin the files equally
-   - `sudo groupadd arcadeadmin`
-   - `sudo usermod -aG arcadeadmin pi`
-   - `sudo usermod -aG arcadeadmin admin`
-   - `sudo chgrp -R arcadeadmin /home/pi`
-   - `sudo find /home/pi -type d -exec chmod 2770 {} \;`
-   - `sudo find /home/pi -type f -exec chmod 660 {} \;`
-   - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
-   - `source /etc/profile.d/arcadeadmin.sh`
-9. Make the /sd/prj folder if you wish to use a custom menu
-   - `sudo mkdir -p /sd/prj`
-   - `sudo chmod +w /sd/prj` (cuz I don't care)
-   - The custom menu will list and launch games from this folder
+## Key Features
 
-10. Set the login for the `pi` user to use the runtime `launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
-    - `sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi`
+- **Direct game launch** - No menu, boots straight to the configured game
+- **Game restart on reset** - Reset button restarts the current game instantly
+- **Full USB controller support** - Works with both GPIO buttons and USB controllers
+- **Simplified architecture** - Single Chromium instance, optimized for performance
+- **Easy configuration** - Set your game via environment variable
+
+## Quick Setup
+
+### 1. Install Base System
+
+Follow the standard Raspberry Pi setup:
+```bash
+# Install 32-bit Lite Raspberry Pi OS
+sudo apt install git
+git clone https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src
+bash /home/pi/CreationStationArcade-src/setup.sh
+```
+
+### 2. Configure Single Game Mode
+
+```bash
+# Switch to single-game branch
+cd /home/pi/CreationStationArcade-src
+git checkout single-game-kiosk
+
+# Set your game (optional, defaults to AndyPaddleTheRiver)
+export SINGLE_GAME_NAME="ChrisVikingsOfFour"
+
+# Install single-game services
+sudo systemctl stop gpio-monitor
+sudo systemctl disable gpio-monitor
+sudo cp gpio-monitor-single-game.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable gpio-monitor-single-game
+sudo systemctl start gpio-monitor-single-game
+
+# Ensure USB controller support
+sudo systemctl enable gpio-gamepad
+sudo systemctl start gpio-gamepad
+
+# Set up USB controllers (if using USB gamepads)
+sudo ./setup-usb-controllers.sh
+```
+
+### 3. Update Autostart
+
+Edit `/etc/xdg/openbox/autostart` to use the single-game launcher:
+```bash
+# Comment out standard launcher
+# /home/pi/CreationStationArcade/launcher.sh &
+
+# Use single-game launcher
+/home/pi/CreationStationArcade/single-game-launcher.sh &
+```
+
+### 4. Set User Login
+
+```bash
+# Set pi user to auto-launch single-game mode
+sudo usermod -s /home/pi/CreationStationArcade/single-game-launcher.sh pi
+```
+
+## Available Games
+
+Configure your game by setting `SINGLE_GAME_NAME`:
+
+- `AndyPaddleTheRiver` - Paddle The River (1 player)
+- `ChrisGreedyPirates` - Greedy Pirates (2 players)  
+- `ChrisVikingsOfFour` - Vikings Of Four (4 players)
+- `EliSonicMiniboss` - Sonic Miniboss (1 player)
+- `EliSuperStarStory` - Super Star Story (4 players)
+- `EvelynBunnyCat` - Bunny Cat (1 player)
+- `KaitoBubbleSlash` - Bubble Slash (1 player)
+- `LucianCave` - Cave (2 players)
+- `RiojiCat` - Cat (1 player)
+- `ScottSaveYourself` - Save Yourself (1 player)
+- `WilliamDoubleDeath` - Double Death (1 player)
+- `WilliamZombie` - Zombie (2 players)
+
+## Controller Support
+
+### USB Controllers
+```bash
+# Set up stable controller mapping by USB port
+sudo ./setup-usb-controllers.sh
+```
+
+### GPIO Buttons
+- Works via virtual USB gamepads (gpio-gamepad.py)
+- Same pin mapping as standard mode
+- Reset button (GPIO 4) restarts the game
+
+## Button Behavior
+
+- **Reset Button (GPIO 4)** - Restarts the current game
+- **Game Controls** - Work normally for the selected game
+- **USB Controllers** - Fully supported via gpio-gamepad service
+- **GPIO Buttons** - Work via virtual USB gamepads
+
+## Reset Button Function
+
+When pressed, the reset button:
+1. Kills the current game instance
+2. Restarts the gamepad service (fixes controller issues)
+3. Syncs latest code updates
+4. Relaunches the same game
+5. Re-applies window focus
+
+This provides instant game restart without rebooting the entire system.
+
+## Troubleshooting
+
+### Game Won't Start
+```bash
+# Check game name spelling
+cat /home/pi/arcade.log | tail -20
+
+# Verify game file exists
+ls /home/pi/CreationStationArcade/games/YourGameName.js
+```
+
+### Reset Button Not Working
+```bash
+# Check GPIO monitor service
+sudo systemctl status gpio-monitor-single-game
+
+# Check service logs
+sudo journalctl -u gpio-monitor-single-game -f
+```
+
+### USB Controllers Not Working
+```bash
+# Check gamepad service
+sudo systemctl status gpio-gamepad
+
+# Check detected controllers
+ls /dev/input/js*
+
+# Check gamepad logs
+sudo journalctl -u gpio-gamepad -f
+```
+
+## File Structure
+
+- `single-game-launcher.sh` - Main launcher (replaces launcher.sh)
+- `reset-single-game.sh` - Reset handler for game restart
+- `gpio-monitor-single-game.py` - Simplified GPIO monitor
+- `gpio-monitor-single-game.service` - Systemd service
+- `SINGLE_GAME_README.md` - Detailed documentation
+
+## Switching Back to Menu Mode
+
+```bash
+# Restore standard services
+sudo systemctl stop gpio-monitor-single-game
+sudo systemctl disable gpio-monitor-single-game
+sudo systemctl enable gpio-monitor
+sudo systemctl start gpio-monitor
+
+# Switch back to main branch
+cd /home/pi/CreationStationArcade-src
+git checkout chromium-kiosk
+
+# Update autostart to use standard launcher
+# Edit /etc/xdg/openbox/autostart to use launcher.sh
+```
+
+## Performance
+
+This mode is optimized for single-game performance:
+- Single Chromium instance (lower memory usage)
+- No menu overhead (faster boot)
+- Simplified GPIO monitoring (less CPU usage)
+- Direct game URL loading (faster startup)
+
+## Testing
+
+Run the test script to verify setup:
+```bash
+./test-single-game.sh
+```
+
+---
+
+**Base System Setup:** For complete Raspberry Pi setup, user management, and game development details, see the standard setup documentation.
 
 ## Folder layout
 
