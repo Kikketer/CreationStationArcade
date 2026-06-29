@@ -1,0 +1,15 @@
+[Unit]
+Description=Creation Station Arcade Single-Game GPIO Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/CreationStationArcade
+ExecStart=/home/pi/CreationStationArcade/gpio-monitor-single-game.py
+Restart=always
+RestartSec=10
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=multi-user.target
