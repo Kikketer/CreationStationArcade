@@ -52,6 +52,20 @@ kill $(cat $CHROMIUM_PID_FILE 2>/dev/null) 2>/dev/null || true
 pkill -f "chromium.*localhost:3000" 2>/dev/null || true
 sleep 1
 
+# Start GPIO gamepad service (for USB controller support)
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting GPIO gamepad service..." >> $LOG_FILE
+if [ -f "$RUN_DIR/gpio-gamepad.py" ]; then
+    # Start in background if not already running
+    if ! pgrep -f "gpio-gamepad.py" >/dev/null; then
+        python3 "$RUN_DIR/gpio-gamepad.py" >> $LOG_FILE 2>&1 &
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] GPIO gamepad service started" >> $LOG_FILE
+    else
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] GPIO gamepad service already running" >> $LOG_FILE
+    fi
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: gpio-gamepad.py not found - USB controllers may not work" >> $LOG_FILE
+fi
+
 # Start Node server
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting Node server..." >> $LOG_FILE
 cd "$RUN_DIR"

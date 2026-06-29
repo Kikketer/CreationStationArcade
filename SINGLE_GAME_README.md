@@ -8,6 +8,7 @@ This branch provides a simplified arcade setup that launches directly to a singl
 - **Reset button restarts the game** instead of returning to menu
 - **Simplified GPIO monitoring** - only handles reset functionality
 - **Single Chromium instance** - no dual-window management
+- **Full USB controller support** - works with both GPIO buttons and USB controllers
 
 ## Configuration
 
@@ -43,20 +44,24 @@ export SINGLE_GAME_NAME="ChrisGreedyPirates"
 
 ## Setup Instructions
 
-### 1. Install the Service
+### 1. Install the Services
 
-Replace the standard GPIO monitor with the single-game version:
+Replace the standard services with the single-game versions:
 
 ```bash
-# Stop and disable the standard service
+# Stop and disable the standard services
 sudo systemctl stop gpio-monitor
 sudo systemctl disable gpio-monitor
 
-# Install the single-game service
+# Install the single-game GPIO monitor service
 sudo cp gpio-monitor-single-game.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable gpio-monitor-single-game
 sudo systemctl start gpio-monitor-single-game
+
+# Ensure GPIO gamepad service is running (for USB controller support)
+sudo systemctl enable gpio-gamepad
+sudo systemctl start gpio-gamepad
 ```
 
 ### 2. Update Autostart
@@ -85,6 +90,25 @@ nano single-game-launcher.sh
 export SINGLE_GAME_NAME="ChrisVikingsOfFour"
 ```
 
+### 4. USB Controller Setup (Optional)
+
+If you're using USB controllers instead of GPIO buttons:
+
+```bash
+# Set up stable USB controller mapping by physical port
+sudo ./setup-usb-controllers.sh
+
+# This creates stable device names like:
+# /dev/input/arcade-p1 (Player 1)
+# /dev/input/arcade-p2 (Player 2)
+# etc.
+```
+
+The single-game launcher automatically starts the `gpio-gamepad.py` service which provides:
+- **Virtual USB gamepads** from GPIO inputs (if using GPIO buttons)
+- **USB controller support** for physical USB gamepads
+- **Mixed input support** (can use both GPIO and USB simultaneously)
+
 ## File Structure
 
 - `single-game-launcher.sh` - Main launcher script (replaces launcher.sh)
@@ -97,6 +121,8 @@ export SINGLE_GAME_NAME="ChrisVikingsOfFour"
 - **Reset Button (GPIO 4)** - Restarts the current game
 - **Exit Button** - Not used in single-game mode (can be repurposed if needed)
 - **Game Controls** - Work normally for the selected game
+- **USB Controllers** - Fully supported via gpio-gamepad service
+- **GPIO Buttons** - Work via virtual USB gamepads (gpio-gamepad.py)
 
 ## Troubleshooting
 
@@ -122,6 +148,25 @@ export SINGLE_GAME_NAME="ChrisVikingsOfFour"
 1. Verify the `GAME_NAME` setting in `single-game-launcher.sh`
 2. Check if the `SINGLE_GAME_NAME` environment variable is set
 3. Restart the launcher after making changes
+
+### USB Controllers Not Working
+
+1. Check if gpio-gamepad service is running:
+   ```bash
+   sudo systemctl status gpio-gamepad
+   ```
+2. Check if USB controllers are detected:
+   ```bash
+   ls /dev/input/js*
+   ```
+3. Run USB controller setup:
+   ```bash
+   sudo ./setup-usb-controllers.sh
+   ```
+4. Check the gamepad service logs:
+   ```bash
+   sudo journalctl -u gpio-gamepad -f
+   ```
 
 ## Switching Back to Menu Mode
 

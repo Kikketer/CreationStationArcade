@@ -27,6 +27,15 @@ pkill -f "chromium.*localhost:3000" 2>/dev/null || true
 kill $(cat /tmp/arcade-chromium.pid 2>/dev/null) 2>/dev/null || true
 rm -f /tmp/arcade-chromium.pid
 
+# Restart GPIO gamepad service to ensure controllers are responsive
+log "Restarting GPIO gamepad service..."
+pkill -f "gpio-gamepad.py" 2>/dev/null || true
+sleep 1
+if [ -f "$RUN_DIR/gpio-gamepad.py" ]; then
+    python3 "$RUN_DIR/gpio-gamepad.py" >> "$LOG_FILE" 2>&1 &
+    log "GPIO gamepad service restarted"
+fi
+
 sleep 1
 
 log "=== Reset: syncing code ==="
