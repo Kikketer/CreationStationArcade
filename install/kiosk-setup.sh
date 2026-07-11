@@ -113,9 +113,18 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
-# ── 4. Pi 5 X11 config (fixes "Cannot run in framebuffer mode" error) ───────
-log "Creating Pi 5 X11 configuration..."
+# ── 4. X11 config (auto-detects Pi model for correct DRI card) ─────────────
+log "Creating X11 configuration..."
 sudo mkdir -p /etc/X11/xorg.conf.d
+
+# Pi 5 uses card1, Pi 3/4 use card0
+if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
+    DRI_CARD="/dev/dri/card1"
+    log "Detected Pi 5: using card1"
+else
+    DRI_CARD="/dev/dri/card0"
+    log "Detected non-Pi-5: using card0"
+fi
 
 if [ "$ROTATE" = "cw" ]; then
     XORG_ROTATE="CW"
@@ -129,7 +138,7 @@ sudo tee /etc/X11/xorg.conf.d/99-pi-kiosk.conf > /dev/null <<XEOF
 Section "Device"
     Identifier  "Card0"
     Driver      "modesetting"
-    Option      "kmsdev" "/dev/dri/card1"
+    Option      "kmsdev" "$DRI_CARD"
 EndSection
 
 Section "Monitor"
@@ -148,14 +157,13 @@ Section "ServerFlags"
 EndSection
 XEOF
 sudo chmod 644 /etc/X11/xorg.conf.d/99-pi-kiosk.conf
-log "Pi 5 X11 config created."
+log "X11 config created (using $DRI_CARD)."
 
 # ── 5. Auto-start Xorg on TTY1 ───────────────────────────────────────────────
 log "Configuring Xorg to start on TTY1..."
-PROFILE="$HOME/.bash_profile"
 
 # Use 'startx' without 'exec' to avoid login loop issues
-STARTX_BLOCK='# Auto-start X on TTY1 (Pi 5 kiosk)
+STARTX_BLOCK='# Auto-start X on TTY1 (arcade kiosk)
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     startx -- -nocursor
 fi
@@ -163,12 +171,16 @@ fi
 # DISPLAY for X sessions
 export DISPLAY=:0'
 
-if ! grep -qF "startx -- -nocursor" "$PROFILE" 2>/dev/null; then
-    # Remove old exec startx blocks if present
-    sed -i '/exec startx/d' "$PROFILE" 2>/dev/null || true
-    echo "$STARTX_BLOCK" >> "$PROFILE"
-fi
-log ".bash_profile configured."
+# Write to both .bash_profile and .profile — different Pi OS versions source different ones
+for PROFILE in "$HOME/.bash_profile" "$HOME/.profile"; do
+    if ! grep -qF "startx -- -nocursor" "$PROFILE" 2>/dev/null; then
+        sed -i '/exec startx/d' "$PROFILE" 2>/dev/null || true
+        echo "$STARTX_BLOCK" >> "$PROFILE"
+        log "startx block written to $PROFILE"
+    else
+        log "startx already present in $PROFILE"
+    fi
+done
 
 # ── 6. Xorg config (.xinitrc runs launcher from runtime folder) ─────────────
 XINITRC="$HOME/.xinitrc"
