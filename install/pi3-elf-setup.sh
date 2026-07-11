@@ -18,7 +18,6 @@
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-RUN_DIR="${REPO_DIR}-run"
 LOG="$HOME/arcade-setup.log"
 GAME_NAME="AndyPaddleTheRiver"
 
@@ -38,9 +37,8 @@ done
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 log "=== Pi 3 ELF Kiosk Setup ==="
-log "Repo:    $REPO_DIR"
-log "Runtime: $RUN_DIR"
-log "Game:    $GAME_NAME"
+log "Repo: $REPO_DIR"
+log "Game: $GAME_NAME"
 
 # ── 0. Verify git repo ────────────────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
@@ -76,18 +74,13 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
-# ── 4. Create runtime folder ──────────────────────────────────────────────────
-log "Creating runtime folder at $RUN_DIR..."
-mkdir -p "$RUN_DIR"
-rsync -a --no-perms --no-owner --no-group --delete \
-    --exclude ".git" --exclude "arcade.log" \
-    "$REPO_DIR"/ "$RUN_DIR"/
-chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/monitor_kill.py" 2>/dev/null || true
-find "$RUN_DIR/games" -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
-log "Runtime folder created."
+# ── 4. Make scripts and ELFs executable ──────────────────────────────────────
+log "Setting permissions..."
+chmod +x "$REPO_DIR/launcher.sh" 2>/dev/null || true
+chmod +x "$REPO_DIR/simpleLaunch.sh" 2>/dev/null || true
+chmod +x "$REPO_DIR/monitor_kill.py" 2>/dev/null || true
+find "$REPO_DIR/games" -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
+log "Permissions set."
 
 # ── 5. Auto-launch on TTY1 login ─────────────────────────────────────────────
 log "Configuring auto-launch on TTY1 login..."
@@ -95,8 +88,7 @@ log "Configuring auto-launch on TTY1 login..."
 LAUNCH_BLOCK="# Auto-launch arcade game on TTY1
 if [ \"\$(tty)\" = \"/dev/tty1\" ]; then
     export SINGLE_GAME_NAME=\"$GAME_NAME\"
-    export CSA_SOURCE_DIR=\"$REPO_DIR\"
-    cd \"$RUN_DIR\"
+    cd \"$REPO_DIR\"
     exec bash launcher.sh
 fi"
 
@@ -121,9 +113,9 @@ After=multi-user.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=$RUN_DIR
+WorkingDirectory=$REPO_DIR
 Environment="SINGLE_GAME_NAME=$GAME_NAME"
-ExecStart=/usr/bin/python3 $RUN_DIR/monitor_kill.py
+ExecStart=/usr/bin/python3 $REPO_DIR/monitor_kill.py
 Restart=always
 RestartSec=5
 
@@ -154,8 +146,7 @@ echo ""
 echo "Run: sudo reboot"
 echo ""
 echo "After reboot, the arcade will auto-launch: $GAME_NAME"
-echo "Runtime: $RUN_DIR"
-echo "Source:  $REPO_DIR"
+echo "Repo: $REPO_DIR"
 echo ""
 echo "To change the game, re-run:"
 echo "  bash install/pi3-elf-setup.sh --game=YourGameName"

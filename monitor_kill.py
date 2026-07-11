@@ -11,7 +11,6 @@ DEBOUNCE_MS = 500
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 GAME_NAME = os.environ.get("SINGLE_GAME_NAME", "AndyPaddleTheRiver")
 GAME_ELF = os.path.join(SCRIPT_DIR, "games", f"{GAME_NAME}.elf")
-LAUNCHER = os.path.join(SCRIPT_DIR, "launcher.sh")
 
 
 def _log(msg: str) -> None:
@@ -48,14 +47,15 @@ def _kill_elf() -> None:
 
 
 def _relaunch() -> None:
-    _log(f"Relaunching game: {GAME_ELF}")
-    if not os.path.exists(GAME_ELF):
-        _log(f"ERROR: {GAME_ELF} not found, cannot relaunch")
+    launcher = os.path.join(SCRIPT_DIR, "launcher.sh")
+    _log(f"Relaunching: {launcher}")
+    if not os.path.exists(launcher):
+        _log(f"ERROR: launcher.sh not found at {launcher}")
         return
     env = os.environ.copy()
     env["SINGLE_GAME_NAME"] = GAME_NAME
     subprocess.Popen(
-        ["bash", LAUNCHER],
+        ["bash", launcher],
         cwd=SCRIPT_DIR,
         env=env,
     )
