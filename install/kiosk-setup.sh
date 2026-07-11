@@ -91,9 +91,13 @@ sudo apt-get install -y \
     xorg \
     unclutter \
     xdotool \
-    python3-websocket \
+    python3-pip \
     >> "$LOG" 2>&1
 log "Packages installed."
+log "Installing Python websocket-client..."
+pip3 install websocket-client --break-system-packages >> "$LOG" 2>&1 || {
+    log "WARNING: Failed to install websocket-client (adjust-display.sh may not work)"
+}
 
 # ── 2. Verify node ────────────────────────────────────────────────────────────
 NODE_VER=$(node --version 2>/dev/null || echo "missing")
