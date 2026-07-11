@@ -79,6 +79,7 @@ log "Setting permissions..."
 chmod +x "$REPO_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$REPO_DIR/simpleLaunch.sh" 2>/dev/null || true
 chmod +x "$REPO_DIR/monitor_kill.py" 2>/dev/null || true
+chmod +x "$REPO_DIR/usb-to-gpio.py" 2>/dev/null || true
 find "$REPO_DIR/games" -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
 log "Permissions set."
 

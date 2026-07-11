@@ -14,6 +14,12 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"; }
 
 log "=== Launcher start: game=$GAME_NAME ==="
 
+# Start USB-to-GPIO translator if not already running
+if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
+    log "Starting usb-to-gpio.py..."
+    python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
+fi
+
 # Start reset monitor if not already running
 if ! pgrep -f "monitor_kill.py" > /dev/null; then
     log "Starting monitor_kill.py..."
