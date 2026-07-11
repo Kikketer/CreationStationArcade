@@ -60,12 +60,13 @@ for i in {1..30}; do
     sleep 1
 done
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
+WIN_SIZE="${CSA_WIN_SIZE:-1920,1080}"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk (window: $WIN_SIZE)" >> $LOG_FILE
 "$CHROMIUM_BIN" \
     --user-data-dir=/tmp/chromium-arcade \
     --kiosk \
     --window-position=0,0 \
-    --window-size=1920,1080 \
+    --window-size=$WIN_SIZE \
     --start-fullscreen \
     --noerrdialogs \
     --disable-infobars \

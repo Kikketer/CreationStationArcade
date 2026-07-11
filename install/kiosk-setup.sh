@@ -5,7 +5,7 @@
 #   2. Configures auto-login and Xorg (with Pi 5 GPU fix)
 #   3. Creates runtime folder from git repo
 #   4. Configures boot messages
-# Usage: bash install/kiosk-setup.sh [--gpio-controllers] [--single-game] [--game=GameName] (run from repo root)
+# Usage: bash install/kiosk-setup.sh [--gpio-controllers] [--single-game] [--game=GameName] [--rotate=cw|ccw] (run from repo root)
 #
 # Options:
 #   --gpio-controllers  Enable GPIO virtual gamepads (RPi.GPIO + uhid)
@@ -14,6 +14,8 @@
 #                       Reset button restarts the game instead of returning to menu
 #   --game=GameName     Set the game to launch (used with --single-game)
 #                       Default: AndyPaddleTheRiver
+#   --rotate=cw|ccw     Rotate the display 90 degrees clockwise or counter-clockwise
+#                       For portrait-orientation monitors
 
 set -e
 
@@ -25,6 +27,7 @@ LOG="$HOME/arcade-setup.log"
 GPIO_CONTROLLERS=false
 SINGLE_GAME=false
 GAME_NAME="AndyPaddleTheRiver"
+ROTATE=""
 for arg in "$@"; do
     case $arg in
         --gpio-controllers)
@@ -39,8 +42,12 @@ for arg in "$@"; do
             GAME_NAME="${arg#--game=}"
             shift
             ;;
+        --rotate=*)
+            ROTATE="${arg#--rotate=}"
+            shift
+            ;;
         --help|-h)
-            echo "Usage: bash install/kiosk-setup.sh [--gpio-controllers] [--single-game] [--game=GameName]"
+            echo "Usage: bash install/kiosk-setup.sh [--gpio-controllers] [--single-game] [--game=GameName] [--rotate=cw|ccw]"
             echo ""
             echo "Options:"
             echo "  --gpio-controllers  Enable GPIO virtual gamepads"
@@ -49,6 +56,7 @@ for arg in "$@"; do
             echo "                      Reset button restarts the game"
             echo "  --game=GameName     Game to launch in single-game mode"
             echo "                      Default: AndyPaddleTheRiver"
+            echo "  --rotate=cw|ccw     Rotate display 90 degrees (for portrait monitors)"
             echo "  --help, -h          Show this help message"
             echo ""
             echo "Without --gpio-controllers, setup assumes standard USB gamepads."
@@ -65,6 +73,7 @@ log "Runtime: $RUN_DIR"
 log "GPIO Controllers: $GPIO_CONTROLLERS"
 log "Single Game Mode: $SINGLE_GAME"
 [ "$SINGLE_GAME" = true ] && log "Game: $GAME_NAME"
+[ -n "$ROTATE" ] && log "Display Rotation: $ROTATE"
 
 # ── 0. Verify we're in a git repo ─────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
@@ -107,16 +116,31 @@ log "Auto-login configured."
 # ── 4. Pi 5 X11 config (fixes "Cannot run in framebuffer mode" error) ───────
 log "Creating Pi 5 X11 configuration..."
 sudo mkdir -p /etc/X11/xorg.conf.d
-sudo tee /etc/X11/xorg.conf.d/99-pi-kiosk.conf > /dev/null <<'XEOF'
+
+if [ "$ROTATE" = "cw" ]; then
+    XORG_ROTATE="CW"
+elif [ "$ROTATE" = "ccw" ]; then
+    XORG_ROTATE="CCW"
+else
+    XORG_ROTATE=""
+fi
+
+sudo tee /etc/X11/xorg.conf.d/99-pi-kiosk.conf > /dev/null <<XEOF
 Section "Device"
     Identifier  "Card0"
     Driver      "modesetting"
     Option      "kmsdev" "/dev/dri/card1"
 EndSection
 
+Section "Monitor"
+    Identifier "Monitor0"
+$([ -n "$XORG_ROTATE" ] && echo "    Option \"Rotate\" \"$XORG_ROTATE\"")
+EndSection
+
 Section "Screen"
     Identifier "Screen0"
     Device     "Card0"
+    Monitor    "Monitor0"
 EndSection
 
 Section "ServerFlags"
@@ -148,6 +172,22 @@ log ".bash_profile configured."
 
 # ── 6. Xorg config (.xinitrc runs launcher from runtime folder) ─────────────
 XINITRC="$HOME/.xinitrc"
+# Build xrandr rotate line if needed
+if [ "$ROTATE" = "cw" ]; then
+    XRANDR_ROTATE="xrandr --output HDMI-1 --rotate right 2>/dev/null || xrandr --output HDMI-A-1 --rotate right 2>/dev/null || true"
+elif [ "$ROTATE" = "ccw" ]; then
+    XRANDR_ROTATE="xrandr --output HDMI-1 --rotate left 2>/dev/null || xrandr --output HDMI-A-1 --rotate left 2>/dev/null || true"
+else
+    XRANDR_ROTATE=""
+fi
+
+# Window size: swap dimensions for rotated display
+if [ -n "$ROTATE" ]; then
+    WIN_SIZE="1080,1920"
+else
+    WIN_SIZE="1920,1080"
+fi
+
 if [ "$SINGLE_GAME" = true ]; then
 cat > "$XINITRC" <<XEOF
 #!/bin/bash
@@ -159,8 +199,10 @@ xset -dpms
 # Hide cursor
 unclutter -idle 0.1 -root &
 
+$([ -n "$XRANDR_ROTATE" ] && echo "# Rotate display\n$XRANDR_ROTATE\nsleep 1\n")
 # Launch single-game kiosk from runtime folder
 export SINGLE_GAME_NAME="$GAME_NAME"
+export CSA_WIN_SIZE="$WIN_SIZE"
 RUN_DIR="$RUN_DIR"
 if [ -f "\$RUN_DIR/single-game-launcher.sh" ]; then
     cd "\$RUN_DIR"
@@ -181,7 +223,9 @@ xset -dpms
 # Hide cursor
 unclutter -idle 0.1 -root &
 
+$([ -n "$XRANDR_ROTATE" ] && echo "# Rotate display\n$XRANDR_ROTATE\nsleep 1\n")
 # Launch arcade from runtime folder
+export CSA_WIN_SIZE="$WIN_SIZE"
 RUN_DIR="$RUN_DIR"
 if [ -f "\$RUN_DIR/launcher.sh" ]; then
     cd "\$RUN_DIR"
@@ -355,6 +399,10 @@ if [ "$SINGLE_GAME" = true ]; then
     echo "Single-game kiosk mode: $GAME_NAME"
     echo "To change the game, edit SINGLE_GAME_NAME in $RUN_DIR/single-game-launcher.sh"
     echo "  or re-run: bash install/kiosk-setup.sh --single-game --game=YourGameName"
+fi
+if [ -n "$ROTATE" ]; then
+    echo ""
+    echo "Display rotation: $ROTATE (portrait mode)"
 fi
 if [ "$GPIO_CONTROLLERS" = true ]; then
     echo ""
