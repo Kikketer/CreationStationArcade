@@ -91,6 +91,7 @@ sudo apt-get install -y \
     xorg \
     unclutter \
     xdotool \
+    python3-websocket \
     >> "$LOG" 2>&1
 log "Packages installed."
 
