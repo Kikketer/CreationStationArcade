@@ -5,11 +5,15 @@
 #   2. Configures auto-login and Xorg (with Pi 5 GPU fix)
 #   3. Creates runtime folder from git repo
 #   4. Configures boot messages
-# Usage: bash install/kiosk-setup.sh [--gpio-controllers] (run from repo root)
+# Usage: bash install/kiosk-setup.sh [--gpio-controllers] [--single-game] [--game=GameName] (run from repo root)
 #
 # Options:
 #   --gpio-controllers  Enable GPIO virtual gamepads (RPi.GPIO + uhid)
 #                       Without this flag, setup assumes standard USB controllers
+#   --single-game       Configure kiosk to launch a single game directly (no menu)
+#                       Reset button restarts the game instead of returning to menu
+#   --game=GameName     Set the game to launch (used with --single-game)
+#                       Default: AndyPaddleTheRiver
 
 set -e
 
@@ -19,18 +23,32 @@ LOG="$HOME/arcade-setup.log"
 
 # Parse arguments
 GPIO_CONTROLLERS=false
+SINGLE_GAME=false
+GAME_NAME="AndyPaddleTheRiver"
 for arg in "$@"; do
     case $arg in
         --gpio-controllers)
             GPIO_CONTROLLERS=true
             shift
             ;;
+        --single-game)
+            SINGLE_GAME=true
+            shift
+            ;;
+        --game=*)
+            GAME_NAME="${arg#--game=}"
+            shift
+            ;;
         --help|-h)
-            echo "Usage: bash install/kiosk-setup.sh [--gpio-controllers]"
+            echo "Usage: bash install/kiosk-setup.sh [--gpio-controllers] [--single-game] [--game=GameName]"
             echo ""
             echo "Options:"
             echo "  --gpio-controllers  Enable GPIO virtual gamepads"
             echo "                      (requires RPi.GPIO + uhid Python module)"
+            echo "  --single-game       Launch a single game directly (no menu)"
+            echo "                      Reset button restarts the game"
+            echo "  --game=GameName     Game to launch in single-game mode"
+            echo "                      Default: AndyPaddleTheRiver"
             echo "  --help, -h          Show this help message"
             echo ""
             echo "Without --gpio-controllers, setup assumes standard USB gamepads."
@@ -45,6 +63,8 @@ log "=== Creation Station Arcade Kiosk Setup ==="
 log "Repo: $REPO_DIR"
 log "Runtime: $RUN_DIR"
 log "GPIO Controllers: $GPIO_CONTROLLERS"
+log "Single Game Mode: $SINGLE_GAME"
+[ "$SINGLE_GAME" = true ] && log "Game: $GAME_NAME"
 
 # ── 0. Verify we're in a git repo ─────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
@@ -128,6 +148,29 @@ log ".bash_profile configured."
 
 # ── 6. Xorg config (.xinitrc runs launcher from runtime folder) ─────────────
 XINITRC="$HOME/.xinitrc"
+if [ "$SINGLE_GAME" = true ]; then
+cat > "$XINITRC" <<XEOF
+#!/bin/bash
+# Disable screen blanking and power management
+xset s off
+xset s noblank
+xset -dpms
+
+# Hide cursor
+unclutter -idle 0.1 -root &
+
+# Launch single-game kiosk from runtime folder
+export SINGLE_GAME_NAME="$GAME_NAME"
+RUN_DIR="$RUN_DIR"
+if [ -f "\$RUN_DIR/single-game-launcher.sh" ]; then
+    cd "\$RUN_DIR"
+    exec bash single-game-launcher.sh
+else
+    echo "ERROR: Runtime folder not found at \$RUN_DIR" > /tmp/xinitrc-error
+    exec xterm
+fi
+XEOF
+else
 cat > "$XINITRC" <<XEOF
 #!/bin/bash
 # Disable screen blanking and power management
@@ -149,6 +192,7 @@ else
     exec xterm
 fi
 XEOF
+fi
 chmod +x "$XINITRC"
 log ".xinitrc configured."
 
@@ -163,6 +207,8 @@ else
 fi
 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/single-game-launcher.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/reset-single-game.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/install/hdmi-audio-fix.sh" 2>/dev/null || true
@@ -239,6 +285,26 @@ UDEV_EOF
     log "After plugging in controllers, run: sudo bash /home/pi/CreationStationArcade-run/setup-usb-controllers.sh"
 fi
 
+# ── 9b. Single-game GPIO monitor service ─────────────────────────────────────
+if [ "$SINGLE_GAME" = true ]; then
+    log "Installing single-game GPIO monitor service..."
+    
+    # Disable standard GPIO monitor if present
+    sudo systemctl stop gpio-monitor 2>/dev/null || true
+    sudo systemctl disable gpio-monitor 2>/dev/null || true
+    
+    # Install and enable single-game GPIO monitor
+    sudo cp -f "$REPO_DIR/gpio-monitor-single-game.service" /etc/systemd/system/
+    chmod +x "$REPO_DIR/gpio-monitor-single-game.py" 2>/dev/null || true
+    chmod +x "$RUN_DIR/gpio-monitor-single-game.py" 2>/dev/null || true
+    sudo systemctl daemon-reload >> "$LOG" 2>&1
+    sudo systemctl enable gpio-monitor-single-game.service >> "$LOG" 2>&1
+    sudo systemctl start gpio-monitor-single-game.service >> "$LOG" 2>&1 || {
+        log "WARNING: Could not start gpio-monitor-single-game service (may need reboot)"
+    }
+    log "Single-game GPIO monitor installed."
+fi
+
 # ── 10. Git update service ────────────────────────────────────────────────────
 log "Configuring background git updates..."
 # Create systemd service for git pull on boot
@@ -284,6 +350,12 @@ echo ""
 echo "After reboot, the arcade will auto-start."
 echo "Runtime folder: $RUN_DIR"
 echo "Source folder:  $REPO_DIR"
+if [ "$SINGLE_GAME" = true ]; then
+    echo ""
+    echo "Single-game kiosk mode: $GAME_NAME"
+    echo "To change the game, edit SINGLE_GAME_NAME in $RUN_DIR/single-game-launcher.sh"
+    echo "  or re-run: bash install/kiosk-setup.sh --single-game --game=YourGameName"
+fi
 if [ "$GPIO_CONTROLLERS" = true ]; then
     echo ""
     echo "GPIO virtual gamepads enabled."
