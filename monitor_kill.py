@@ -9,7 +9,7 @@ RESET_PIN = 3       # BCM 3 — active HIGH, pull-down
 DEBOUNCE_MS = 500
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-GAME_NAME = os.environ.get("SINGLE_GAME_NAME", "AndyPaddleTheRiver")
+GAME_NAME = os.environ.get("SINGLE_GAME_NAME", "Paddle-the-River")
 GAME_ELF = os.path.join(SCRIPT_DIR, "games", f"{GAME_NAME}.elf")
 
 

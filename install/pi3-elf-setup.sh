@@ -12,14 +12,14 @@
 #
 # Options:
 #   --game=GameName   ELF game to launch (filename without .elf, must exist in games/)
-#                     Default: AndyPaddleTheRiver
+#                     Default: Paddle-the-River
 #   --help, -h        Show this help
 
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="$HOME/arcade-setup.log"
-GAME_NAME="AndyPaddleTheRiver"
+GAME_NAME="Paddle-the-River"
 
 for arg in "$@"; do
     case $arg in

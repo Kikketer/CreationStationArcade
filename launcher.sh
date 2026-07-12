@@ -7,7 +7,7 @@ LOG_FILE="/home/pi/arcade.log"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # CONFIGURE YOUR GAME HERE (or set SINGLE_GAME_NAME env var)
-GAME_NAME="${SINGLE_GAME_NAME:-AndyPaddleTheRiver}"
+GAME_NAME="${SINGLE_GAME_NAME:-Paddle-the-River}"
 GAME_ELF="$SCRIPT_DIR/games/${GAME_NAME}.elf"
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"; }
