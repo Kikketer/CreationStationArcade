@@ -227,13 +227,29 @@ class GamepadReader(threading.Thread):
 
 
 def main():
-    log("=== usb-to-gpio (uinput keyboard mode) starting ===")
+    setup_only = "--setup-only" in sys.argv
+    log(f"=== usb-to-gpio (uinput keyboard mode) starting{'  [setup-only]' if setup_only else ''} ===")
 
     # Load uinput kernel module if needed
     os.system("modprobe uinput 2>/dev/null")
 
     vkbd_fd = create_virtual_keyboard()
     update_sd_arcade_cfg()
+
+    if setup_only:
+        log("Setup complete, keeping virtual keyboard open in background...")
+        # Don't exit — if we close vkbd_fd the device disappears
+        # Fork a child to hold the fd open, parent exits cleanly for the launcher
+        child = os.fork()
+        if child > 0:
+            # Parent exits so launcher.sh can continue
+            sys.exit(0)
+        # Child: hold fd open and do nothing (device stays alive)
+        import signal
+        signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+        while True:
+            time.sleep(60)
+        return
 
     readers = {}
     try:
