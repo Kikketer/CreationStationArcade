@@ -84,6 +84,13 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
+# ── 4a. Create /sd/arcade.cfg (ELF reads pin config from here) ───────────────
+log "Creating /sd/arcade.cfg..."
+sudo mkdir -p /sd
+sudo cp -f "$REPO_DIR/arcade.cfg" /sd/arcade.cfg
+sudo chmod 644 /sd/arcade.cfg
+log "/sd/arcade.cfg created."
+
 # ── 4. Make scripts and ELFs executable ──────────────────────────────────────
 log "Setting permissions..."
 chmod +x "$REPO_DIR/launcher.sh" 2>/dev/null || true
