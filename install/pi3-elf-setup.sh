@@ -3,7 +3,7 @@
 # This script:
 #   1. Installs required packages
 #   2. Configures auto-login on TTY1
-#   3. Creates runtime folder from git repo
+#   3. Makes scripts and ELFs executable (runs directly from repo)
 #   4. Writes ~/.bash_profile and ~/.profile to auto-launch the game on boot
 #   5. Installs a systemd service for monitor_kill.py (reset button)
 #   6. Suppresses boot messages
@@ -59,7 +59,6 @@ log "Installing system packages..."
 sudo apt-get update -y >> "$LOG" 2>&1
 sudo apt-get install -y \
     python3-rpi.gpio \
-    rsync \
     >> "$LOG" 2>&1
 log "Packages installed."
 
@@ -132,7 +131,12 @@ log "arcade-monitor service installed."
 
 # ── 7. Suppress boot messages ─────────────────────────────────────────────────
 log "Suppressing boot messages..."
-CMDLINE="/boot/cmdline.txt"
+# Bookworm/Trixie uses /boot/firmware/cmdline.txt; older images use /boot/cmdline.txt
+if [ -f "/boot/firmware/cmdline.txt" ]; then
+    CMDLINE="/boot/firmware/cmdline.txt"
+else
+    CMDLINE="/boot/cmdline.txt"
+fi
 if [ -f "$CMDLINE" ]; then
     sudo sed -i 's/ quiet loglevel=3 vt.global_cursor_default=0//g' "$CMDLINE"
     sudo sed -i 's/ quiet//g' "$CMDLINE"
