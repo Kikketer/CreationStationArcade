@@ -40,7 +40,19 @@ log "=== Pi 3 ELF Kiosk Setup ==="
 log "Repo: $REPO_DIR"
 log "Game: $GAME_NAME"
 
-# ── 0. Verify git repo ────────────────────────────────────────────────────────
+# ── 0. Check kernel compatibility ────────────────────────────────────────────
+if ! grep -q "^Hardware" /proc/cpuinfo 2>/dev/null; then
+    log "WARNING: 'Hardware' line not found in /proc/cpuinfo."
+    log "The MakeCode Arcade ELF requires this line to run."
+    log "Your kernel may be too new. Avoid running 'sudo apt upgrade' on this Pi."
+    log "Continuing setup, but the ELF may fail to launch after reboot."
+    echo ""
+    echo "  To verify after reboot: grep Hardware /proc/cpuinfo"
+    echo "  Expected:               Hardware : BCM2835"
+    echo ""
+fi
+
+# ── 1. Verify git repo ────────────────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
     log "ERROR: $REPO_DIR is not a git repo. Run from the cloned repository."
     exit 2
@@ -55,8 +67,7 @@ if [ ! -f "$REPO_DIR/games/${GAME_NAME}.elf" ]; then
 fi
 
 # ── 2. System packages ────────────────────────────────────────────────────────
-log "Installing system packages..."
-sudo apt-get update -y >> "$LOG" 2>&1
+log "Installing system packages (skipping apt update to preserve kernel version)..."
 sudo apt-get install -y \
     python3-rpi.gpio \
     >> "$LOG" 2>&1
