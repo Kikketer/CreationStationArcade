@@ -51,8 +51,8 @@ SC_LEFT  = 105
 SC_RIGHT = 106
 SC_UP    = 103
 SC_DOWN  = 108
-SC_A     = 57   # space
-SC_B     = 29   # left ctrl
+SC_A     = 44   # Z
+SC_B     = 45   # X
 SC_EXIT  = 1    # Esc
 SC_MENU  = 60   # F2
 
