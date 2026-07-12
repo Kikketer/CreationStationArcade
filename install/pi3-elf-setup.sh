@@ -84,10 +84,10 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
-# ── 4a. Create /sd/arcade.cfg (ELF reads pin config from here) ───────────────
-log "Creating /sd/arcade.cfg..."
+# ── 4a. Create /sd/arcade.cfg (ELF reads input config from here) ─────────────
+log "Creating /sd/arcade.cfg (keyboard scan code layout for USB gamepad)..."
 sudo mkdir -p /sd
-sudo cp -f "$REPO_DIR/arcade.cfg" /sd/arcade.cfg
+sudo cp -f "$REPO_DIR/sd-arcade.cfg" /sd/arcade.cfg
 sudo chmod 644 /sd/arcade.cfg
 log "/sd/arcade.cfg created."
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# usb-to-gpio.py — Reads USB gamepad input events and drives GPIO pins
-# as outputs (active LOW) so the MakeCode Arcade ELF can read them.
+# usb-to-gpio.py — Maps USB gamepad events to a uinput virtual keyboard
+# so the MakeCode Arcade ELF can read inputs via /dev/input/eventX.
 #
-# The ELF reads GPIO pins as active-low inputs (button press = pin LOW).
-# This script sets those same pins as outputs and pulls them LOW/HIGH
-# to simulate button presses from a USB gamepad.
+# The ELF reads keyboard scan codes from the device listed in SCAN_CODES=
+# in /sd/arcade.cfg. This script creates a virtual keyboard and injects
+# the correct scan codes when USB gamepad buttons/axes are pressed.
 #
 # Usage: python3 usb-to-gpio.py
 # Run in background before launching the ELF (launcher.sh does this).
@@ -15,43 +15,67 @@ import time
 import struct
 import threading
 import glob
-
-try:
-    import RPi.GPIO as GPIO
-except ImportError:
-    print("ERROR: RPi.GPIO not installed. Run: sudo apt-get install python3-rpi.gpio")
-    sys.exit(1)
+import fcntl
 
 LOG_FILE = "/home/pi/arcade.log"
+SD_ARCADE_CFG = "/sd/arcade.cfg"
 
-# JS event format: time(4), value(2), type(1), number(1)
+# JS event: time(4), value(2), type(1), number(1)
 JS_EVENT_FMT = "IhBB"
 JS_EVENT_SIZE = struct.calcsize(JS_EVENT_FMT)
 JS_EVENT_BUTTON = 0x01
 JS_EVENT_AXIS   = 0x02
 JS_EVENT_INIT   = 0x80
 
-# Standard USB gamepad button/axis mapping
-# These are typical for most USB gamepads (Xbox-style layout)
-AXIS_X      = 0   # Left stick X  (or D-pad X on some pads)
-AXIS_Y      = 1   # Left stick Y  (or D-pad Y on some pads)
-AXIS_DPAD_X = 6   # D-pad X (hat)
-AXIS_DPAD_Y = 7   # D-pad Y (hat)
-BTN_A       = 0
-BTN_B       = 1
-BTN_X       = 2
-BTN_Y       = 3
+AXIS_THRESHOLD = 16384
 
-AXIS_THRESHOLD = 16384  # Half of 32767
+# USB gamepad button indices (standard layout)
+JS_BTN_A = 0
+JS_BTN_B = 1
+JS_BTN_X = 2
+JS_BTN_Y = 3
+JS_BTN_LB = 4
+JS_BTN_RB = 5
+JS_BTN_SELECT = 6
+JS_BTN_START  = 7
 
-# arcade.cfg pin layout — matches the repo's arcade.cfg
-# Each player: up, down, left, right, a, b
-PLAYER_PINS = {
-    1: {'up': 6,  'down': 0,  'left': 13, 'right': 5,  'a': 26, 'b': 19},
-    2: {'up': 22, 'down': 17, 'left': 10, 'right': 27, 'a': 11, 'b': 9},
-    3: {'up': 12, 'down': 7,  'left': 16, 'right': 1,  'a': 21, 'b': 20},
-    4: {'up': 23, 'down': 15, 'left': 24, 'right': 18, 'a': 8,  'b': 25},
-}
+# Axes
+JS_AXIS_LX    = 0
+JS_AXIS_LY    = 1
+JS_AXIS_DPADX = 6
+JS_AXIS_DPADY = 7
+
+# Linux scan codes matching sd-arcade.cfg
+# Player 1
+SC_LEFT  = 105
+SC_RIGHT = 106
+SC_UP    = 103
+SC_DOWN  = 108
+SC_A     = 57   # space
+SC_B     = 29   # left ctrl
+SC_EXIT  = 1    # Esc
+SC_MENU  = 60   # F2
+
+# uinput constants
+UINPUT_PATH = "/dev/uinput"
+UI_SET_EVBIT  = 0x40045564
+UI_SET_KEYBIT = 0x40045565
+UI_DEV_CREATE = 0x5501
+UI_DEV_DESTROY= 0x5502
+EV_SYN = 0x00
+EV_KEY = 0x01
+SYN_REPORT = 0
+
+# All scan codes we'll emit
+ALL_KEYS = [SC_LEFT, SC_RIGHT, SC_UP, SC_DOWN, SC_A, SC_B, SC_EXIT, SC_MENU]
+
+# uinput_user_dev struct
+UINPUT_DEV_FMT = "80sHHHHi" + "i" * 64 * 4
+UINPUT_DEV_SIZE = struct.calcsize(UINPUT_DEV_FMT)
+
+# input_event struct: timeval(8+8), type(2), code(2), value(4)
+INPUT_EVENT_FMT = "llHHi"
+INPUT_EVENT_SIZE = struct.calcsize(INPUT_EVENT_FMT)
 
 
 def log(msg):
@@ -65,115 +89,120 @@ def log(msg):
         pass
 
 
-def load_pins_from_cfg():
-    """Override PLAYER_PINS from arcade.cfg if present."""
-    cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'arcade.cfg')
-    if not os.path.exists(cfg_path):
-        log("arcade.cfg not found, using built-in pin defaults")
-        return
-
-    mapping = {
-        1: {}, 2: {}, 3: {}, 4: {},
-    }
-    key_map = {
-        'BTN_UP': (1, 'up'),    'BTN_DOWN': (1, 'down'),
-        'BTN_LEFT': (1, 'left'),'BTN_RIGHT': (1, 'right'),
-        'BTN_A': (1, 'a'),      'BTN_B': (1, 'b'),
-        'BTN_UP2': (2, 'up'),   'BTN_DOWN2': (2, 'down'),
-        'BTN_LEFT2': (2, 'left'),'BTN_RIGHT2': (2, 'right'),
-        'BTN_A2': (2, 'a'),     'BTN_B2': (2, 'b'),
-        'BTN_UP3': (3, 'up'),   'BTN_DOWN3': (3, 'down'),
-        'BTN_LEFT3': (3, 'left'),'BTN_RIGHT3': (3, 'right'),
-        'BTN_A3': (3, 'a'),     'BTN_B3': (3, 'b'),
-        'BTN_UP4': (4, 'up'),   'BTN_DOWN4': (4, 'down'),
-        'BTN_LEFT4': (4, 'left'),'BTN_RIGHT4': (4, 'right'),
-        'BTN_A4': (4, 'a'),     'BTN_B4': (4, 'b'),
-    }
-
-    with open(cfg_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#') or '=' not in line:
-                continue
-            key, val = line.split('=', 1)
-            key, val = key.strip(), val.strip()
-            if key in key_map:
-                player, button = key_map[key]
-                try:
-                    mapping[player][button] = int(val)
-                except ValueError:
-                    pass
-
-    for player, buttons in mapping.items():
-        if buttons:
-            PLAYER_PINS[player].update(buttons)
-
-    log(f"Loaded pin config from {cfg_path}")
-
-
-def setup_gpio():
-    """Set all game pins as outputs, start HIGH (not pressed)."""
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-    all_pins = set()
-    for player_pins in PLAYER_PINS.values():
-        for pin in player_pins.values():
-            if pin is not None:
-                all_pins.add(pin)
-
-    for pin in all_pins:
-        GPIO.setup(pin, GPIO.OUT, initial=GPIO.HIGH)
-
-    log(f"GPIO setup: {len(all_pins)} pins as outputs (HIGH=released)")
-    return all_pins
-
-
-def set_pin(pin, pressed):
-    """Drive pin LOW for pressed, HIGH for released."""
-    if pin is None:
-        return
+def create_virtual_keyboard():
+    """Create a uinput virtual keyboard device, return fd."""
     try:
-        GPIO.output(pin, GPIO.LOW if pressed else GPIO.HIGH)
+        fd = open(UINPUT_PATH, 'wb')
+    except OSError as e:
+        log(f"ERROR: Cannot open {UINPUT_PATH}: {e}")
+        log("Try: sudo modprobe uinput")
+        sys.exit(1)
+
+    # Enable EV_KEY events
+    fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+    for key in ALL_KEYS:
+        fcntl.ioctl(fd, UI_SET_KEYBIT, key)
+
+    # Build uinput_user_dev struct
+    name = b"MCArcade Virtual Keyboard"
+    dev = struct.pack(UINPUT_DEV_FMT,
+        name.ljust(80, b'\x00'),
+        0x03,   # BUS_USB
+        0x1234, # vendor
+        0x5678, # product
+        1,      # version
+        0,      # ff_effects_max
+        *([0] * 64 * 4)  # absmax/absmin/absfuzz/absflat
+    )
+    fd.write(dev)
+    fd.flush()
+    fcntl.ioctl(fd, UI_DEV_CREATE)
+    time.sleep(0.5)  # let the device appear
+    log("Virtual keyboard created")
+    return fd
+
+
+def emit_key(fd, scancode, pressed):
+    """Emit a key press/release event."""
+    value = 1 if pressed else 0
+    t = time.time()
+    ts_sec = int(t)
+    ts_usec = int((t - ts_sec) * 1e6)
+    ev = struct.pack(INPUT_EVENT_FMT, ts_sec, ts_usec, EV_KEY, scancode, value)
+    syn = struct.pack(INPUT_EVENT_FMT, ts_sec, ts_usec, EV_SYN, SYN_REPORT, 0)
+    fd.write(ev)
+    fd.write(syn)
+    fd.flush()
+
+
+def update_sd_arcade_cfg():
+    """Find the virtual keyboard's eventX and update SCAN_CODES in /sd/arcade.cfg."""
+    # Give udev a moment to create the device
+    time.sleep(1)
+    # Find the most recently created event device — our virtual keyboard
+    events = sorted(glob.glob('/dev/input/event*'), key=os.path.getmtime, reverse=True)
+    if not events:
+        log("WARNING: No /dev/input/event* found, SCAN_CODES not updated")
+        return
+    event_dev = events[0]
+    log(f"Virtual keyboard at {event_dev}, updating {SD_ARCADE_CFG}")
+    try:
+        with open(SD_ARCADE_CFG, 'r') as f:
+            lines = f.readlines()
+        with open(SD_ARCADE_CFG, 'w') as f:
+            for line in lines:
+                if line.startswith('SCAN_CODES='):
+                    f.write(f'SCAN_CODES={event_dev}\n')
+                else:
+                    f.write(line)
+        log(f"SCAN_CODES set to {event_dev}")
     except Exception as e:
-        log(f"GPIO error on pin {pin}: {e}")
+        log(f"ERROR updating {SD_ARCADE_CFG}: {e}")
 
 
 class GamepadReader(threading.Thread):
-    """Reads one /dev/input/jsN and drives GPIO pins."""
-
-    def __init__(self, js_path, player_num):
+    def __init__(self, js_path, vkbd_fd):
         super().__init__(daemon=True)
         self.js_path = js_path
-        self.player_num = player_num
-        self.pins = PLAYER_PINS.get(player_num, {})
+        self.fd = vkbd_fd
         self.running = True
-        # Track axis state for D-pad
         self.axis_state = {}
+        self.key_state = {}
+
+    def _set_key(self, scancode, pressed):
+        if self.key_state.get(scancode) == pressed:
+            return
+        self.key_state[scancode] = pressed
+        emit_key(self.fd, scancode, pressed)
 
     def _handle_button(self, number, value):
         pressed = bool(value)
-        if number == BTN_A:
-            set_pin(self.pins.get('a'), pressed)
-        elif number == BTN_B or number == BTN_X or number == BTN_Y:
-            set_pin(self.pins.get('b'), pressed)
+        if number == JS_BTN_A:
+            self._set_key(SC_A, pressed)
+        elif number in (JS_BTN_B, JS_BTN_X, JS_BTN_Y):
+            self._set_key(SC_B, pressed)
+        elif number in (JS_BTN_SELECT,):
+            self._set_key(SC_EXIT, pressed)
+        elif number in (JS_BTN_START,):
+            self._set_key(SC_MENU, pressed)
 
     def _handle_axis(self, number, value):
         self.axis_state[number] = value
-
-        # D-pad hat axes (most common on USB pads)
-        if number == AXIS_DPAD_X or number == AXIS_X:
-            set_pin(self.pins.get('left'),  value < -AXIS_THRESHOLD)
-            set_pin(self.pins.get('right'), value >  AXIS_THRESHOLD)
-        elif number == AXIS_DPAD_Y or number == AXIS_Y:
-            set_pin(self.pins.get('up'),   value < -AXIS_THRESHOLD)
-            set_pin(self.pins.get('down'), value >  AXIS_THRESHOLD)
+        if number in (JS_AXIS_LX, JS_AXIS_DPADX):
+            self._set_key(SC_LEFT,  value < -AXIS_THRESHOLD)
+            self._set_key(SC_RIGHT, value >  AXIS_THRESHOLD)
+        elif number in (JS_AXIS_LY, JS_AXIS_DPADY):
+            self._set_key(SC_UP,   value < -AXIS_THRESHOLD)
+            self._set_key(SC_DOWN, value >  AXIS_THRESHOLD)
 
     def release_all(self):
-        for pin in self.pins.values():
-            set_pin(pin, False)
+        for sc in list(self.key_state.keys()):
+            if self.key_state.get(sc):
+                emit_key(self.fd, sc, False)
+                self.key_state[sc] = False
 
     def run(self):
-        log(f"Player {self.player_num}: watching {self.js_path}")
+        log(f"Watching {self.js_path}")
         while self.running:
             try:
                 with open(self.js_path, 'rb') as f:
@@ -182,7 +211,7 @@ class GamepadReader(threading.Thread):
                         if len(data) < JS_EVENT_SIZE:
                             break
                         _, value, ev_type, number = struct.unpack(JS_EVENT_FMT, data)
-                        ev_type &= ~JS_EVENT_INIT  # strip init flag
+                        ev_type &= ~JS_EVENT_INIT
                         if ev_type == JS_EVENT_BUTTON:
                             self._handle_button(number, value)
                         elif ev_type == JS_EVENT_AXIS:
@@ -191,54 +220,46 @@ class GamepadReader(threading.Thread):
                 pass
             finally:
                 self.release_all()
-
             if self.running:
-                time.sleep(2)  # Wait before retrying if device disconnected
-
-
-def find_joysticks():
-    return sorted(glob.glob('/dev/input/js*'))
+                time.sleep(2)
 
 
 def main():
-    log("=== usb-to-gpio starting ===")
-    load_pins_from_cfg()
-    setup_gpio()
+    log("=== usb-to-gpio (uinput keyboard mode) starting ===")
+
+    # Load uinput kernel module if needed
+    os.system("modprobe uinput 2>/dev/null")
+
+    vkbd_fd = create_virtual_keyboard()
+    update_sd_arcade_cfg()
 
     readers = {}
-
     try:
         while True:
-            current_js = find_joysticks()
-
-            # Start readers for newly connected joysticks
-            for i, js_path in enumerate(current_js):
-                player_num = i + 1
-                if player_num > 4:
-                    break
+            current_js = sorted(glob.glob('/dev/input/js*'))
+            for js_path in current_js:
                 if js_path not in readers or not readers[js_path].is_alive():
-                    reader = GamepadReader(js_path, player_num)
-                    reader.start()
-                    readers[js_path] = reader
-                    log(f"Player {player_num}: connected {js_path}")
-
-            # Clean up dead readers for disconnected devices
+                    r = GamepadReader(js_path, vkbd_fd)
+                    r.start()
+                    readers[js_path] = r
+                    log(f"Connected: {js_path}")
             for js_path in list(readers.keys()):
                 if js_path not in current_js:
                     readers[js_path].running = False
-                    readers[js_path].release_all()
                     del readers[js_path]
-                    log(f"Removed {js_path}")
-
+                    log(f"Disconnected: {js_path}")
             time.sleep(1)
-
     except KeyboardInterrupt:
         log("Shutting down...")
     finally:
         for r in readers.values():
             r.running = False
             r.release_all()
-        GPIO.cleanup()
+        try:
+            fcntl.ioctl(vkbd_fd, UI_DEV_DESTROY)
+            vkbd_fd.close()
+        except Exception:
+            pass
         log("Cleanup complete")
 
 
