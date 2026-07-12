@@ -35,6 +35,10 @@ fi
 # Verify game exists
 if [ ! -x "$GAME_ELF" ]; then
     log "ERROR: Game ELF not found or not executable: $GAME_ELF"
+    log "Available files in games/:"
+    ls "$SCRIPT_DIR/games/" >> "$LOG_FILE" 2>&1 || true
+    log "Sleeping 30s before retry..."
+    sleep 30
     exit 1
 fi
 
