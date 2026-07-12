@@ -17,7 +17,7 @@ log "=== Launcher start: game=$GAME_NAME ==="
 # Start USB-to-GPIO translator if not already running
 if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
     log "Starting usb-to-gpio.py..."
-    python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
+    sudo python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
     sleep 1
     if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
         log "WARNING: usb-to-gpio.py failed to start or crashed immediately"
