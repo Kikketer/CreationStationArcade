@@ -188,10 +188,12 @@ class GamepadReader(threading.Thread):
 
     def _handle_axis(self, number, value):
         self.axis_state[number] = value
-        if number in (JS_AXIS_LX, JS_AXIS_DPADX):
+        # Horizontal axes: 0 (LX), 2 (ABS_Z/RX on some pads), 4, 6 (hat)
+        if number in (0, 2, 4, 6):
             self._set_key(SC_LEFT,  value < -AXIS_THRESHOLD)
             self._set_key(SC_RIGHT, value >  AXIS_THRESHOLD)
-        elif number in (JS_AXIS_LY, JS_AXIS_DPADY):
+        # Vertical axes: 1 (LY), 3 (ABS_RZ/RY on some pads), 5, 7 (hat)
+        elif number in (1, 3, 5, 7):
             self._set_key(SC_UP,   value < -AXIS_THRESHOLD)
             self._set_key(SC_DOWN, value >  AXIS_THRESHOLD)
 
