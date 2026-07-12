@@ -89,7 +89,7 @@ log "Setting up uinput permissions..."
 sudo modprobe uinput
 # Persist uinput module load on boot
 echo "uinput" | sudo tee /etc/modules-load.d/uinput.conf > /dev/null
-echo 'KERNEL=="uinput", MODE="0660", GROUP="input"' | sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null
+echo 'KERNEL=="uinput", MODE="0666"' | sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null
 sudo usermod -aG input pi
 sudo udevadm control --reload-rules
 sudo udevadm trigger

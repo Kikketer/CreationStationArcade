@@ -19,12 +19,11 @@ log "=== Launcher start: game=$GAME_NAME ==="
 # uinput device alive and returns immediately.
 if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
     log "Setting up virtual keyboard (usb-to-gpio.py --setup-only)..."
-    # Run as input group so it can open /dev/uinput without sudo
-    sg input -c "python3 $SCRIPT_DIR/usb-to-gpio.py --setup-only" >> "$LOG_FILE" 2>&1
+    python3 "$SCRIPT_DIR/usb-to-gpio.py" --setup-only >> "$LOG_FILE" 2>&1
     log "Virtual keyboard setup done. SCAN_CODES=$(grep SCAN_CODES /sd/arcade.cfg 2>/dev/null | cut -d= -f2)"
     # Now start the full gamepad reader in background
     log "Starting usb-to-gpio.py gamepad reader..."
-    sg input -c "python3 $SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
+    python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
 fi
 
 # Start reset monitor if not already running
