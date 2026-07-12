@@ -84,6 +84,15 @@ EOF
 sudo systemctl daemon-reload
 log "Auto-login configured."
 
+# ── 3b. uinput permissions ────────────────────────────────────────────────────
+log "Setting up uinput permissions..."
+sudo modprobe uinput
+echo 'KERNEL=="uinput", MODE="0660", GROUP="input"' | sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null
+sudo usermod -aG input pi
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+log "uinput permissions set."
+
 # ── 4a. Create /sd/arcade.cfg (ELF reads input config from here) ─────────────
 log "Creating /sd/arcade.cfg (keyboard scan code layout for USB gamepad)..."
 sudo mkdir -p /sd
