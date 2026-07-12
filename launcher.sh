@@ -18,12 +18,18 @@ log "=== Launcher start: game=$GAME_NAME ==="
 if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
     log "Starting usb-to-gpio.py..."
     sudo python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
-    sleep 1
-    if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
-        log "WARNING: usb-to-gpio.py failed to start or crashed immediately"
-    else
-        log "usb-to-gpio.py running (pid $(pgrep -f usb-to-gpio.py))"
-    fi
+    # Wait up to 5s for it to update /sd/arcade.cfg with the correct eventX
+    for i in 1 2 3 4 5; do
+        sleep 1
+        if grep -q "^SCAN_CODES=" /sd/arcade.cfg 2>/dev/null; then
+            SCAN_DEV=$(grep "^SCAN_CODES=" /sd/arcade.cfg | cut -d= -f2)
+            if [ -e "$SCAN_DEV" ]; then
+                log "usb-to-gpio.py ready, SCAN_CODES=$SCAN_DEV"
+                break
+            fi
+        fi
+        log "Waiting for usb-to-gpio.py to set up virtual keyboard... ($i)"
+    done
 fi
 
 # Start reset monitor if not already running
