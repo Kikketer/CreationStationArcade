@@ -69,17 +69,31 @@ def on_reset(channel):
 
 def main():
     _log(f"=== monitor_kill.py start: game={GAME_NAME}, pin={RESET_PIN} ===")
-    try:
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(RESET_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect(RESET_PIN, GPIO.RISING, callback=on_reset, bouncetime=DEBOUNCE_MS)
-        _log(f"Monitoring BCM pin {RESET_PIN} (active HIGH) for reset...")
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        _log("monitor_kill.py exiting.")
-    finally:
-        GPIO.cleanup()
+    # Wait for the ELF to start and claim its pins before we try
+    time.sleep(3)
+    while True:
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(RESET_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+            GPIO.add_event_detect(RESET_PIN, GPIO.RISING, callback=on_reset, bouncetime=DEBOUNCE_MS)
+            _log(f"Monitoring BCM pin {RESET_PIN} (active HIGH) for reset...")
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            _log("monitor_kill.py exiting.")
+            break
+        except RuntimeError as e:
+            _log(f"WARNING: GPIO edge detect failed ({e}), retrying in 5s...")
+            try:
+                GPIO.cleanup()
+            except Exception:
+                pass
+            time.sleep(5)
+        finally:
+            try:
+                GPIO.cleanup()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
