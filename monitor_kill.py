@@ -5,7 +5,7 @@ import os
 
 LOG_FILE = "/home/pi/arcade.log"
 
-RESET_PIN = 3       # BCM 3 — active HIGH, pull-down
+RESET_PIN = 4       # BCM 4 — matches BTN_RESET in arcade.cfg
 DEBOUNCE_MS = 500
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
