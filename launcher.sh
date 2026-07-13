@@ -49,5 +49,9 @@ if [ ! -x "$RUNNER" ]; then
 fi
 
 log "Launching game: $GAME_ELF"
+# Suppress TTY so keypresses don't bleed through as text behind the game
+setterm -cursor off 2>/dev/null || true
+stty -echo 2>/dev/null || true
+echo -e '\033[?25l\033[2J\033[H' > /dev/tty1 2>/dev/null || true
 "$RUNNER" "$GAME_ELF" >> "$LOG_FILE" 2>&1
 log "Game exited."
