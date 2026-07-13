@@ -214,6 +214,11 @@ class GamepadReader(threading.Thread):
         while self.running:
             try:
                 with open(self.js_path, 'rb') as f:
+                    # Send a harmless key tap to wake the elf's input polling
+                    time.sleep(0.2)
+                    emit_key(self.fd, SC_UP, True)
+                    time.sleep(0.05)
+                    emit_key(self.fd, SC_UP, False)
                     while self.running:
                         data = f.read(JS_EVENT_SIZE)
                         if len(data) < JS_EVENT_SIZE:
