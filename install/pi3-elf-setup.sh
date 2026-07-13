@@ -91,18 +91,25 @@ sudo modprobe uinput
 echo "uinput" | sudo tee /etc/modules-load.d/uinput.conf > /dev/null
 echo 'KERNEL=="uinput", MODE="0666"' | sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null
 sudo usermod -aG input pi
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-# Allow pi to run usb-to-gpio.py as root without password
-echo "pi ALL=(ALL) NOPASSWD: /usr/bin/python3 $REPO_DIR/usb-to-gpio.py *" | sudo tee /etc/sudoers.d/arcade-uinput > /dev/null
-sudo chmod 440 /etc/sudoers.d/arcade-uinput
+sudo udevadm control --reload-rules && sudo udevadm trigger || true
+# rc.local: udev rule alone doesn't apply on boot, chmod ensures it's always 0666
+sudo tee /etc/rc.local > /dev/null <<'RCEOF'
+#!/bin/bash
+modprobe uinput
+chmod 0666 /dev/uinput
+exit 0
+RCEOF
+sudo chmod +x /etc/rc.local
+# Remove old sudoers entry if present
+sudo rm -f /etc/sudoers.d/arcade-uinput
 log "uinput permissions set."
 
 # ── 4a. Create /sd/arcade.cfg (ELF reads input config from here) ─────────────
 log "Creating /sd/arcade.cfg (keyboard scan code layout for USB gamepad)..."
 sudo mkdir -p /sd
 sudo cp -f "$REPO_DIR/sd-arcade.cfg" /sd/arcade.cfg
-sudo chmod 644 /sd/arcade.cfg
+# Must be writable by pi so usb-to-gpio.py can update SCAN_CODES= at runtime
+sudo chmod 666 /sd/arcade.cfg
 log "/sd/arcade.cfg created."
 
 # ── 4. Make scripts and ELFs executable ──────────────────────────────────────
