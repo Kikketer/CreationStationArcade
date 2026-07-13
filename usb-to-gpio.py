@@ -229,7 +229,7 @@ class GamepadReader(threading.Thread):
             finally:
                 self.release_all()
             if self.running:
-                time.sleep(2)
+                time.sleep(0.5)
 
 
 def main():

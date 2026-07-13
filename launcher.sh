@@ -24,6 +24,7 @@ log "Virtual keyboard setup done. SCAN_CODES=$(grep "^SCAN_CODES" /sd/arcade.cfg
 # Now start the full gamepad reader in background
 log "Starting usb-to-gpio.py gamepad reader..."
 python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
+sleep 1
 
 # Start reset monitor if not already running
 if ! pgrep -f "monitor_kill.py" > /dev/null; then
