@@ -68,7 +68,8 @@ EV_KEY = 0x01
 SYN_REPORT = 0
 
 # All scan codes we'll emit
-ALL_KEYS = [SC_LEFT, SC_RIGHT, SC_UP, SC_DOWN, SC_A, SC_B, SC_EXIT, SC_MENU]
+SC_WAKE  = 68   # F10 — not mapped in arcade.cfg, used only for wake taps
+ALL_KEYS = [SC_LEFT, SC_RIGHT, SC_UP, SC_DOWN, SC_A, SC_B, SC_EXIT, SC_MENU, SC_WAKE]
 
 # uinput_user_dev struct
 UINPUT_DEV_FMT = "80sHHHHi" + "i" * 64 * 4
@@ -216,9 +217,9 @@ class GamepadReader(threading.Thread):
                 with open(self.js_path, 'rb') as f:
                     # Send a harmless key tap to wake the elf's input polling
                     time.sleep(0.2)
-                    emit_key(self.fd, SC_UP, True)
+                    emit_key(self.fd, SC_WAKE, True)
                     time.sleep(0.05)
-                    emit_key(self.fd, SC_UP, False)
+                    emit_key(self.fd, SC_WAKE, False)
                     while self.running:
                         data = f.read(JS_EVENT_SIZE)
                         if len(data) < JS_EVENT_SIZE:
@@ -283,9 +284,9 @@ def main():
             # Periodic wake tap to keep elf input polling alive across internal resets
             now = time.time()
             if now - last_wake >= WAKE_INTERVAL:
-                emit_key(vkbd_fd, SC_UP, True)
+                emit_key(vkbd_fd, SC_WAKE, True)
                 time.sleep(0.05)
-                emit_key(vkbd_fd, SC_UP, False)
+                emit_key(vkbd_fd, SC_WAKE, False)
                 last_wake = now
             time.sleep(1)
     except KeyboardInterrupt:
