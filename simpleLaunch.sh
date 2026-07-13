@@ -112,7 +112,14 @@ def read_png(path):
     ihdr = chunks[b'IHDR']
     w, h = struct.unpack('>II', ihdr[:8])
     ct = ihdr[9]
-    bpp = 4 if ct == 6 else 3
+    # ct=2 RGB, ct=3 palette, ct=6 RGBA
+    palette = None
+    if ct == 3:
+        pal_data = chunks.get(b'PLTE', b'')
+        palette = [pal_data[i*3:(i+1)*3] for i in range(len(pal_data)//3)]
+        bpp = 1
+    else:
+        bpp = 4 if ct == 6 else 3
     raw = zlib.decompress(chunks[b'IDAT'])
     stride = w * bpp + 1
     pixels = bytearray(w * h * 3)
@@ -120,17 +127,17 @@ def read_png(path):
     for y in range(h):
         row = bytearray(raw[y * stride + 1: (y + 1) * stride])
         ft = raw[y * stride]
-        if ft == 1:  # Sub
+        if ft == 1:
             for x in range(bpp, len(row)):
                 row[x] = (row[x] + row[x - bpp]) & 0xFF
-        elif ft == 2:  # Up
+        elif ft == 2:
             for x in range(len(row)):
                 row[x] = (row[x] + prev[x]) & 0xFF
-        elif ft == 3:  # Average
+        elif ft == 3:
             for x in range(len(row)):
                 a = row[x - bpp] if x >= bpp else 0
                 row[x] = (row[x] + (a + prev[x]) // 2) & 0xFF
-        elif ft == 4:  # Paeth
+        elif ft == 4:
             for x in range(len(row)):
                 a = row[x - bpp] if x >= bpp else 0
                 b2 = prev[x]; c = prev[x - bpp] if x >= bpp else 0
@@ -140,8 +147,12 @@ def read_png(path):
                 row[x] = (row[x] + pr) & 0xFF
         prev = row
         for x in range(w):
-            o = x * bpp
-            pixels[(y * w + x) * 3:(y * w + x) * 3 + 3] = row[o:o+3]
+            if palette:
+                rgb = palette[row[x]]
+                pixels[(y * w + x) * 3:(y * w + x) * 3 + 3] = rgb
+            else:
+                o = x * bpp
+                pixels[(y * w + x) * 3:(y * w + x) * 3 + 3] = row[o:o+3]
     return pixels, w, h
 try:
     pixels, img_w, img_h = read_png(sys.argv[1])
