@@ -90,32 +90,59 @@ if [ -f "$SPLASH" ]; then
 import sys, zlib, struct
 def read_png(path):
     with open(path, 'rb') as f:
-        sig = f.read(8)
-        if sig != b'\x89PNG\r\n\x1a\n':
-            return None, 0, 0
-        chunks = {}
-        while True:
-            length = struct.unpack('>I', f.read(4))[0]
-            ctype = f.read(4)
-            data = f.read(length)
-            f.read(4)  # crc
-            chunks.setdefault(ctype, b'')
-            chunks[ctype] += data
-            if ctype == b'IEND':
-                break
-        w, h, bd, ct = struct.unpack('>IIBBBBB', chunks[b'IHDR'])[:4]
-        raw = zlib.decompress(chunks[b'IDAT'])
-        bpp = 3 if ct == 2 else 4 if ct == 6 else 1
-        stride = w * bpp + 1
-        pixels = bytearray(w * h * 3)
-        for y in range(h):
-            row = raw[y * stride: y * stride + stride]
-            ft = row[0]
-            for x in range(w):
-                o = x * bpp
-                r = row[1 + o]; g = row[2 + o]; b = row[3 + o]
-                pixels[(y * w + x) * 3:] = bytes([r, g, b])
-        return pixels, w, h
+        raw_file = f.read()
+    # Find IHDR by scanning (skips any BOM/header issues)
+    idx = raw_file.find(b'IHDR')
+    if idx < 0:
+        return None, 0, 0
+    f = __import__('io').BytesIO(raw_file[idx - 4:])
+    chunks = {}
+    while True:
+        hdr = f.read(8)
+        if len(hdr) < 8:
+            break
+        length = struct.unpack('>I', hdr[:4])[0]
+        ctype = hdr[4:]
+        data = f.read(length)
+        f.read(4)  # crc
+        chunks.setdefault(ctype, b'')
+        chunks[ctype] += data
+        if ctype == b'IEND':
+            break
+    ihdr = chunks[b'IHDR']
+    w, h = struct.unpack('>II', ihdr[:8])
+    ct = ihdr[9]
+    bpp = 4 if ct == 6 else 3
+    raw = zlib.decompress(chunks[b'IDAT'])
+    stride = w * bpp + 1
+    pixels = bytearray(w * h * 3)
+    prev = bytearray(w * bpp)
+    for y in range(h):
+        row = bytearray(raw[y * stride + 1: (y + 1) * stride])
+        ft = raw[y * stride]
+        if ft == 1:  # Sub
+            for x in range(bpp, len(row)):
+                row[x] = (row[x] + row[x - bpp]) & 0xFF
+        elif ft == 2:  # Up
+            for x in range(len(row)):
+                row[x] = (row[x] + prev[x]) & 0xFF
+        elif ft == 3:  # Average
+            for x in range(len(row)):
+                a = row[x - bpp] if x >= bpp else 0
+                row[x] = (row[x] + (a + prev[x]) // 2) & 0xFF
+        elif ft == 4:  # Paeth
+            for x in range(len(row)):
+                a = row[x - bpp] if x >= bpp else 0
+                b2 = prev[x]; c = prev[x - bpp] if x >= bpp else 0
+                p = a + b2 - c
+                pa, pb, pc = abs(p-a), abs(p-b2), abs(p-c)
+                pr = a if pa <= pb and pa <= pc else (b2 if pb <= pc else c)
+                row[x] = (row[x] + pr) & 0xFF
+        prev = row
+        for x in range(w):
+            o = x * bpp
+            pixels[(y * w + x) * 3:(y * w + x) * 3 + 3] = row[o:o+3]
+    return pixels, w, h
 try:
     pixels, img_w, img_h = read_png(sys.argv[1])
     if pixels is None:
