@@ -14,6 +14,9 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"; }
 
 log "=== Launcher start: game=$GAME_NAME ==="
 
+# Kill splash screen if running from previous restart
+pkill -f fbi 2>/dev/null || true
+
 # Always kill stale usb-to-gpio processes and re-setup the virtual keyboard.
 # This ensures /sd/arcade.cfg has the correct eventX on every launch (including after reset).
 pkill -f "usb-to-gpio.py" 2>/dev/null || true

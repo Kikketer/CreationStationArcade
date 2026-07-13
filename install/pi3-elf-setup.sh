@@ -70,6 +70,7 @@ fi
 log "Installing system packages (skipping apt update to preserve kernel version)..."
 sudo apt-get install -y \
     python3-rpi.gpio \
+    fbi \
     >> "$LOG" 2>&1
 log "Packages installed."
 

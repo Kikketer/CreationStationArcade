@@ -83,6 +83,12 @@ done
 fbset -depth 8 && fbset -depth 16
 echo "Framebuffer restored."
 
+# Show splash image to cover TTY text during restart
+SPLASH="$(dirname "$0")/splash.png"
+if [ -f "$SPLASH" ] && command -v fbi > /dev/null 2>&1; then
+    fbi -T 1 -noverbose -a -1 "$SPLASH" > /dev/null 2>&1 &
+fi
+
 rm -f "$PIDFILE" 2>/dev/null || true
 
 # To kill the game: pkill -f launch-4player.sh
