@@ -14,17 +14,16 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"; }
 
 log "=== Launcher start: game=$GAME_NAME ==="
 
-# Set up virtual keyboard synchronously so /sd/arcade.cfg has correct eventX
-# before the elf starts. The --setup-only flag forks a child to keep the
-# uinput device alive and returns immediately.
-if ! pgrep -f "usb-to-gpio.py" > /dev/null; then
-    log "Setting up virtual keyboard (usb-to-gpio.py --setup-only)..."
-    python3 "$SCRIPT_DIR/usb-to-gpio.py" --setup-only >> "$LOG_FILE" 2>&1
-    log "Virtual keyboard setup done. SCAN_CODES=$(grep SCAN_CODES /sd/arcade.cfg 2>/dev/null | cut -d= -f2)"
-    # Now start the full gamepad reader in background
-    log "Starting usb-to-gpio.py gamepad reader..."
-    python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
-fi
+# Always kill stale usb-to-gpio processes and re-setup the virtual keyboard.
+# This ensures /sd/arcade.cfg has the correct eventX on every launch (including after reset).
+pkill -f "usb-to-gpio.py" 2>/dev/null || true
+sleep 0.5
+log "Setting up virtual keyboard (usb-to-gpio.py --setup-only)..."
+python3 "$SCRIPT_DIR/usb-to-gpio.py" --setup-only >> "$LOG_FILE" 2>&1
+log "Virtual keyboard setup done. SCAN_CODES=$(grep "^SCAN_CODES" /sd/arcade.cfg 2>/dev/null | cut -d= -f2)"
+# Now start the full gamepad reader in background
+log "Starting usb-to-gpio.py gamepad reader..."
+python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
 
 # Start reset monitor if not already running
 if ! pgrep -f "monitor_kill.py" > /dev/null; then
