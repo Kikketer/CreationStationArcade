@@ -85,8 +85,31 @@ echo "Framebuffer restored."
 
 # Show splash image to cover TTY text during restart
 SPLASH="$(dirname "$0")/splash.png"
-if [ -f "$SPLASH" ] && command -v fbi > /dev/null 2>&1; then
-    fbi -T 1 -noverbose -a -1 "$SPLASH" > /dev/null 2>&1 &
+if [ -f "$SPLASH" ]; then
+    python3 - "$SPLASH" <<'PYEOF' &
+import sys, struct, os
+try:
+    from PIL import Image
+    img = Image.open(sys.argv[1]).convert("RGB")
+    fb_w, fb_h = 1280, 1024
+    img = img.resize((img.width, img.height), Image.NEAREST)
+    # Center on framebuffer
+    fb = bytearray(fb_w * fb_h * 2)
+    x_off = (fb_w - img.width) // 2
+    y_off = (fb_h - img.height) // 2
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b = img.getpixel((x, y))
+            px = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+            idx = ((y + y_off) * fb_w + (x + x_off)) * 2
+            if 0 <= idx < len(fb) - 1:
+                fb[idx] = px & 0xFF
+                fb[idx+1] = (px >> 8) & 0xFF
+    with open("/dev/fb0", "wb") as f:
+        f.write(bytes(fb))
+except Exception as e:
+    pass
+PYEOF
 fi
 
 rm -f "$PIDFILE" 2>/dev/null || true
