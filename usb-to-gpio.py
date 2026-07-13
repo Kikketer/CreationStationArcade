@@ -32,13 +32,13 @@ AXIS_THRESHOLD = 16384
 # USB gamepad button indices (standard layout)
 JS_BTN_A = 0
 JS_BTN_B = 1
-JS_BTN_X = 2
-JS_BTN_Y = 3
-JS_BTN_LB = 4
-JS_BTN_RB = 5
-JS_BTN_SELECT = 6
-JS_BTN_START  = 7
-JS_BTN_RESET  = 8   # BTN_THUMB2 — hard kill reset
+JS_BTN_RESET = 2    # third button — hard kill reset
+JS_BTN_X = 3
+JS_BTN_Y = 4
+JS_BTN_LB = 5
+JS_BTN_RB = 6
+JS_BTN_SELECT = 7
+JS_BTN_START  = 8
 
 # Axes
 JS_AXIS_LX    = 0
@@ -182,13 +182,13 @@ class GamepadReader(threading.Thread):
             self._set_key(SC_A, pressed)
         elif number in (JS_BTN_B, JS_BTN_X, JS_BTN_Y):
             self._set_key(SC_B, pressed)
-        elif number in (JS_BTN_SELECT,):
-            self._set_key(SC_EXIT, pressed)
-        elif number in (JS_BTN_START,):
-            self._set_key(SC_MENU, pressed)
         elif number == JS_BTN_RESET and pressed:
             log("USB-TO-GPIO: Reset button pressed — killing elf")
             os.system("pkill -9 -f '\\.elf'")
+        elif number == JS_BTN_SELECT:
+            self._set_key(SC_EXIT, pressed)
+        elif number == JS_BTN_START:
+            self._set_key(SC_MENU, pressed)
 
     def _handle_axis(self, number, value):
         self.axis_state[number] = value
