@@ -38,6 +38,7 @@ JS_BTN_LB = 4
 JS_BTN_RB = 5
 JS_BTN_SELECT = 6
 JS_BTN_START  = 7
+JS_BTN_RESET  = 8   # BTN_THUMB2 — hard kill reset
 
 # Axes
 JS_AXIS_LX    = 0
@@ -185,6 +186,9 @@ class GamepadReader(threading.Thread):
             self._set_key(SC_EXIT, pressed)
         elif number in (JS_BTN_START,):
             self._set_key(SC_MENU, pressed)
+        elif number == JS_BTN_RESET and pressed:
+            log("USB-TO-GPIO: Reset button pressed — killing elf")
+            os.system("pkill -9 -f '\\.elf'")
 
     def _handle_axis(self, number, value):
         self.axis_state[number] = value
