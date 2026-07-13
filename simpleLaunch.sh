@@ -83,31 +83,59 @@ done
 fbset -depth 8 && fbset -depth 16
 echo "Framebuffer restored."
 
-# Show splash image to cover TTY text during restart
+# Show splash image to cover TTY text during restart (no deps, pure stdlib)
 SPLASH="$(dirname "$0")/splash.png"
 if [ -f "$SPLASH" ]; then
     python3 - "$SPLASH" <<'PYEOF' &
-import sys, struct, os
+import sys, zlib, struct
+def read_png(path):
+    with open(path, 'rb') as f:
+        sig = f.read(8)
+        if sig != b'\x89PNG\r\n\x1a\n':
+            return None, 0, 0
+        chunks = {}
+        while True:
+            length = struct.unpack('>I', f.read(4))[0]
+            ctype = f.read(4)
+            data = f.read(length)
+            f.read(4)  # crc
+            chunks.setdefault(ctype, b'')
+            chunks[ctype] += data
+            if ctype == b'IEND':
+                break
+        w, h, bd, ct = struct.unpack('>IIBBBBB', chunks[b'IHDR'])[:4]
+        raw = zlib.decompress(chunks[b'IDAT'])
+        bpp = 3 if ct == 2 else 4 if ct == 6 else 1
+        stride = w * bpp + 1
+        pixels = bytearray(w * h * 3)
+        for y in range(h):
+            row = raw[y * stride: y * stride + stride]
+            ft = row[0]
+            for x in range(w):
+                o = x * bpp
+                r = row[1 + o]; g = row[2 + o]; b = row[3 + o]
+                pixels[(y * w + x) * 3:] = bytes([r, g, b])
+        return pixels, w, h
 try:
-    from PIL import Image
-    img = Image.open(sys.argv[1]).convert("RGB")
+    pixels, img_w, img_h = read_png(sys.argv[1])
+    if pixels is None:
+        sys.exit(0)
     fb_w, fb_h = 1280, 1024
-    img = img.resize((img.width, img.height), Image.NEAREST)
-    # Center on framebuffer
     fb = bytearray(fb_w * fb_h * 2)
-    x_off = (fb_w - img.width) // 2
-    y_off = (fb_h - img.height) // 2
-    for y in range(img.height):
-        for x in range(img.width):
-            r, g, b = img.getpixel((x, y))
+    x_off = (fb_w - img_w) // 2
+    y_off = (fb_h - img_h) // 2
+    for y in range(img_h):
+        for x in range(img_w):
+            base = (y * img_w + x) * 3
+            r, g, b = pixels[base], pixels[base+1], pixels[base+2]
             px = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
             idx = ((y + y_off) * fb_w + (x + x_off)) * 2
             if 0 <= idx < len(fb) - 1:
                 fb[idx] = px & 0xFF
                 fb[idx+1] = (px >> 8) & 0xFF
-    with open("/dev/fb0", "wb") as f:
+    with open('/dev/fb0', 'wb') as f:
         f.write(bytes(fb))
-except Exception as e:
+except Exception:
     pass
 PYEOF
 fi
