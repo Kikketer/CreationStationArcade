@@ -266,7 +266,7 @@ def main():
 
     readers = {}
     last_wake = 0
-    WAKE_INTERVAL = 5  # seconds between wake taps
+    WAKE_INTERVAL = 2  # seconds between wake taps
     try:
         while True:
             current_js = sorted(glob.glob('/dev/input/js*'))
