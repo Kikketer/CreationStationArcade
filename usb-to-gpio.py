@@ -219,7 +219,8 @@ class GamepadReader(threading.Thread):
                         if len(data) < JS_EVENT_SIZE:
                             break
                         _, value, ev_type, number = struct.unpack(JS_EVENT_FMT, data)
-                        ev_type &= ~JS_EVENT_INIT
+                        if ev_type & JS_EVENT_INIT:
+                            continue
                         if ev_type == JS_EVENT_BUTTON:
                             self._handle_button(number, value)
                         elif ev_type == JS_EVENT_AXIS:
