@@ -184,7 +184,9 @@ class GamepadReader(threading.Thread):
             self._set_key(SC_B, pressed)
         elif number == JS_BTN_RESET and pressed:
             log("USB-TO-GPIO: Reset button pressed — killing elf")
+            self.running = False
             os.system("pkill -9 -f '\\.elf'")
+            return
         elif number == JS_BTN_SELECT:
             self._set_key(SC_EXIT, pressed)
         elif number == JS_BTN_START:

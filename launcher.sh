@@ -17,7 +17,7 @@ log "=== Launcher start: game=$GAME_NAME ==="
 # Always kill stale usb-to-gpio processes and re-setup the virtual keyboard.
 # This ensures /sd/arcade.cfg has the correct eventX on every launch (including after reset).
 pkill -f "usb-to-gpio.py" 2>/dev/null || true
-sleep 0.5
+sleep 2
 log "Setting up virtual keyboard (usb-to-gpio.py --setup-only)..."
 python3 "$SCRIPT_DIR/usb-to-gpio.py" --setup-only >> "$LOG_FILE" 2>&1
 log "Virtual keyboard setup done. SCAN_CODES=$(grep "^SCAN_CODES" /sd/arcade.cfg 2>/dev/null | cut -d= -f2)"
