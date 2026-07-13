@@ -264,6 +264,8 @@ def main():
         return
 
     readers = {}
+    last_wake = 0
+    WAKE_INTERVAL = 5  # seconds between wake taps
     try:
         while True:
             current_js = sorted(glob.glob('/dev/input/js*'))
@@ -278,6 +280,13 @@ def main():
                     readers[js_path].running = False
                     del readers[js_path]
                     log(f"Disconnected: {js_path}")
+            # Periodic wake tap to keep elf input polling alive across internal resets
+            now = time.time()
+            if now - last_wake >= WAKE_INTERVAL:
+                emit_key(vkbd_fd, SC_UP, True)
+                time.sleep(0.05)
+                emit_key(vkbd_fd, SC_UP, False)
+                last_wake = now
             time.sleep(1)
     except KeyboardInterrupt:
         log("Shutting down...")
