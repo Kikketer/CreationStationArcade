@@ -1,5 +1,11 @@
 [
   {
+    "name": "The Involuntary Hike",
+    "author": "Eli",
+    "playerCount": 1,
+    "file": "EliTheInvoluntaryHike.js"
+  },
+  {
     "name": "Paddle The River",
     "author": "Andy",
     "playerCount": 1,
