@@ -57,11 +57,13 @@ fi
 
 # The Pi Zero has only one USB OTG port. It can be a host (wired gamepad) or a gadget
 # (USB drive), but not both at the same time.
-if [[ "$PI_MODEL" == *"Zero"* ]]; then
-    log "NOTE: Pi Zero single-USB-port mode."
-    log "With a wired USB gamepad the USB port is in HOST mode; USB-drive/gadget mode is unavailable."
-    log "Transfer games via WiFi (Pi Zero W) or by moving the SD card."
-fi
+case "$PI_MODEL" in
+    *Zero*)
+        log "NOTE: Pi Zero single-USB-port mode."
+        log "With a wired USB gamepad the USB port is in HOST mode; USB-drive/gadget mode is unavailable."
+        log "Transfer games via WiFi (Pi Zero W) or by moving the SD card."
+        ;;
+esac
 
 # ── 1. Verify git repo ────────────────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
