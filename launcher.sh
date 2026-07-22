@@ -21,13 +21,25 @@ pkill -f fbi 2>/dev/null || true
 # This ensures /sd/arcade.cfg has the correct eventX on every launch (including after reset).
 pkill -f "usb-to-gpio.py" 2>/dev/null || true
 sleep 2
-log "Setting up virtual keyboard (usb-to-gpio.py --setup-only)..."
-python3 "$SCRIPT_DIR/usb-to-gpio.py" --setup-only >> "$LOG_FILE" 2>&1
-log "Virtual keyboard setup done. SCAN_CODES=$(grep "^SCAN_CODES" /sd/arcade.cfg 2>/dev/null | cut -d= -f2)"
-# Now start the full gamepad reader in background
 log "Starting usb-to-gpio.py gamepad reader..."
 python3 "$SCRIPT_DIR/usb-to-gpio.py" >> "$LOG_FILE" 2>&1 &
-sleep 1
+
+# Wait for the virtual keyboard to appear and update /sd/arcade.cfg before
+# the ELF starts reading it, otherwise the ELF may latch onto a stale device.
+VKB_READY=0
+for i in {1..20}; do
+    SCAN_PATH=$(grep "^SCAN_CODES=" /sd/arcade.cfg 2>/dev/null | cut -d= -f2)
+    if [ -e "$SCAN_PATH" ] && [ -r "/sys/class/input/$(basename "$SCAN_PATH")/device/name" ] \
+            && grep -q "MCArcade Virtual Keyboard" "/sys/class/input/$(basename "$SCAN_PATH")/device/name" 2>/dev/null; then
+        VKB_READY=1
+        break
+    fi
+    sleep 0.5
+done
+if [ "$VKB_READY" -eq 0 ]; then
+    log "WARNING: Virtual keyboard did not become ready in time; SCAN_CODES may be stale."
+fi
+log "Virtual keyboard ready. SCAN_CODES=$(grep "^SCAN_CODES" /sd/arcade.cfg 2>/dev/null | cut -d= -f2)"
 
 # Start reset monitor if not already running
 if ! pgrep -f "monitor_kill.py" > /dev/null; then

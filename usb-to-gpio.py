@@ -137,16 +137,32 @@ def emit_key(fd, scancode, pressed):
     fd.flush()
 
 
+def find_virtual_keyboard_event():
+    """Find /dev/input/eventX for the MCArcade Virtual Keyboard via sysfs."""
+    for name_path in glob.glob('/sys/class/input/event*/device/name'):
+        try:
+            with open(name_path, 'r') as f:
+                name = f.read().strip()
+            if 'MCArcade Virtual Keyboard' in name:
+                event_name = os.path.basename(os.path.dirname(os.path.dirname(name_path)))
+                return os.path.join('/dev/input', event_name)
+        except OSError:
+            continue
+    return None
+
+
 def update_sd_arcade_cfg():
     """Find the virtual keyboard's eventX and update SCAN_CODES in /sd/arcade.cfg."""
     # Give udev a moment to create the device
     time.sleep(1)
-    # Find the most recently created event device — our virtual keyboard
-    events = sorted(glob.glob('/dev/input/event*'), key=os.path.getmtime, reverse=True)
-    if not events:
-        log("WARNING: No /dev/input/event* found, SCAN_CODES not updated")
-        return
-    event_dev = events[0]
+    # Prefer the known device name; fall back to newest event device
+    event_dev = find_virtual_keyboard_event()
+    if not event_dev:
+        events = sorted(glob.glob('/dev/input/event*'), key=os.path.getmtime, reverse=True)
+        if not events:
+            log("WARNING: No /dev/input/event* found, SCAN_CODES not updated")
+            return
+        event_dev = events[0]
     log(f"Virtual keyboard at {event_dev}, updating {SD_ARCADE_CFG}")
     try:
         with open(SD_ARCADE_CFG, 'r') as f:
@@ -243,8 +259,12 @@ def main():
     setup_only = "--setup-only" in sys.argv
     log(f"=== usb-to-gpio (uinput keyboard mode) starting{'  [setup-only]' if setup_only else ''} ===")
 
-    # Load uinput kernel module if needed
+    # Load kernel modules if needed
     os.system("modprobe uinput 2>/dev/null")
+    os.system("modprobe joydev 2>/dev/null")
+
+    js_devices = glob.glob('/dev/input/js*')
+    log(f"Joystick devices at startup: {js_devices if js_devices else 'NONE'}")
 
     vkbd_fd = create_virtual_keyboard()
     update_sd_arcade_cfg()
@@ -267,9 +287,15 @@ def main():
     readers = {}
     last_wake = 0
     WAKE_INTERVAL = 2  # seconds between wake taps
+    warned_no_js = False
     try:
         while True:
             current_js = sorted(glob.glob('/dev/input/js*'))
+            if not current_js and not warned_no_js:
+                log("WARNING: No /dev/input/js* devices found. Is a gamepad connected? Is the joydev module loaded?")
+                warned_no_js = True
+            elif current_js and warned_no_js:
+                warned_no_js = False
             for js_path in current_js:
                 if js_path not in readers or not readers[js_path].is_alive():
                     r = GamepadReader(js_path, vkbd_fd)
