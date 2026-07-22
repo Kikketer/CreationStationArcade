@@ -178,11 +178,106 @@ def update_sd_arcade_cfg():
         log(f"ERROR updating {SD_ARCADE_CFG}: {e}")
 
 
+def parse_arcade_cfg(path):
+    """Read key=value pairs from an arcade config file."""
+    cfg = {}
+    try:
+        with open(path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                cfg[key.strip()] = value.strip()
+    except Exception as e:
+        log(f"WARNING: could not read {path}: {e}")
+    return cfg
+
+
+def build_pin_map(cfg):
+    """Map control actions to BCM GPIO pin numbers from a GPIO arcade.cfg."""
+    name_to_sc = {
+        'BTN_LEFT': SC_LEFT, 'BTN_RIGHT': SC_RIGHT,
+        'BTN_UP': SC_UP, 'BTN_DOWN': SC_DOWN,
+        'BTN_A': SC_A, 'BTN_B': SC_B,
+        'BTN_MENU': SC_MENU, 'BTN_EXIT': SC_EXIT,
+    }
+    mapping = {}
+    for name, sc in name_to_sc.items():
+        value = cfg.get(name)
+        if value is None:
+            continue
+        try:
+            pin = int(value)
+        except ValueError:
+            continue
+        if 0 <= pin <= 31:
+            mapping[sc] = pin
+    return mapping
+
+
+class KeyboardSink:
+    def __init__(self, fd):
+        self.fd = fd
+
+    def set_key(self, scancode, pressed):
+        emit_key(self.fd, scancode, pressed)
+
+    def release_all(self, key_state):
+        for sc in list(key_state.keys()):
+            if key_state.get(sc):
+                emit_key(self.fd, sc, False)
+                key_state[sc] = False
+
+
+class GpioSink:
+    def __init__(self, pin_map):
+        import RPi.GPIO as GPIO
+        self.GPIO = GPIO
+        self.pin_map = pin_map
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        for pin in pin_map.values():
+            GPIO.setup(pin, GPIO.OUT, initial=GPIO.LOW)
+        log(f"GPIO sink initialized with pins: {pin_map}")
+
+    def set_key(self, scancode, pressed):
+        pin = self.pin_map.get(scancode)
+        if pin is None:
+            return
+        self.GPIO.output(pin, self.GPIO.HIGH if pressed else self.GPIO.LOW)
+
+    def release_all(self, key_state):
+        for sc in list(key_state.keys()):
+            if key_state.get(sc):
+                pin = self.pin_map.get(sc)
+                if pin is not None:
+                    self.GPIO.output(pin, self.GPIO.LOW)
+                key_state[sc] = False
+
+
+def choose_mode(argv, cfg):
+    if '--gpio' in argv:
+        return 'gpio'
+    if '--keyboard' in argv:
+        return 'keyboard'
+    scan = cfg.get('SCAN_CODES', '')
+    if scan.startswith('/dev/input'):
+        return 'keyboard'
+    # If BTN_A maps to a small integer, treat the config as GPIO.
+    try:
+        if 0 <= int(cfg.get('BTN_A', '-1')) <= 31:
+            return 'gpio'
+    except ValueError:
+        pass
+    return 'keyboard'
+
+
 class GamepadReader(threading.Thread):
-    def __init__(self, js_path, vkbd_fd):
+    def __init__(self, js_path, sink):
         super().__init__(daemon=True)
         self.js_path = js_path
-        self.fd = vkbd_fd
+        self.sink = sink
         self.running = True
         self.axis_state = {}
         self.key_state = {}
@@ -191,7 +286,7 @@ class GamepadReader(threading.Thread):
         if self.key_state.get(scancode) == pressed:
             return
         self.key_state[scancode] = pressed
-        emit_key(self.fd, scancode, pressed)
+        self.sink.set_key(scancode, pressed)
 
     def _handle_button(self, number, value):
         pressed = bool(value)
@@ -221,10 +316,7 @@ class GamepadReader(threading.Thread):
             self._set_key(SC_DOWN, value >  AXIS_THRESHOLD)
 
     def release_all(self):
-        for sc in list(self.key_state.keys()):
-            if self.key_state.get(sc):
-                emit_key(self.fd, sc, False)
-                self.key_state[sc] = False
+        self.sink.release_all(self.key_state)
 
     def run(self):
         log(f"Watching {self.js_path}")
@@ -233,9 +325,9 @@ class GamepadReader(threading.Thread):
                 with open(self.js_path, 'rb') as f:
                     # Send a harmless key tap to wake the elf's input polling
                     time.sleep(0.2)
-                    emit_key(self.fd, SC_WAKE, True)
+                    self.sink.set_key(SC_WAKE, True)
                     time.sleep(0.05)
-                    emit_key(self.fd, SC_WAKE, False)
+                    self.sink.set_key(SC_WAKE, False)
                     while self.running:
                         data = f.read(JS_EVENT_SIZE)
                         if len(data) < JS_EVENT_SIZE:
@@ -257,7 +349,9 @@ class GamepadReader(threading.Thread):
 
 def main():
     setup_only = "--setup-only" in sys.argv
-    log(f"=== usb-to-gpio (uinput keyboard mode) starting{'  [setup-only]' if setup_only else ''} ===")
+    cfg = parse_arcade_cfg(SD_ARCADE_CFG)
+    mode = choose_mode(sys.argv, cfg)
+    log(f"=== usb-to-gpio starting in {mode} mode{'  [setup-only]' if setup_only else ''} ===")
 
     # Load kernel modules if needed
     os.system("modprobe uinput 2>/dev/null")
@@ -266,23 +360,33 @@ def main():
     js_devices = glob.glob('/dev/input/js*')
     log(f"Joystick devices at startup: {js_devices if js_devices else 'NONE'}")
 
-    vkbd_fd = create_virtual_keyboard()
-    update_sd_arcade_cfg()
-
-    if setup_only:
-        log("Setup complete, keeping virtual keyboard open in background...")
-        # Don't exit — if we close vkbd_fd the device disappears
-        # Fork a child to hold the fd open, parent exits cleanly for the launcher
-        child = os.fork()
-        if child > 0:
-            # Parent exits so launcher.sh can continue
+    if mode == 'gpio':
+        pin_map = build_pin_map(cfg)
+        if not pin_map:
+            log("ERROR: GPIO mode selected but no valid BTN_* pins found in /sd/arcade.cfg")
+            sys.exit(1)
+        sink = GpioSink(pin_map)
+        if setup_only:
+            log("GPIO mode: nothing to keep alive, exiting setup-only.")
             sys.exit(0)
-        # Child: hold fd open and do nothing (device stays alive)
-        import signal
-        signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
-        while True:
-            time.sleep(60)
-        return
+    else:
+        vkbd_fd = create_virtual_keyboard()
+        update_sd_arcade_cfg()
+        sink = KeyboardSink(vkbd_fd)
+        if setup_only:
+            log("Setup complete, keeping virtual keyboard open in background...")
+            # Don't exit — if we close vkbd_fd the device disappears
+            # Fork a child to hold the fd open, parent exits cleanly for the launcher
+            child = os.fork()
+            if child > 0:
+                # Parent exits so launcher.sh can continue
+                sys.exit(0)
+            # Child: hold fd open and do nothing (device stays alive)
+            import signal
+            signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+            while True:
+                time.sleep(60)
+            return
 
     readers = {}
     last_wake = 0
@@ -298,7 +402,7 @@ def main():
                 warned_no_js = False
             for js_path in current_js:
                 if js_path not in readers or not readers[js_path].is_alive():
-                    r = GamepadReader(js_path, vkbd_fd)
+                    r = GamepadReader(js_path, sink)
                     r.start()
                     readers[js_path] = r
                     log(f"Connected: {js_path}")
@@ -310,9 +414,9 @@ def main():
             # Periodic wake tap to keep elf input polling alive across internal resets
             now = time.time()
             if now - last_wake >= WAKE_INTERVAL:
-                emit_key(vkbd_fd, SC_WAKE, True)
+                sink.set_key(SC_WAKE, True)
                 time.sleep(0.05)
-                emit_key(vkbd_fd, SC_WAKE, False)
+                sink.set_key(SC_WAKE, False)
                 last_wake = now
             time.sleep(1)
     except KeyboardInterrupt:
@@ -321,11 +425,12 @@ def main():
         for r in readers.values():
             r.running = False
             r.release_all()
-        try:
-            fcntl.ioctl(vkbd_fd, UI_DEV_DESTROY)
-            vkbd_fd.close()
-        except Exception:
-            pass
+        if mode == 'keyboard':
+            try:
+                fcntl.ioctl(vkbd_fd, UI_DEV_DESTROY)
+                vkbd_fd.close()
+            except Exception:
+                pass
         log("Cleanup complete")
 
 

@@ -11,20 +11,29 @@
 # Usage: bash install/pi3-elf-setup.sh --game=GameName (run from repo root)
 #
 # Options:
-#   --game=GameName   ELF game to launch (filename without .elf, must exist in games/)
-#                     Default: AndyPaddleTheRiver
-#   --help, -h        Show this help
+#   --game=GameName         ELF game to launch (filename without .elf, must exist in games/)
+#                           Default: AndyPaddleTheRiver
+#   --input-mode=gpio|keyboard   How the USB gamepad feeds the ELF.
+#                                gpio = drive BCM GPIO pins (for Pi0 Raw ELF).
+#                                keyboard = uinput virtual keyboard (for raw ELF with SCAN_CODES).
+#                                Default: keyboard on Pi 3, gpio on Pi Zero.
+#   --help, -h              Show this help
 
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="$HOME/arcade-setup.log"
 GAME_NAME="AndyPaddleTheRiver"
+INPUT_MODE=""
 
 for arg in "$@"; do
     case $arg in
         --game=*)
             GAME_NAME="${arg#--game=}"
+            shift
+            ;;
+        --input-mode=*)
+            INPUT_MODE="${arg#--input-mode=}"
             shift
             ;;
         --help|-h)
@@ -119,12 +128,25 @@ sudo rm -f /etc/sudoers.d/arcade-uinput
 log "uinput permissions set."
 
 # ── 4a. Create /sd/arcade.cfg (ELF reads input config from here) ─────────────
-log "Creating /sd/arcade.cfg (keyboard scan code layout for USB gamepad)..."
+if [ -z "$INPUT_MODE" ]; then
+    # The MakeCode Pi0 Raw ELF uses wiringPi/GPIO, so GPIO faking works for both
+    # Pi 3 and Pi Zero. Keyboard mode is only needed for an ELF built with keyboard
+    # input support (use --input-mode=keyboard).
+    INPUT_MODE="gpio"
+fi
+case "$INPUT_MODE" in
+    gpio)
+        log "Creating /sd/arcade.cfg (GPIO pin layout for USB-to-GPIO faking)..."
+        sudo cp -f "$REPO_DIR/arcade.cfg" /sd/arcade.cfg
+        ;;
+    keyboard|*)
+        log "Creating /sd/arcade.cfg (keyboard scan code layout for USB gamepad)..."
+        sudo cp -f "$REPO_DIR/sd-arcade.cfg" /sd/arcade.cfg
+        ;;
+esac
 sudo mkdir -p /sd
-sudo cp -f "$REPO_DIR/sd-arcade.cfg" /sd/arcade.cfg
-# Must be writable by pi so usb-to-gpio.py can update SCAN_CODES= at runtime
 sudo chmod 666 /sd/arcade.cfg
-log "/sd/arcade.cfg created."
+log "/sd/arcade.cfg created in $INPUT_MODE mode."
 
 # ── 4. Make scripts and ELFs executable ──────────────────────────────────────
 log "Setting permissions..."
