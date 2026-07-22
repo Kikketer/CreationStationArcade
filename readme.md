@@ -1,6 +1,10 @@
 # Creation Station Arcade
 
-How to setup a Raspberry PI 3:
+How to setup a Raspberry Pi 3 or Pi Zero:
+
+- The same setup works on the Pi Zero (the raw ELF is built for ARMv6 / BCM2835).
+- On the Pi Zero, using a wired USB gamepad means the single USB port is in **host mode**, so the USB-drive/gadget feature is unavailable. Use a Pi Zero W with WiFi to transfer games, or move the SD card.
+- Pi Zero performance is lower than Pi 3: single-core 1 GHz / 512 MB RAM. Boot and restarts are slower.
 
 1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
 2. Install git: `sudo apt install git`
@@ -78,11 +82,12 @@ If you don't need to use all 4 players you can simply export your game as a raw 
 
 ## Known Issues
 
-- Raspberry PI 3 is the only modern device that works due to "Hardweare" line needed in the `/proc/cpuinfo` which is generally useless but the ELF files demand it to be there.
+- Raspberry Pi 3 and Pi Zero work; Pi 5 does not, because the ELF requires a `Hardware` line in `/proc/cpuinfo` that newer Pi 5 kernels omit.
 
 > The Pi 3 works because it still ships a slightly older 6.x kernel point-release that still contains the “Hardware” line.
-> The Pi 5 image you flashed already carries a newer 6.x point-release in which the Raspberry Pi Foundation deliberately deleted that line (they got tired of every Pi reporting BCM2835 and confusing users).
-> So on the Pi 5 the ELF aborts, while on the Pi 3 it starts—even though both run the same 32-bit Trixie Lite OS.
+> The Pi Zero still reports `Hardware : BCM2835`, so the raw ELF runs there too.
+> The Pi 5 image carries a newer 6.x point-release in which the Raspberry Pi Foundation deliberately deleted that line (they got tired of every Pi reporting BCM2835 and confusing users).
+> So on the Pi 5 the ELF aborts, while on the Pi 3 / Pi Zero it starts.
 > Once your Pi 3 updates to the same kernel revision as the Pi 5, it will also lose the line and fail in exactly the same way.
 
 BTW that sounds like a horrible day, so let's get a copy of that OS and keep it forever.

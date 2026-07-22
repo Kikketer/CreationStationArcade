@@ -1,5 +1,5 @@
 #!/bin/bash
-# pi3-elf-setup.sh — one-shot Pi 3 setup for Creation Station Arcade single-game ELF kiosk
+# pi3-elf-setup.sh — one-shot Pi 3 / Pi Zero setup for Creation Station Arcade single-game ELF kiosk
 # This script:
 #   1. Installs required packages
 #   2. Configures auto-login on TTY1
@@ -36,11 +36,14 @@ done
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
-log "=== Pi 3 ELF Kiosk Setup ==="
+log "=== Pi 3 / Pi Zero ELF Kiosk Setup ==="
 log "Repo: $REPO_DIR"
 log "Game: $GAME_NAME"
 
-# ── 0. Check kernel compatibility ────────────────────────────────────────────
+# ── 0. Check kernel compatibility / Pi model ───────────────────────────────
+PI_MODEL="$(grep -m1 '^Model' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | xargs || echo "Unknown")"
+log "Detected model: $PI_MODEL"
+
 if ! grep -q "^Hardware" /proc/cpuinfo 2>/dev/null; then
     log "WARNING: 'Hardware' line not found in /proc/cpuinfo."
     log "The MakeCode Arcade ELF requires this line to run."
@@ -50,6 +53,14 @@ if ! grep -q "^Hardware" /proc/cpuinfo 2>/dev/null; then
     echo "  To verify after reboot: grep Hardware /proc/cpuinfo"
     echo "  Expected:               Hardware : BCM2835"
     echo ""
+fi
+
+# The Pi Zero has only one USB OTG port. It can be a host (wired gamepad) or a gadget
+# (USB drive), but not both at the same time.
+if [[ "$PI_MODEL" == *"Zero"* ]]; then
+    log "NOTE: Pi Zero single-USB-port mode."
+    log "With a wired USB gamepad the USB port is in HOST mode; USB-drive/gadget mode is unavailable."
+    log "Transfer games via WiFi (Pi Zero W) or by moving the SD card."
 fi
 
 # ── 1. Verify git repo ────────────────────────────────────────────────────────
@@ -91,6 +102,7 @@ sudo modprobe uinput
 echo "uinput" | sudo tee /etc/modules-load.d/uinput.conf > /dev/null
 echo 'KERNEL=="uinput", MODE="0666"' | sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null
 sudo usermod -aG input pi
+sudo usermod -aG gpio pi
 sudo udevadm control --reload-rules && sudo udevadm trigger || true
 # rc.local: udev rule alone doesn't apply on boot, chmod ensures it's always 0666
 sudo tee /etc/rc.local > /dev/null <<'RCEOF'

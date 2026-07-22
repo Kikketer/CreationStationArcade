@@ -1,5 +1,5 @@
 #!/bin/bash
-# launcher.sh - Single-game ELF kiosk launcher for Pi 3
+# launcher.sh - Single-game ELF kiosk launcher for Pi 3 / Pi Zero
 # Runs one configured ELF game directly, no menu.
 # Reset button (via monitor_kill.py) kills and relaunches this script.
 
