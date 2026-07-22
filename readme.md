@@ -6,13 +6,13 @@ How to setup a Raspberry Pi 3 or Pi Zero:
 - On the Pi Zero, using a wired USB gamepad means the single USB port is in **host mode**, so the USB-drive/gadget feature is unavailable. Use a Pi Zero W with WiFi to transfer games, or move the SD card.
 - Pi Zero performance is lower than Pi 3: single-core 1 GHz / 512 MB RAM. Boot and restarts are slower.
 - Two input modes are supported:
-  - **GPIO mode** (default): the USB gamepad drives the BCM GPIO pins the ELF reads. Use this for the Pi0 Raw Elf.
-  - **Keyboard mode** (opt-in with `--input-mode=keyboard`): the USB gamepad is translated to a virtual keyboard and `SCAN_CODES` points to it. Use this only if your raw ELF was built with keyboard input support.
+  - **Keyboard mode** (default): the USB gamepad is translated to a virtual keyboard and `SCAN_CODES` points to it. Use this for the standard MakeCode Arcade raw ELF.
+  - **GPIO mode** (opt-in with `--input-mode=gpio`): the USB gamepad drives BCM GPIO pins directly. Use this only for the 4-player raw ELF fork that reads GPIO instead of keyboard events.
 
 1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
 2. Install git: `sudo apt install git`
 3. Clone this repo into a source folder: `git clone https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src`
-4. Run the setup script (defaults to GPIO mode; add `--input-mode=keyboard` for a keyboard-capable ELF):
+4. Run the setup script (defaults to keyboard mode; add `--input-mode=gpio` for the 4-player raw ELF fork):
    - `bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=AndyPaddleTheRiver`
 5. Install the boot splash screen to hide boot text and show the arcade logo:
    - `sudo /home/pi/CreationStationArcade/install/splash-setup.sh`

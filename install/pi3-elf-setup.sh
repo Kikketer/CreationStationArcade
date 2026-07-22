@@ -14,9 +14,9 @@
 #   --game=GameName         ELF game to launch (filename without .elf, must exist in games/)
 #                           Default: AndyPaddleTheRiver
 #   --input-mode=gpio|keyboard   How the USB gamepad feeds the ELF.
-#                                gpio = drive BCM GPIO pins (for Pi0 Raw ELF).
-#                                keyboard = uinput virtual keyboard (for raw ELF with SCAN_CODES).
-#                                Default: gpio (works for the Pi0 Raw ELF on Pi 3 and Pi Zero).
+#                                keyboard = uinput virtual keyboard (standard MakeCode raw ELF).
+#                                gpio = drive BCM GPIO pins (for the 4-player raw ELF fork).
+#                                Default: keyboard.
 #   --help, -h              Show this help
 
 set -e
@@ -129,10 +129,9 @@ log "uinput permissions set."
 
 # ── 4a. Create /sd/arcade.cfg (ELF reads input config from here) ─────────────
 if [ -z "$INPUT_MODE" ]; then
-    # The MakeCode Pi0 Raw ELF uses wiringPi/GPIO, so GPIO faking works for both
-    # Pi 3 and Pi Zero. Keyboard mode is only needed for an ELF built with keyboard
-    # input support (use --input-mode=keyboard).
-    INPUT_MODE="gpio"
+    # Standard MakeCode Arcade raw ELFs read keyboard events via SCAN_CODES.
+    # Use --input-mode=gpio only for the 4-player raw ELF fork that reads GPIO directly.
+    INPUT_MODE="keyboard"
 fi
 case "$INPUT_MODE" in
     gpio)
