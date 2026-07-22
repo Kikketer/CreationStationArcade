@@ -46,14 +46,14 @@ JS_AXIS_LY    = 1
 JS_AXIS_DPADX = 6
 JS_AXIS_DPADY = 7
 
-# Linux scan codes matching sd-arcade.cfg
-# Player 1
-SC_LEFT  = 105
-SC_RIGHT = 106
-SC_UP    = 103
-SC_DOWN  = 108
-SC_A     = 44   # Z
-SC_B     = 45   # X
+# Linux scan codes matching sd-arcade.cfg (MakeCode Arcade player 1 defaults:
+# WASD for d-pad, Left Ctrl for A, Left Shift for B)
+SC_LEFT  = 30   # A
+SC_RIGHT = 32   # D
+SC_UP    = 17   # W
+SC_DOWN  = 31   # S
+SC_A     = 29   # Left Ctrl
+SC_B     = 42   # Left Shift
 SC_EXIT  = 1    # Esc
 SC_MENU  = 60   # F2
 
