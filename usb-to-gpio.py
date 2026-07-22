@@ -231,28 +231,34 @@ class KeyboardSink:
 
 
 class GpioSink:
-    def __init__(self, pin_map):
+    def __init__(self, pin_map, active_low=False):
         import RPi.GPIO as GPIO
         self.GPIO = GPIO
         self.pin_map = pin_map
+        self.active_low = active_low
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
+        # Idle (released) level: LOW for active-high, HIGH for active-low
+        self.idle = GPIO.HIGH if active_low else GPIO.LOW
+        self.active = GPIO.LOW if active_low else GPIO.HIGH
         for pin in pin_map.values():
-            GPIO.setup(pin, GPIO.OUT, initial=GPIO.LOW)
-        log(f"GPIO sink initialized with pins: {pin_map}")
+            GPIO.setup(pin, GPIO.OUT, initial=self.idle)
+        log(f"GPIO sink initialized with pins: {pin_map} (active_low={active_low})")
 
     def set_key(self, scancode, pressed):
         pin = self.pin_map.get(scancode)
         if pin is None:
             return
-        self.GPIO.output(pin, self.GPIO.HIGH if pressed else self.GPIO.LOW)
+        level = self.active if pressed else self.idle
+        self.GPIO.output(pin, level)
+        log(f"GPIO: pin {pin} -> {'ACTIVE' if pressed else 'IDLE'} (scancode {scancode})")
 
     def release_all(self, key_state):
         for sc in list(key_state.keys()):
             if key_state.get(sc):
                 pin = self.pin_map.get(sc)
                 if pin is not None:
-                    self.GPIO.output(pin, self.GPIO.LOW)
+                    self.GPIO.output(pin, self.idle)
                 key_state[sc] = False
 
 
@@ -271,6 +277,10 @@ def choose_mode(argv, cfg):
     except ValueError:
         pass
     return 'keyboard'
+
+
+def parse_active_low(argv):
+    return '--active-low' in argv
 
 
 class GamepadReader(threading.Thread):
@@ -303,6 +313,7 @@ class GamepadReader(threading.Thread):
             self._set_key(SC_EXIT, pressed)
         elif number == JS_BTN_START:
             self._set_key(SC_MENU, pressed)
+        log(f"JS button {number} value {value}")
 
     def _handle_axis(self, number, value):
         self.axis_state[number] = value
@@ -314,6 +325,8 @@ class GamepadReader(threading.Thread):
         elif number in (1, 3, 5, 7):
             self._set_key(SC_UP,   value < -AXIS_THRESHOLD)
             self._set_key(SC_DOWN, value >  AXIS_THRESHOLD)
+            if abs(value) > AXIS_THRESHOLD:
+                log(f"JS axis {number} value {value}")
 
     def release_all(self):
         self.sink.release_all(self.key_state)
@@ -365,7 +378,9 @@ def main():
         if not pin_map:
             log("ERROR: GPIO mode selected but no valid BTN_* pins found in /sd/arcade.cfg")
             sys.exit(1)
-        sink = GpioSink(pin_map)
+        active_low_cfg = cfg.get('ACTIVE_LOW', '0').lower() in ('1', 'true', 'yes')
+        active_low = active_low_cfg or parse_active_low(sys.argv)
+        sink = GpioSink(pin_map, active_low=active_low)
         if setup_only:
             log("GPIO mode: nothing to keep alive, exiting setup-only.")
             sys.exit(0)

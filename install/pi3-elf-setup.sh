@@ -16,7 +16,7 @@
 #   --input-mode=gpio|keyboard   How the USB gamepad feeds the ELF.
 #                                gpio = drive BCM GPIO pins (for Pi0 Raw ELF).
 #                                keyboard = uinput virtual keyboard (for raw ELF with SCAN_CODES).
-#                                Default: keyboard on Pi 3, gpio on Pi Zero.
+#                                Default: gpio (works for the Pi0 Raw ELF on Pi 3 and Pi Zero).
 #   --help, -h              Show this help
 
 set -e
