@@ -150,6 +150,7 @@ log "/sd/arcade.cfg created in $INPUT_MODE mode."
 # ── 4. Make scripts and ELFs executable ──────────────────────────────────────
 log "Setting permissions..."
 chmod +x "$REPO_DIR/launcher.sh" 2>/dev/null || true
+chmod +x "$REPO_DIR/switch-games.sh" 2>/dev/null || true
 chmod +x "$REPO_DIR/simpleLaunch.sh" 2>/dev/null || true
 chmod +x "$REPO_DIR/monitor_kill.py" 2>/dev/null || true
 chmod +x "$REPO_DIR/usb-to-gpio.py" 2>/dev/null || true
