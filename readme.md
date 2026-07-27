@@ -1,92 +1,90 @@
-# Creation Station Arcade
+# Creation Station Arcade — Single Native Kiosk
 
-How to setup a Raspberry PI 3:
+This branch (`single-native-arcade`) is a **minimal, single-game kiosk** that boots a 64-bit Debian or Raspberry Pi install straight into one native MakeCode Arcade `Game` binary.
 
-1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
-2. Install git: `sudo apt install git`
-3. Clone this repo into a source folder: `git clone https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src`
-4. Run initial setup to create the runtime folder and sync files: `bash /home/pi/CreationStationArcade-src/setup.sh`
-5. Install the boot splash screen to hide boot text and show the arcade logo:
-   - `sudo /home/pi/CreationStationArcade/install/splash-setup.sh`
-   - `sudo reboot`
-   - This installs `fbi`, enables the `arcade-splash` systemd service, and patches `/boot/firmware/cmdline.txt` to suppress kernel boot text.
-6. (If you have no HDMI audio in games) Install the HDMI audio fix and reboot:
-   - `sudo /home/pi/CreationStationArcade/install/hdmi-audio-fix.sh`
-   - `sudo reboot`
-7. Make another user, this will be the "admin" user for the raspberry pi so you can admin the machine
-   - `sudo adduser admin`
-   - `sudo usermod -aG sudo admin`
-8. Create a group that both these users belong to so we can admin the files equally
-   - `sudo groupadd arcadeadmin`
-   - `sudo usermod -aG arcadeadmin pi`
-   - `sudo usermod -aG arcadeadmin admin`
-   - `sudo chgrp -R arcadeadmin /home/pi`
-   - `sudo find /home/pi -type d -exec chmod 2770 {} \;`
-   - `sudo find /home/pi -type f -exec chmod 660 {} \;`
-   - `echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh`
-   - `source /etc/profile.d/arcadeadmin.sh`
-9. Make the /sd/prj folder if you wish to use a custom menu
-   - `sudo mkdir -p /sd/prj`
-   - `sudo chmod +w /sd/prj` (cuz I don't care)
-   - The custom menu will list and launch games from this folder
+Do **not** merge this branch into `main` or any other kiosk branch. Each kiosk flavor is standalone.
 
-10. Set the login for the `pi` user to use the runtime `launcher.sh` instead of bash, this will just force that user to fire up the arcade loop.
-    - `sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi`
+## Hardware requirements
 
-## Folder layout
+- 64-bit Raspberry Pi or PC running a 64-bit Debian-based Linux (`arm64` or `x86-64`).
+- SDL2 runtime libraries installed by the installer (`libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`).
+- The arcade user must belong to the `video` group for KMSDRM.
+- A reset button wired to the pin defined in `arcade.cfg` (`BTN_RESET`, default BCM 4).
 
-- `/home/pi/CreationStationArcade-src`
-  - Source repo (git)
-  - Can be updated in the background and is not actively running
-- `/home/pi/CreationStationArcade`
-  - Runtime folder
-  - On boot, `launcher.sh` syncs from `*-src` to this folder and then runs from here
+## One-command install
 
-## Putting Games On The Arcade
+```bash
+# 1. Install git on the target machine
+sudo apt update && sudo apt install -y git
 
-### Simple Addition
+# 2. Clone this branch into a source folder
+git clone -b single-native-arcade https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src
 
-If you don't need to use all 4 players you can simply export your game as a raw elf from the standard MakeCode Arcade interface. Raw elf is hidden and really crossing my fingers they don't remove this feature, but maybe if you promote my post and github fork we'd be able to get it built in for real! https://forum.makecode.com/t/4-player-gpio-raw-elf-export/41383
+# 3. Run the installer
+cd /home/pi/CreationStationArcade-src
+sudo bash install/single-native-arcade-setup.sh --game=YourGameName
 
-1. Put `?nolocalhost=1&compile=rawELF&hw=rpi#editor` on the end of the url.
-2. Load the game you wish to add to the arcade
-3. Click the "download" button on the bottom left
-4. You'll then have a `.elf` file downloaded
-5. Move this file to the CreationStationArcade/gaems directory
-6. Commit and push the repo
-7. The arcade will pull and copy over the next time it boots, it'll take two reboots (one to download, and one to copy over).
+# 4. Reboot
+sudo reboot
+```
 
-### 4 Player Option
+If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` + `libpxt.so` it finds.
 
-4 Player games are not officially supported by MakeCode Arcade (even though the "cardboard" setup has the pin layout). So if you need to build a game for the 4 player controllers you need to do it manually and locally.
+## How it works
 
-1. Setup the pxt, pxt-arcade, and pxt-common-packages repos from my forks (this is a little painful but you got this). I put everything in a single folder called `pxt-root`.
-   - https://github.com/Kikketer/pxt/tree/kikketer/feat-raw-elf-four-player
-   - https://github.com/Kikketer/pxt-arcade/tree/kikketer/feat-raw-elf-four-player
-   - https://github.com/Kikketer/pxt-common-packages/tree/master
-2. There's an npm link step here... trying to remember how to do it, it was finicky at best
-3. Once you have all the repos checked into that single `pxt-root` folder be sure to check out the "feat-raw-elf-four-player" branches of the pxt and pxt-arcade projects.
-4. Navigate to `pxt-arcade` and run `npm serve`
-5. A local copy will start, now you just need to import the game you wish to put on the arcade.
-6. Once you have the game loaded, pick the "choose hardware" near the download button
-7. Pick "Pi0 Raw Elf" option
-8. Click download
-9. Now you have a 4 player .elf file that can be used on the arcade, copy this into the `CreationStationArcade/games` folder
-10. Update the `launcher.sh` to point to your new game name
-11. Commit and push
-12. Then reboot the arcade box, it'll pull on the first reboot, reboot again and it'll copy over the new one (yes that's 2 reboots)
+- `install/single-native-arcade-setup.sh` installs packages, adds the user to required groups, enables `getty@tty1` autologin, and writes the auto-launch block into `~/.bash_profile` and `~/.profile`.
+- On boot, the autologin shell runs `launcher.sh` from the runtime folder (`/home/pi/CreationStationArcade`).
+- `launcher.sh` syncs from the source repo, picks `SINGLE_GAME_NAME`, sets `SDL_VIDEODRIVER=kmsdrm` and `SDL_AUDIODRIVER=alsa`, then calls `single-native-launch.sh` in a restart loop.
+- `single-native-launch.sh` writes the running `Game` PID to `/tmp/creationstation_current_game.pid` and runs `./Game -f` in the game directory.
+- `monitor_kill.py` (also started by `launcher.sh` and installed as `arcade-monitor.service`) watches `BTN_RESET` and kills the `Game` process so `launcher.sh` restarts it.
 
-## Known Issues
+## Add a game from make-web /desktop
 
-- Raspberry PI 3 is the only modern device that works due to "Hardweare" line needed in the `/proc/cpuinfo` which is generally useless but the ELF files demand it to be there.
+1. In the `make-web` `/desktop` tool, upload your MakeCode Arcade PNG export and choose the target architecture:
+   - `arm64` for Raspberry Pi
+   - `x86-64` for a PC
+2. Download the `SafeName{-arm64}.tar.gz` archive.
+3. Extract into this repo:
 
-> The Pi 3 works because it still ships a slightly older 6.x kernel point-release that still contains the “Hardware” line.
-> The Pi 5 image you flashed already carries a newer 6.x point-release in which the Raspberry Pi Foundation deliberately deleted that line (they got tired of every Pi reporting BCM2835 and confusing users).
-> So on the Pi 5 the ELF aborts, while on the Pi 3 it starts—even though both run the same 32-bit Trixie Lite OS.
-> Once your Pi 3 updates to the same kernel revision as the Pi 5, it will also lose the line and fail in exactly the same way.
+   ```bash
+   mkdir -p games/SafeName
+   tar xzf SafeName-arm64.tar.gz -C games/SafeName
+   chmod +x games/SafeName/Game
+   ```
 
-BTW that sounds like a horrible day, so let's get a copy of that OS and keep it forever.
+4. Commit and push the `single-native-arcade` branch.
+5. On the arcade machine, re-run the installer:
 
-- `wiringPi` is dead on Raspberry Pi 5
+   ```bash
+   cd /home/pi/CreationStationArcade-src
+   sudo bash install/single-native-arcade-setup.sh --game=SafeName
+   sudo reboot
+   ```
 
-This means that the GPIO is basically useless and can't be used for the gaming machine.
+## Change the active game
+
+This branch has no menu. To switch games, replace or add the `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
+
+## Kill or restart the game
+
+- **Reset button**: press the button connected to `BTN_RESET` (default BCM 4). `monitor_kill.py` kills `Game`; `launcher.sh` restarts it automatically.
+- **SSH recovery**: log in as an admin user and run:
+
+  ```bash
+  sudo pkill -9 -f "games/[^/]+/Game"
+  sudo pkill -9 -f launcher.sh
+  ```
+
+  Then see `notes.md` for restoring the launcher shell.
+
+## Input strategy
+
+This branch uses **Option A: Direct SDL joystick**. USB gamepads and zero-delay encoders that appear as `/dev/input/js*` or `/dev/input/event*` are handled directly by the native `Game` binary. No Python input bridge is required.
+
+If you are using the older `usb-to-gpio.py` virtual-keyboard wiring, switch to a different branch or add that script and set `SDL_VIDEODRIVER=kmsdrm` accordingly.
+
+## Branch safety
+
+- Do **not** merge `single-native-arcade` into `main`.
+- Do **not** add a second game menu here. Multi-game selection belongs in a separate branch.
+- Keep this branch minimal: only the files required to clone, install, and boot one game.

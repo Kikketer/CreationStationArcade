@@ -1,12 +1,12 @@
 #!/bin/bash
-
+# splash-setup.sh — install a simple fbi boot splash and suppress kernel boot text.
 set -e
 
 LOG_FILE="/home/pi/arcade.log"
+touch "$LOG_FILE" 2>/dev/null || true
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICE_SRC="$SCRIPT_DIR/etc/systemd/system/arcade-splash.service"
-SERVICE_DEST="/etc/systemd/system/arcade-splash.service"
 
 CMDLINE_FILE="/boot/firmware/cmdline.txt"
 if [ ! -f "$CMDLINE_FILE" ]; then
@@ -18,39 +18,49 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-if [ ! -f "$SERVICE_SRC" ]; then
-    echo "ERROR: missing $SERVICE_SRC" >&2
-    exit 1
-fi
+_log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Splash setup: starting" >> "$LOG_FILE"
+_log "Splash setup starting..."
 
 # Install fbi (framebuffer image viewer)
 if ! command -v fbi >/dev/null 2>&1; then
-    echo "Installing fbi..."
+    _log "Installing fbi..."
     apt-get install -y fbi
+else
+    _log "fbi already installed"
 fi
 
-# Install the systemd service
-cp "$SERVICE_SRC" "$SERVICE_DEST"
-chmod 644 "$SERVICE_DEST"
-systemctl daemon-reload
-systemctl enable arcade-splash.service
-
-echo "arcade-splash.service installed and enabled."
-
-# Patch /boot/firmware/cmdline.txt to suppress boot text
-if [ ! -f "$CMDLINE_FILE" ]; then
-    echo "WARNING: could not find cmdline.txt at $CMDLINE_FILE — skipping kernel quiet patch" >&2
+# Install the boot splash service
+if [ -f "$SERVICE_SRC" ]; then
+    cp "$SERVICE_SRC" /etc/systemd/system/arcade-splash.service
+    chmod 644 /etc/systemd/system/arcade-splash.service
+    systemctl daemon-reload
+    systemctl enable arcade-splash.service
+    _log "arcade-splash.service installed and enabled"
 else
-    echo "Patching $CMDLINE_FILE..."
+    _log "WARNING: arcade-splash.service not found at $SERVICE_SRC"
+fi
+
+# Copy splash image into the Plymouth theme directory so the Plymouth script can find it.
+if [ -f "$SCRIPT_DIR/../splash.png" ]; then
+    mkdir -p /usr/share/plymouth/themes/arcade
+    cp "$SCRIPT_DIR/../splash.png" /usr/share/plymouth/themes/arcade/splash.png
+    _log "Copied splash.png to /usr/share/plymouth/themes/arcade/"
+fi
+
+# Suppress boot text in cmdline.txt
+if [ ! -f "$CMDLINE_FILE" ]; then
+    _log "WARNING: could not find cmdline.txt at $CMDLINE_FILE — skipping kernel quiet patch"
+else
+    _log "Patching $CMDLINE_FILE..."
     ORIG=$(cat "$CMDLINE_FILE")
     PATCHED="$ORIG"
 
-    # Redirect console=tty1 to tty3 so kernel messages don't bleed onto the arcade display
+    # Redirect console=tty1 to tty3 so kernel messages don't show on the arcade display.
     PATCHED=$(echo "$PATCHED" | sed 's/console=tty1/console=tty3/g')
 
-    # Add each flag only if not already present
     for FLAG in quiet splash "logo.nologo" "loglevel=3" "vt.global_cursor_default=0"; do
         if ! echo "$PATCHED" | grep -qw "$FLAG"; then
             PATCHED="$PATCHED $FLAG"
@@ -60,12 +70,10 @@ else
     if [ "$ORIG" != "$PATCHED" ]; then
         cp "$CMDLINE_FILE" "${CMDLINE_FILE}.bak"
         echo "$PATCHED" > "$CMDLINE_FILE"
-        echo "cmdline.txt updated (backup: ${CMDLINE_FILE}.bak)"
+        _log "cmdline.txt updated (backup: ${CMDLINE_FILE}.bak)"
     else
-        echo "cmdline.txt already contains all quiet/splash flags, no change needed."
+        _log "cmdline.txt already contains all quiet/splash flags"
     fi
 fi
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Splash setup: complete" >> "$LOG_FILE"
-echo ""
-echo "Done. Please reboot to apply changes."
+_log "Splash setup complete"

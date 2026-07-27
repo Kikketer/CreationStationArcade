@@ -1,63 +1,83 @@
 #!/bin/bash
-LOG_FILE="/home/pi/arcade.log"
+# launcher.sh — single native MakeCode Arcade kiosk
+# Runs from the runtime folder and syncs from the source repo before launching.
 
+set -o pipefail
+
+LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
 SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
 
+_log() {
+    local msg="[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    echo "$msg" >> "$LOG_FILE"
+    echo "$msg"
+}
+
+_log "Launcher starting (RUN_DIR=$RUN_DIR)"
+
+# Sync from the source repo when it is present.
 if [ -d "$SOURCE_DIR/.git" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
+    _log "Syncing from $SOURCE_DIR to $RUN_DIR"
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --no-perms --no-owner --no-group --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+        rsync -a --no-perms --no-owner --no-group --delete \
+            --exclude ".git" --exclude "arcade.log" \
+            "$SOURCE_DIR"/ "$RUN_DIR"/
     else
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
-        cp -a "$SOURCE_DIR"/. "$RUN_DIR"/ >> "$LOG_FILE" 2>&1
+        _log "WARNING: rsync not found; copying without delete"
+        cp -a "$SOURCE_DIR"/. "$RUN_DIR"/
     fi
 
     chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-    chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
-    chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
-    find "$RUN_DIR" -type f -name "*.elf" -exec chmod +x {} \; 2>/dev/null || true
-
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Sync complete. Continuing without restart." >> "$LOG_FILE"
+    chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
+    chmod +x "$RUN_DIR/monitor_kill.py" 2>/dev/null || true
+    find "$RUN_DIR/games" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
+    _log "Sync complete"
 else
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Source repo not found at $SOURCE_DIR; starting without sync" >> "$LOG_FILE"
+    _log "WARNING: Source repo not found at $SOURCE_DIR; starting without sync"
 fi
 
-# Check for /sd/prj folder and sync games if it exists
-if [ -d "/sd/prj" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Found /sd/prj folder, syncing games..." >> "$LOG_FILE"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --no-perms --no-owner --no-group --delete "$RUN_DIR/games"/ "/sd/prj"/ >> "$LOG_FILE" 2>&1
-    else
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: rsync not found; falling back to cp (no delete)" >> "$LOG_FILE"
-        cp -a "$RUN_DIR/games"/. "/sd/prj"/ >> "$LOG_FILE" 2>&1
-    fi
-    
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Games sync complete." >> "$LOG_FILE"
-else
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] no prj folder found, not using custom menu launcher" >> "$LOG_FILE"
+# Determine the active game. SINGLE_GAME_NAME can come from the environment or default to the first valid game.
+GAME_NAME="${SINGLE_GAME_NAME:-}"
+if [ -z "$GAME_NAME" ]; then
+    while IFS= read -r -d '' d; do
+        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
+            GAME_NAME="$(basename "$d")"
+            break
+        fi
+    done < <(find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
 
-# Pull from git after we rsync to avoid race conditions and make this nice and fast to boot (when no wifi)
-if [ -x "$RUN_DIR/pullFromGit.sh" ]; then
-    "$RUN_DIR/pullFromGit.sh" &
-else
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: pullFromGit.sh missing or not executable" >> "$LOG_FILE"
-fi
-
-# Start background monitor if not running
-if ! pgrep -f "monitor_kill.py" > /dev/null; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting monitor_kill.py..." >> $LOG_FILE
-    python3 "$RUN_DIR/monitor_kill.py" >> $LOG_FILE 2>&1 &
-fi
-
-RUNNER="$RUN_DIR/simpleLaunch.sh"
-if [ ! -x "$RUNNER" ]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $RUNNER is missing or not executable" >> $LOG_FILE
+if [ -z "$GAME_NAME" ]; then
+    _log "ERROR: no native game found in $RUN_DIR/games/*/Game + libpxt.so"
+    _log "Add a game from make-web /desktop and re-run the installer."
+    sleep 5
     exit 1
 fi
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Menu" >> $LOG_FILE
-"$RUNNER" "$RUN_DIR/MadeArcadeMenu.elf" >> $LOG_FILE 2>&1
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] Menu exited with status $?" >> $LOG_FILE
+export SINGLE_GAME_NAME="$GAME_NAME"
+export SDL_VIDEODRIVER=kmsdrm
+export SDL_AUDIODRIVER=alsa
+export LD_LIBRARY_PATH="$RUN_DIR/games/$GAME_NAME${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+GAME_DIR="$RUN_DIR/games/$GAME_NAME"
+
+_log "Active game: $GAME_NAME"
+_log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER"
+
+# Start the reset monitor if it is not already running.
+if ! pgrep -f "monitor_kill.py" >/dev/null 2>&1; then
+    _log "Starting monitor_kill.py"
+    python3 "$RUN_DIR/monitor_kill.py" >> "$LOG_FILE" 2>&1 &
+else
+    _log "monitor_kill.py already running"
+fi
+
+# Main loop: keep the native game running.
+while true; do
+    _log "Launching $GAME_NAME (native Game)"
+    "$RUN_DIR/single-native-launch.sh" "$GAME_DIR" >> "$LOG_FILE" 2>&1
+    STATUS=$?
+    _log "single-native-launch.sh exited with status $STATUS; restarting in 2s"
+    sleep 2
+done

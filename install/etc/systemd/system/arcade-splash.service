@@ -1,0 +1,17 @@
+[Unit]
+Description=Arcade boot splash
+DefaultDependencies=no
+After=local-fs.target
+Before=getty@tty1.service
+
+[Service]
+Type=simple
+Restart=no
+ExecStart=/usr/bin/fbi -T 1 --noverbose --autozoom /home/pi/CreationStationArcade/splash.png
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+
+[Install]
+WantedBy=sysinit.target
