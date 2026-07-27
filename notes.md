@@ -45,3 +45,30 @@ If you get permission errors on `/dev/dri`, make sure the arcade user is in the 
 cd /home/pi/CreationStationArcade
 sudo bash install/single-native-arcade-setup.sh --game=YourGame
 ```
+
+## MESA-LOADER errors or "SDL Error: Invalid window"
+
+If you see `MESA-LOADER: failed to open ..._dri.so` followed by `SDL Error: Invalid window`, the DRI/Mesa drivers are missing or the arcade user cannot access `/dev/dri`.
+
+1. Install the Mesa DRI package:
+
+   ```bash
+   sudo apt update
+   sudo apt install -y libgl1-mesa-dri
+   ```
+
+2. Reboot so the `video` group membership takes effect:
+
+   ```bash
+   sudo reboot
+   ```
+
+3. To test without a GL driver, use SDL's software renderer:
+
+   ```bash
+   cd /home/pi/CreationStationArcade/games/YourGame
+   export SDL_VIDEODRIVER=kmsdrm
+   export SDL_AUDIODRIVER=alsa
+   export SDL_RENDER_DRIVER=software
+   ./Game -f
+   ```
