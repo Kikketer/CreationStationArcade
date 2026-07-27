@@ -17,7 +17,7 @@ sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi
 ## Kill the running game and launcher
 
 ```bash
-sudo pkill -9 -f "games/[^/ ]+$"
+sudo pkill -9 -f "games/[^/]+/Game"
 sudo pkill -9 -f launcher.sh
 sudo pkill -9 -f single-native-launch.sh
 ```
@@ -31,10 +31,10 @@ clear
 ## Test a native game from a console
 
 ```bash
-cd /home/pi/CreationStationArcade/games
+cd /home/pi/CreationStationArcade/games/YourGame
 export SDL_VIDEODRIVER=kmsdrm
 export SDL_AUDIODRIVER=alsa
-./YourGame -f
+./Game -f
 ```
 
 If you get permission errors on `/dev/dri`, make sure the arcade user is in the `video` group and reboot.

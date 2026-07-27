@@ -1,28 +1,35 @@
 #!/bin/bash
 # single-native-launch.sh — launch one native MakeCode Arcade Game binary
 
-GAME_FILE="$1"
+GAME_DIR="$1"
 PIDFILE="/tmp/creationstation_current_game.pid"
 
-if [ -z "$GAME_FILE" ]; then
-    echo "Usage: $0 <game-file>" >&2
+if [ -z "$GAME_DIR" ]; then
+    echo "Usage: $0 <game-directory>" >&2
     exit 2
 fi
 
-if [ ! -f "$GAME_FILE" ] || [ ! -x "$GAME_FILE" ]; then
-    echo "ERROR: game file not found or not executable: $GAME_FILE" >&2
+if [ ! -d "$GAME_DIR" ]; then
+    echo "ERROR: game directory not found: $GAME_DIR" >&2
     exit 1
 fi
 
-GAME_DIR="$(dirname "$GAME_FILE")"
-GAME_NAME="$(basename "$GAME_FILE")"
-
 cd "$GAME_DIR" || exit 1
+
+if [ ! -x ./Game ]; then
+    echo "ERROR: ./Game not found or not executable in $GAME_DIR" >&2
+    exit 1
+fi
+
+if [ ! -f ./libpxt.so ]; then
+    echo "ERROR: ./libpxt.so not found in $GAME_DIR" >&2
+    exit 1
+fi
 
 # Ensure Game can resolve libpxt.so in the same directory.
 export LD_LIBRARY_PATH="$GAME_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-"./$GAME_NAME" -f &
+./Game -f &
 PID=$!
 echo "$PID" > "$PIDFILE"
 
