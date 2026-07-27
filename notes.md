@@ -46,6 +46,12 @@ cd /home/pi/CreationStationArcade
 sudo bash install/single-native-arcade-setup.sh --game=YourGame
 ```
 
+## Raspberry Pi notes
+
+- The installer detects Raspberry Pi and adds `dtoverlay=vc4-kms-v3d` to `/boot/firmware/config.txt` or `/boot/config.txt` if it is missing.
+- Make sure the OS is 64-bit (`arm64`). The bundled `Game` binaries are 64-bit and will not run on 32-bit `armhf` Pi OS.
+- If KMSDRM still fails on a Pi, verify the overlay is present and the `video` group membership is active after reboot.
+
 ## MESA-LOADER errors or "SDL Error: Invalid window"
 
 If you see `MESA-LOADER: failed to open ..._dri.so` followed by `SDL Error: Invalid window`, the DRI/Mesa drivers are missing or the arcade user cannot access `/dev/dri`.

@@ -49,6 +49,50 @@ log "Installing system packages..."
 apt-get update
 apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri
 
+# 1a. Architecture check
+ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
+case "$ARCH" in
+    arm64|aarch64|x86_64|amd64)
+        log "Architecture: $ARCH"
+        ;;
+    armhf)
+        log "WARNING: 32-bit armhf ($ARCH) detected. The bundled Game binaries are 64-bit; install a 64-bit OS before continuing."
+        ;;
+    *)
+        log "WARNING: architecture '$ARCH' may not be supported by the bundled Game binaries."
+        ;;
+esac
+
+# 1b. Board-specific GPU setup
+is_raspberry_pi() {
+    grep -qE "Raspberry Pi|BCM2835|BCM2836|BCM2837|BCM2711|BCM2712" /proc/cpuinfo 2>/dev/null || \
+    grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null
+}
+
+setup_pi_gpu() {
+    local config=""
+    for f in /boot/firmware/config.txt /boot/config.txt; do
+        if [ -f "$f" ]; then
+            config="$f"
+            break
+        fi
+    done
+    if [ -z "$config" ]; then
+        log "WARNING: Raspberry Pi detected but no boot config.txt found"
+        return
+    fi
+    if ! grep -q "^dtoverlay=vc4-kms-v3d" "$config"; then
+        log "Enabling vc4-kms-v3d overlay in $config"
+        echo "dtoverlay=vc4-kms-v3d" >> "$config"
+    else
+        log "vc4-kms-v3d overlay already enabled"
+    fi
+}
+
+if is_raspberry_pi; then
+    setup_pi_gpu
+fi
+
 # 2. User / permissions
 log "Adding $ARCADE_USER to video, input, and audio groups..."
 usermod -aG video,input,audio "$ARCADE_USER" 2>/dev/null || true
