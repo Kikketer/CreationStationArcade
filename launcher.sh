@@ -31,7 +31,6 @@ if [ -d "$SOURCE_DIR/.git" ]; then
 
     chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
     chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
-    chmod +x "$RUN_DIR/monitor_kill.py" 2>/dev/null || true
     find "$RUN_DIR/games" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
     _log "Sync complete"
 else
@@ -64,14 +63,6 @@ GAME_DIR="$RUN_DIR/games/$GAME_NAME"
 
 _log "Active game: $GAME_NAME"
 _log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER"
-
-# Start the reset monitor if it is not already running.
-if ! pgrep -f "monitor_kill.py" >/dev/null 2>&1; then
-    _log "Starting monitor_kill.py"
-    python3 "$RUN_DIR/monitor_kill.py" >> "$LOG_FILE" 2>&1 &
-else
-    _log "monitor_kill.py already running"
-fi
 
 # Main loop: keep the native game running.
 while true; do

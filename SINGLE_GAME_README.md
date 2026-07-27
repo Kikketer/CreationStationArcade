@@ -10,10 +10,9 @@ sudo bash install/single-native-arcade-setup.sh --game=YourGameName
 sudo reboot
 ```
 
-## Reset button
+## Reset
 
-- The reset button is read from `arcade.cfg` (`BTN_RESET`, default BCM 4).
-- Pressing it kills the current `Game` process; `launcher.sh` restarts it automatically.
+The native `Game` handles reset with the `r` / `R` key. The exact button on your USB controller depends on its mapping. No external reset monitor is running in this first pass.
 
 ## Environment variables
 
@@ -28,7 +27,7 @@ sudo reboot
 - `/home/pi/CreationStationArcade/launcher.sh` — main autologin launcher loop.
 - `/home/pi/CreationStationArcade/single-native-launch.sh` — wraps `./Game -f` and writes the PID file.
 - `/tmp/creationstation_current_game.pid` — PID of the current `Game` process.
-- `/home/pi/arcade.log` — log output from the launcher and monitor.
+- `/home/pi/arcade.log` — log output from the launcher.
 
 ## Change the game
 

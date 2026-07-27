@@ -20,7 +20,6 @@ done
 LOG_FILE="/home/pi/arcade.log"
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 touch "$LOG_FILE" 2>/dev/null || true
-chown "$ARCADE_USER:$ARCADE_USER" "$LOG_FILE" 2>/dev/null || true
 
 SOURCE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -35,6 +34,8 @@ if [ -n "${SUDO_USER:-}" ]; then
 else
     ARCADE_USER="$(logname 2>/dev/null || id -un || echo pi)"
 fi
+
+chown "$ARCADE_USER:$ARCADE_USER" "$LOG_FILE" 2>/dev/null || true
 
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
@@ -53,17 +54,11 @@ log "User:     $ARCADE_USER"
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git rsync python3 libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 fbi
+apt-get install -y git rsync libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2
 
 # 2. User / permissions
-log "Adding $ARCADE_USER to video, input, audio, and gpio groups..."
-getent group gpio >/dev/null || groupadd gpio 2>/dev/null || true
-usermod -aG video,input,audio,gpio "$ARCADE_USER" 2>/dev/null || true
-
-modprobe uinput 2>/dev/null || true
-modprobe joydev 2>/dev/null || true
-if ! grep -q "^uinput$" /etc/modules 2>/dev/null; then echo "uinput" >> /etc/modules; fi
-if ! grep -q "^joydev$" /etc/modules 2>/dev/null; then echo "joydev" >> /etc/modules; fi
+log "Adding $ARCADE_USER to video, input, and audio groups..."
+usermod -aG video,input,audio "$ARCADE_USER" 2>/dev/null || true
 
 # 3. Determine active game
 list_valid_games() {
@@ -154,31 +149,10 @@ fi
 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/monitor_kill.py" 2>/dev/null || true
 find "$RUN_DIR/games" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$RUN_DIR" 2>/dev/null || true
 
-# 7. Reset monitor service
-MONITOR_SERVICE_SRC="$SOURCE_DIR/install/etc/systemd/system/arcade-monitor.service"
-if [ -f "$MONITOR_SERVICE_SRC" ]; then
-    log "Installing arcade-monitor.service..."
-    cp "$MONITOR_SERVICE_SRC" /etc/systemd/system/arcade-monitor.service
-    sed -i "s|{{RUN_DIR}}|$RUN_DIR|g; s|{{ARCADE_USER}}|$ARCADE_USER|g; s|{{SINGLE_GAME_NAME}}|$GAME_NAME|g" /etc/systemd/system/arcade-monitor.service
-    chmod 644 /etc/systemd/system/arcade-monitor.service
-    systemctl daemon-reload
-    systemctl enable arcade-monitor.service
-else
-    log "WARNING: arcade-monitor.service not found at $MONITOR_SERVICE_SRC"
-fi
-
-# 8. Splash / boot cosmetics
-if [ -x "$SOURCE_DIR/install/splash-setup.sh" ]; then
-    log "Running splash setup..."
-    "$SOURCE_DIR/install/splash-setup.sh" || true
-else
-    log "WARNING: splash-setup.sh not found; skipping splash setup"
-fi
-
+# 7. Optional HDMI audio fix
 if [ -x "$SOURCE_DIR/install/hdmi-audio-fix.sh" ]; then
     log "HDMI audio fix available at $SOURCE_DIR/install/hdmi-audio-fix.sh"
 fi

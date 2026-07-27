@@ -9,7 +9,6 @@ Do **not** merge this branch into `main` or any other kiosk branch. Each kiosk f
 - 64-bit Raspberry Pi or PC running a 64-bit Debian-based Linux (`arm64` or `x86-64`).
 - SDL2 runtime libraries installed by the installer (`libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`).
 - The arcade user must belong to the `video` group for KMSDRM.
-- A reset button wired to the pin defined in `arcade.cfg` (`BTN_RESET`, default BCM 4).
 
 ## One-command install
 
@@ -36,7 +35,7 @@ If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` 
 - On boot, the autologin shell runs `launcher.sh` from the runtime folder (`/home/pi/CreationStationArcade`).
 - `launcher.sh` syncs from the source repo, picks `SINGLE_GAME_NAME`, sets `SDL_VIDEODRIVER=kmsdrm` and `SDL_AUDIODRIVER=alsa`, then calls `single-native-launch.sh` in a restart loop.
 - `single-native-launch.sh` writes the running `Game` PID to `/tmp/creationstation_current_game.pid` and runs `./Game -f` in the game directory.
-- `monitor_kill.py` (also started by `launcher.sh` and installed as `arcade-monitor.service`) watches `BTN_RESET` and kills the `Game` process so `launcher.sh` restarts it.
+- The native `Game` has its own reset path (press `r` / `R` for the menu/reset). We are intentionally **not** running an external GPIO kill script for this first pass.
 
 ## Add a game from make-web /desktop
 
@@ -67,7 +66,7 @@ This branch has no menu. To switch games, replace or add the `games/<Name>/` fol
 
 ## Kill or restart the game
 
-- **Reset button**: press the button connected to `BTN_RESET` (default BCM 4). `monitor_kill.py` kills `Game`; `launcher.sh` restarts it automatically.
+- **In-game reset**: the native `Game` handles reset via the `r` / `R` key. Your USB controller's reset mapping depends on its button-to-key configuration.
 - **SSH recovery**: log in as an admin user and run:
 
   ```bash
@@ -79,9 +78,7 @@ This branch has no menu. To switch games, replace or add the `games/<Name>/` fol
 
 ## Input strategy
 
-This branch uses **Option A: Direct SDL joystick**. USB gamepads and zero-delay encoders that appear as `/dev/input/js*` or `/dev/input/event*` are handled directly by the native `Game` binary. No Python input bridge is required.
-
-If you are using the older `usb-to-gpio.py` virtual-keyboard wiring, switch to a different branch or add that script and set `SDL_VIDEODRIVER=kmsdrm` accordingly.
+This branch uses **Direct SDL joystick**. USB gamepads and zero-delay encoders that appear as `/dev/input/js*` or `/dev/input/event*` are handled directly by the native `Game` binary. No Python input bridge is required.
 
 ## Branch safety
 
