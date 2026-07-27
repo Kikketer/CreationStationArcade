@@ -10,7 +10,7 @@ while [ $# -gt 0 ]; do
         --game) REQUESTED_GAME="$2"; shift 2 ;;
         -h|--help)
             echo "Usage: $0 [--game=GameName]"
-            echo "If --game is omitted, the first available native game is selected."
+            echo "If --game is omitted, the first available native game executable is selected."
             exit 0
             ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -18,6 +18,7 @@ while [ $# -gt 0 ]; do
 done
 
 RUN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+GAMES_DIR="$RUN_DIR/games"
 
 if [ -n "${SUDO_USER:-}" ]; then
     ARCADE_USER="$SUDO_USER"
@@ -54,20 +55,27 @@ usermod -aG video,input,audio "$ARCADE_USER" 2>/dev/null || true
 
 # 3. Determine active game
 list_valid_games() {
-    find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d | sort | while read -r d; do
+    find "$GAMES_DIR" -maxdepth 1 -type f | sort | while read -r f; do
         local name
-        name="$(basename "$d")"
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
+        name="$(basename "$f")"
+        if [ "$name" = "libpxt.so" ]; then
+            continue
+        fi
+        if [ -x "$f" ]; then
             echo "  - $name"
         fi
     done
 }
 
-all_games=$(find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d | sort)
+if [ ! -f "$GAMES_DIR/libpxt.so" ]; then
+    log "ERROR: shared library not found: $GAMES_DIR/libpxt.so"
+    log "Place the architecture-matching libpxt.so in $GAMES_DIR/ before running setup."
+    exit 1
+fi
 
 if [ -n "$REQUESTED_GAME" ]; then
-    if [ ! -x "$RUN_DIR/games/$REQUESTED_GAME/Game" ] || [ ! -f "$RUN_DIR/games/$REQUESTED_GAME/libpxt.so" ]; then
-        log "ERROR: requested game '$REQUESTED_GAME' is missing Game or libpxt.so"
+    if [ ! -x "$GAMES_DIR/$REQUESTED_GAME" ] || [ -d "$GAMES_DIR/$REQUESTED_GAME" ]; then
+        log "ERROR: requested game '$REQUESTED_GAME' is not an executable file in $GAMES_DIR/"
         log "Valid games:"
         list_valid_games
         exit 1
@@ -75,18 +83,22 @@ if [ -n "$REQUESTED_GAME" ]; then
     GAME_NAME="$REQUESTED_GAME"
 else
     GAME_NAME=""
-    for d in $all_games; do
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
-            GAME_NAME="$(basename "$d")"
+    while IFS= read -r -d '' f; do
+        name="$(basename "$f")"
+        if [ "$name" = "libpxt.so" ]; then
+            continue
+        fi
+        if [ -x "$f" ] && [ ! -d "$f" ]; then
+            GAME_NAME="$name"
             break
         fi
-    done
+    done < <(find "$GAMES_DIR" -maxdepth 1 -type f -print0 2>/dev/null | sort -z)
 fi
 
 if [ -z "$GAME_NAME" ]; then
-    log "ERROR: no native game found in $RUN_DIR/games/*/Game + libpxt.so"
-    log "Directories under $RUN_DIR/games:"
-    find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
+    log "ERROR: no native game executable found in $GAMES_DIR/"
+    log "Files in $GAMES_DIR/:"
+    find "$GAMES_DIR" -maxdepth 1 -type f -exec basename {} \; | sed 's/^/  - /'
     exit 1
 fi
 
@@ -132,7 +144,7 @@ chown "$ARCADE_USER:$ARCADE_USER" "$BASH_PROFILE" "$PROFILE" 2>/dev/null || true
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
-find "$RUN_DIR/games" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
+find "$GAMES_DIR" -maxdepth 1 -type f ! -name "libpxt.so" -exec chmod +x {} \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$RUN_DIR" 2>/dev/null || true
 
 # 7. Optional HDMI audio fix
@@ -142,4 +154,5 @@ fi
 
 log "=== Setup complete ==="
 log "Active game:       $GAME_NAME"
+log "Checkout directory: $RUN_DIR"
 log "Reboot to start:   sudo reboot"

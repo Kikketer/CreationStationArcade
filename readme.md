@@ -17,25 +17,30 @@ Do **not** merge this branch into `main` or any other kiosk branch. Each kiosk f
 sudo apt update && sudo apt install -y git
 
 # 2. Clone this branch directly into the runtime folder
-git clone -b single-native-arcade https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade
+git clone -b single-native-arcade https://github.com/Kikketer/CreationStationArcade /home/pi/CreationStationArcade
 
-# 3. Run the installer from the checkout
+# 3. Copy the native game(s) and shared lib into games/
+#    games/libpxt.so            (one shared PXT VM library for this architecture)
+#    games/YourGameName         (the native Game binary, renamed from the tar.gz Game file)
+
+# 4. Run the installer from the checkout
 cd /home/pi/CreationStationArcade
 sudo bash install/single-native-arcade-setup.sh --game=YourGameName
 
-# 4. Reboot
+# 5. Reboot
 sudo reboot
 ```
 
-If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` + `libpxt.so` it finds.
+If `--game` is omitted, the installer picks the first executable in `games/` (excluding `libpxt.so`).
 
 ## How it works
 
 - `install/single-native-arcade-setup.sh` installs packages, adds the user to required groups, enables `getty@tty1` autologin, and writes the auto-launch block into `~/.bash_profile` and `~/.profile`.
 - On boot, the autologin shell runs `launcher.sh` from the checkout directory (`/home/pi/CreationStationArcade`).
-- `launcher.sh` picks `SINGLE_GAME_NAME`, sets `SDL_VIDEODRIVER=kmsdrm` and `SDL_AUDIODRIVER=alsa`, then calls `single-native-launch.sh` in a restart loop.
-- `single-native-launch.sh` writes the running `Game` PID to `/tmp/creationstation_current_game.pid` and runs `./Game -f` in the game directory.
+- `launcher.sh` picks `SINGLE_GAME_NAME`, sets `SDL_VIDEODRIVER=kmsdrm` and `SDL_AUDIODRIVER=alsa`, and runs the chosen executable in `games/`.
+- `single-native-launch.sh` writes the running `Game` PID to `/tmp/creationstation_current_game.pid` and runs `./<GameName> -f`.
 - The native `Game` has its own reset path (press `r` / `R` for the menu/reset). We are intentionally **not** running an external GPIO kill script for this first pass.
+- `libpxt.so` lives once in `games/` and is shared by every `Game` binary in that folder.
 
 ## Add a game from make-web /desktop
 
@@ -43,14 +48,16 @@ If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` 
    - `arm64` for Raspberry Pi
    - `x86-64` for a PC
 2. Download the `SafeName{-arm64}.tar.gz` archive.
-3. Extract into the checkout:
+3. Extract into the checkout. The archive usually contains `Game` and `libpxt.so`:
 
    ```bash
    cd /home/pi/CreationStationArcade
-   mkdir -p games/SafeName
-   tar xzf SafeName-arm64.tar.gz -C games/SafeName
-   chmod +x games/SafeName/Game
+   tar xzf SafeName-arm64.tar.gz -C games
+   mv games/Game games/SafeName
+   chmod +x games/SafeName
    ```
+
+   Keep one `games/libpxt.so` for the architecture; delete any duplicate copies.
 
 4. Commit and push the `single-native-arcade` branch (optional, but keeps the source of truth in git).
 5. Re-run the installer and reboot:
@@ -63,7 +70,7 @@ If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` 
 
 ## Change the active game
 
-This branch has no menu. To switch games, replace or add the `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
+This branch has no menu. To switch games, put a new executable in `games/` and re-run the installer with the new `--game` value, then reboot. Only one `games/libpxt.so` is needed for all games.
 
 ## Kill or restart the game
 
@@ -71,7 +78,7 @@ This branch has no menu. To switch games, replace or add the `games/<Name>/` fol
 - **SSH recovery**: log in as an admin user and run:
 
   ```bash
-  sudo pkill -9 -f "games/[^/]+/Game"
+  sudo pkill -9 -f "games/[^/ ]+$"
   sudo pkill -9 -f launcher.sh
   ```
 
