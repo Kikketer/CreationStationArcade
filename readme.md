@@ -16,11 +16,11 @@ Do **not** merge this branch into `main` or any other kiosk branch. Each kiosk f
 # 1. Install git on the target machine
 sudo apt update && sudo apt install -y git
 
-# 2. Clone this branch into a source folder
-git clone -b single-native-arcade https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src
+# 2. Clone this branch directly into the runtime folder
+git clone -b single-native-arcade https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade
 
-# 3. Run the installer
-cd /home/pi/CreationStationArcade-src
+# 3. Run the installer from the checkout
+cd /home/pi/CreationStationArcade
 sudo bash install/single-native-arcade-setup.sh --game=YourGameName
 
 # 4. Reboot
@@ -32,8 +32,8 @@ If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` 
 ## How it works
 
 - `install/single-native-arcade-setup.sh` installs packages, adds the user to required groups, enables `getty@tty1` autologin, and writes the auto-launch block into `~/.bash_profile` and `~/.profile`.
-- On boot, the autologin shell runs `launcher.sh` from the runtime folder (`/home/pi/CreationStationArcade`).
-- `launcher.sh` syncs from the source repo, picks `SINGLE_GAME_NAME`, sets `SDL_VIDEODRIVER=kmsdrm` and `SDL_AUDIODRIVER=alsa`, then calls `single-native-launch.sh` in a restart loop.
+- On boot, the autologin shell runs `launcher.sh` from the checkout directory (`/home/pi/CreationStationArcade`).
+- `launcher.sh` picks `SINGLE_GAME_NAME`, sets `SDL_VIDEODRIVER=kmsdrm` and `SDL_AUDIODRIVER=alsa`, then calls `single-native-launch.sh` in a restart loop.
 - `single-native-launch.sh` writes the running `Game` PID to `/tmp/creationstation_current_game.pid` and runs `./Game -f` in the game directory.
 - The native `Game` has its own reset path (press `r` / `R` for the menu/reset). We are intentionally **not** running an external GPIO kill script for this first pass.
 
@@ -43,19 +43,20 @@ If `--game` is omitted, the installer picks the first valid `games/<Name>/Game` 
    - `arm64` for Raspberry Pi
    - `x86-64` for a PC
 2. Download the `SafeName{-arm64}.tar.gz` archive.
-3. Extract into this repo:
+3. Extract into the checkout:
 
    ```bash
+   cd /home/pi/CreationStationArcade
    mkdir -p games/SafeName
    tar xzf SafeName-arm64.tar.gz -C games/SafeName
    chmod +x games/SafeName/Game
    ```
 
-4. Commit and push the `single-native-arcade` branch.
-5. On the arcade machine, re-run the installer:
+4. Commit and push the `single-native-arcade` branch (optional, but keeps the source of truth in git).
+5. Re-run the installer and reboot:
 
    ```bash
-   cd /home/pi/CreationStationArcade-src
+   cd /home/pi/CreationStationArcade
    sudo bash install/single-native-arcade-setup.sh --game=SafeName
    sudo reboot
    ```

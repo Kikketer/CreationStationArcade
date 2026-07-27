@@ -1,13 +1,12 @@
 #!/bin/bash
 # launcher.sh — single native MakeCode Arcade kiosk
-# Runs from the runtime folder and syncs from the source repo before launching.
+# Run from the checkout directory (no separate runtime/source folders).
 
 set -o pipefail
 
 LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
-SOURCE_DIR="${CSA_SOURCE_DIR:-"${RUN_DIR}-src"}"
 
 _log() {
     local msg="[$(date +'%Y-%m-%d %H:%M:%S')] $*"
@@ -16,26 +15,6 @@ _log() {
 }
 
 _log "Launcher starting (RUN_DIR=$RUN_DIR)"
-
-# Sync from the source repo when it is present.
-if [ -d "$SOURCE_DIR/.git" ]; then
-    _log "Syncing from $SOURCE_DIR to $RUN_DIR"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --no-perms --no-owner --no-group --delete \
-            --exclude ".git" --exclude "arcade.log" \
-            "$SOURCE_DIR"/ "$RUN_DIR"/
-    else
-        _log "WARNING: rsync not found; copying without delete"
-        cp -a "$SOURCE_DIR"/. "$RUN_DIR"/
-    fi
-
-    chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-    chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
-    find "$RUN_DIR/games" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
-    _log "Sync complete"
-else
-    _log "WARNING: Source repo not found at $SOURCE_DIR; starting without sync"
-fi
 
 # Determine the active game. SINGLE_GAME_NAME can come from the environment or default to the first valid game.
 GAME_NAME="${SINGLE_GAME_NAME:-}"

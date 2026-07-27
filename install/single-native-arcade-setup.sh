@@ -1,6 +1,6 @@
 #!/bin/bash
 # single-native-arcade-setup.sh — one-shot installer for the single native arcade kiosk.
-# Run from the source repo root on the target machine (usually as root).
+# Run from the checkout directory on the target machine (usually as root).
 set -e
 
 REQUESTED_GAME=""
@@ -17,17 +17,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-LOG_FILE="/home/pi/arcade.log"
-mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
-touch "$LOG_FILE" 2>/dev/null || true
-
-SOURCE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-
-# Runtime folder is the source folder with a trailing "-src" removed, or a default.
-case "$SOURCE_DIR" in
-    *-src) RUN_DIR="${SOURCE_DIR%-src}" ;;
-    *) RUN_DIR="/home/pi/CreationStationArcade" ;;
-esac
+RUN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ -n "${SUDO_USER:-}" ]; then
     ARCADE_USER="$SUDO_USER"
@@ -35,6 +25,9 @@ else
     ARCADE_USER="$(logname 2>/dev/null || id -un || echo pi)"
 fi
 
+LOG_FILE="/home/pi/arcade.log"
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+touch "$LOG_FILE" 2>/dev/null || true
 chown "$ARCADE_USER:$ARCADE_USER" "$LOG_FILE" 2>/dev/null || true
 
 log() {
@@ -47,14 +40,13 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 log "=== single-native-arcade setup ==="
-log "Source:   $SOURCE_DIR"
-log "Runtime:  $RUN_DIR"
-log "User:     $ARCADE_USER"
+log "Checkout directory: $RUN_DIR"
+log "User:               $ARCADE_USER"
 
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git rsync libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2
+apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2
 
 # 2. User / permissions
 log "Adding $ARCADE_USER to video, input, and audio groups..."
@@ -62,7 +54,7 @@ usermod -aG video,input,audio "$ARCADE_USER" 2>/dev/null || true
 
 # 3. Determine active game
 list_valid_games() {
-    find "$SOURCE_DIR/games" -mindepth 1 -maxdepth 1 -type d | sort | while read -r d; do
+    find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d | sort | while read -r d; do
         local name
         name="$(basename "$d")"
         if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
@@ -71,10 +63,10 @@ list_valid_games() {
     done
 }
 
-all_games=$(find "$SOURCE_DIR/games" -mindepth 1 -maxdepth 1 -type d | sort)
+all_games=$(find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d | sort)
 
 if [ -n "$REQUESTED_GAME" ]; then
-    if [ ! -x "$SOURCE_DIR/games/$REQUESTED_GAME/Game" ] || [ ! -f "$SOURCE_DIR/games/$REQUESTED_GAME/libpxt.so" ]; then
+    if [ ! -x "$RUN_DIR/games/$REQUESTED_GAME/Game" ] || [ ! -f "$RUN_DIR/games/$REQUESTED_GAME/libpxt.so" ]; then
         log "ERROR: requested game '$REQUESTED_GAME' is missing Game or libpxt.so"
         log "Valid games:"
         list_valid_games
@@ -92,9 +84,9 @@ else
 fi
 
 if [ -z "$GAME_NAME" ]; then
-    log "ERROR: no native game found in $SOURCE_DIR/games/*/Game + libpxt.so"
-    log "Directories under $SOURCE_DIR/games:"
-    find "$SOURCE_DIR/games" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
+    log "ERROR: no native game found in $RUN_DIR/games/*/Game + libpxt.so"
+    log "Directories under $RUN_DIR/games:"
+    find "$RUN_DIR/games" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
     exit 1
 fi
 
@@ -126,7 +118,6 @@ inject_launcher() {
             echo "# single-native-arcade launcher"
             echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
             echo "  export SINGLE_GAME_NAME=\"$GAME_NAME\""
-            echo "  export CSA_SOURCE_DIR=\"$SOURCE_DIR\""
             echo "  cd \"$RUN_DIR\" || exit 1"
             echo "  exec bash \"$RUN_DIR/launcher.sh\""
             echo "fi"
@@ -138,26 +129,17 @@ inject_launcher "$BASH_PROFILE"
 inject_launcher "$PROFILE"
 chown "$ARCADE_USER:$ARCADE_USER" "$BASH_PROFILE" "$PROFILE" 2>/dev/null || true
 
-# 6. Runtime sync
-log "Creating runtime folder and syncing source..."
-mkdir -p "$RUN_DIR"
-if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$SOURCE_DIR"/ "$RUN_DIR"/
-else
-    cp -a "$SOURCE_DIR"/. "$RUN_DIR"/
-fi
-
+# 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
 find "$RUN_DIR/games" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$RUN_DIR" 2>/dev/null || true
 
 # 7. Optional HDMI audio fix
-if [ -x "$SOURCE_DIR/install/hdmi-audio-fix.sh" ]; then
-    log "HDMI audio fix available at $SOURCE_DIR/install/hdmi-audio-fix.sh"
+if [ -x "$RUN_DIR/install/hdmi-audio-fix.sh" ]; then
+    log "HDMI audio fix available at $RUN_DIR/install/hdmi-audio-fix.sh"
 fi
 
 log "=== Setup complete ==="
 log "Active game:       $GAME_NAME"
-log "Runtime directory: $RUN_DIR"
 log "Reboot to start:   sudo reboot"

@@ -5,7 +5,7 @@
 The active game is set by `SINGLE_GAME_NAME` in the login profile. To change it, re-run the installer:
 
 ```bash
-cd /home/pi/CreationStationArcade-src
+cd /home/pi/CreationStationArcade
 sudo bash install/single-native-arcade-setup.sh --game=YourGameName
 sudo reboot
 ```
@@ -17,7 +17,6 @@ The native `Game` handles reset with the `r` / `R` key. The exact button on your
 ## Environment variables
 
 - `SINGLE_GAME_NAME` — name of the active `games/<Name>/` directory.
-- `CSA_SOURCE_DIR` — path to the source repo (default `/home/pi/CreationStationArcade-src`).
 - `SDL_VIDEODRIVER=kmsdrm` — use the Linux DRM/KMS backend.
 - `SDL_AUDIODRIVER=alsa` — use ALSA for audio.
 - `LD_LIBRARY_PATH` — set to the active game directory so `libpxt.so` is found.

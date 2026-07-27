@@ -28,14 +28,6 @@ Then clear the screen:
 clear
 ```
 
-## Sync source to runtime manually
-
-```bash
-rsync -a --no-perms --no-owner --no-group --delete \
-  --exclude ".git" --exclude "arcade.log" \
-  "/home/pi/CreationStationArcade-src/" "/home/pi/CreationStationArcade/"
-```
-
 ## Test a native game from a console
 
 ```bash
@@ -50,6 +42,6 @@ If you get permission errors on `/dev/dri`, make sure the arcade user is in the 
 ## Re-run the installer
 
 ```bash
-cd /home/pi/CreationStationArcade-src
+cd /home/pi/CreationStationArcade
 sudo bash install/single-native-arcade-setup.sh --game=YourGame
 ```
