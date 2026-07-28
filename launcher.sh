@@ -50,6 +50,19 @@ fi
 _log "Active game: $GAME_NAME"
 _log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER SDL_RENDER_DRIVER=${SDL_RENDER_DRIVER:-<default>}"
 
+# GPIO reset helper: cabinet button on a ground-adjacent pin -> uinput 'r' key.
+GPIO_RESET_PIN="${GPIO_RESET_PIN:-27}"
+GPIO_RESET_ARGS=()
+if [ "${GPIO_RESET_ACTIVE_HIGH:-0}" != "1" ]; then
+    GPIO_RESET_ARGS+=(--active-low)
+fi
+pkill -f "gpio-reset-keyboard.py" 2>/dev/null || true
+export GPIO_RESET_PIN
+python3 "$RUN_DIR/gpio-reset-keyboard.py" "${GPIO_RESET_ARGS[@]}" >> "$LOG_FILE" 2>&1 &
+RESET_PID=$!
+trap 'kill "$RESET_PID" 2>/dev/null || true' EXIT
+_log "GPIO reset helper started (pin=$GPIO_RESET_PIN args=${GPIO_RESET_ARGS[*]})"
+
 # Main loop: keep the native game running.
 while true; do
     _log "Launching $GAME_NAME (native Game)"
