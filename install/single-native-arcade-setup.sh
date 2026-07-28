@@ -47,7 +47,7 @@ log "User:               $ARCADE_USER"
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri
+apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2
 
 # 1a. Architecture check
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"

@@ -8,7 +8,7 @@ Do **not** merge this branch into `main` or any other kiosk branch. Each kiosk f
 
 - 64-bit Raspberry Pi or PC running a 64-bit Debian-based Linux (`arm64` or `x86-64`).
   - For Raspberry Pi, the installer enables the `vc4-kms-v3d` overlay in `/boot/firmware/config.txt` (or `/boot/config.txt`) so KMSDRM has a DRM device.
-- SDL2 runtime libraries installed by the installer (`libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`, `libgl1-mesa-dri`).
+- SDL2 / GL runtime libraries installed by the installer (`libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`, `libgl1-mesa-dri`, `libegl1`, `libgles2`).
 - The arcade user must belong to the `video` group for KMSDRM.
 
 ## One-command install
