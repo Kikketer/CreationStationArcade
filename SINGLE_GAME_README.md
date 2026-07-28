@@ -24,6 +24,7 @@ The native `Game` handles reset with the `r` / `R` key. The exact button on your
 - `SINGLE_GAME_NAME` — name of the active `games/<Name>/` directory.
 - `SDL_VIDEODRIVER=kmsdrm` — use the Linux DRM/KMS backend.
 - `SDL_AUDIODRIVER=alsa` — use ALSA for audio.
+- `SDL_RENDER_DRIVER=opengles2` — force the OpenGL ES 2.0 renderer on ARM boards (set by `launcher.sh` on `aarch64`).
 - `LD_LIBRARY_PATH` — set to the active game directory so `libpxt.so` is found.
 
 ## Useful files

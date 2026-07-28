@@ -80,3 +80,17 @@ If you see `MESA-LOADER: failed to open ..._dri.so` followed by `SDL Error: Inva
    export SDL_RENDER_DRIVER=software
    ./Game -f
    ```
+
+## Black screen with a cursor (window opens, game does not draw)
+
+If the game opens a window but only shows black with a cursor, the wrong SDL renderer is being selected. On ARM KMSDRM boards, force the GLES2 renderer:
+
+```bash
+cd /home/pi/CreationStationArcade/games/YourGame
+export SDL_VIDEODRIVER=kmsdrm
+export SDL_AUDIODRIVER=alsa
+export SDL_RENDER_DRIVER=opengles2
+./Game -f
+```
+
+`launcher.sh` now sets `SDL_RENDER_DRIVER=opengles2` automatically on `aarch64`.

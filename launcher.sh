@@ -41,8 +41,14 @@ export SDL_VIDEODRIVER=kmsdrm
 export SDL_AUDIODRIVER=alsa
 export LD_LIBRARY_PATH="$GAME_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
+# The bundled SDL renderers on ARM KMSDRM boards (vc4/lima/panfrost) work
+# best with the OpenGL ES 2.0 driver.  Allow users to override if needed.
+if [ -z "${SDL_RENDER_DRIVER:-}" ] && [ "$(uname -m)" = "aarch64" ]; then
+    export SDL_RENDER_DRIVER=opengles2
+fi
+
 _log "Active game: $GAME_NAME"
-_log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER"
+_log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER SDL_RENDER_DRIVER=${SDL_RENDER_DRIVER:-<default>}"
 
 # Main loop: keep the native game running.
 while true; do
