@@ -96,3 +96,7 @@ export SDL_RENDER_DRIVER=opengles2
 ```
 
 `launcher.sh` now sets `SDL_RENDER_DRIVER=opengles2` automatically on `aarch64`.
+
+## F11 fullscreen toggle goes black
+
+The `Game` binary supports `F11` to toggle fullscreen, but on the KMSDRM arcade setup it usually just turns the screen black. This is not a problem for the cabinet because the arcade controls do not include an `F11` key, and the game always starts in fullscreen via `single-native-launch.sh`. If you accidentally trigger it from a keyboard while testing, kill the game (`toggle-arcade.sh disable` or the `pkill` commands above) and restart it.
