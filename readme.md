@@ -1,5 +1,21 @@
 # Creation Station Arcade
 
+## Branches
+
+This repo uses long-lived branches to represent different arcade machine configurations.
+
+- `main` — the primary "elf + arcade" setup. The menu itself is an ELF file (`MadeArcadeMenu.elf`) and all games are launched from it. This is the closest to what MakeCode intended for the ELF arcades. Using the [4-player raw ELF compiler](https://www.forthelearnofit.com/elf) you can even use 4 players with GPIO pins.
+
+- `pi3-elf-kiosk` — single-game raw ELF kiosk for Raspberry Pi 3 / Pi Zero. No menu; boots straight into one configured `.elf` game. A USB gamepad is translated to a virtual keyboard (default) or can drive GPIO pins with `--input-mode=gpio` for the 4-player raw ELF fork.
+
+- `chromium-kiosk` — browser-based arcade for higher-end machines (Raspberry Pi 5 or regular x86 computers). A Node server serves a menu; games run in a separate fullscreen Chromium window, giving you the full MakeCode Arcade extension support you see in the simulator. Supports multiple games with a menu.
+
+- `single-game-kiosk` — the Chromium kiosk but for a single game. Boots directly into one game and the reset button restarts it. Same 1:1 simulator capability as `chromium-kiosk`, but needs a more powerful machine.
+
+- `single-native-arcade` — native SDL MakeCode Arcade `Game` binary running as a single game. No menu, no Chromium; uses direct SDL joystick input, and USB joysticks/buttons are tested. Works on 64-bit ARM (Pi 3/4/5, Pi Zero 2 W) and x86-64 Linux.
+
+- `multi-native-arcade` — not built yet. This will be the native version with a menu system.
+
 How to setup a Raspberry PI 3:
 
 1. Install the 32bit Lite version of the Raspberry PI OS (Trixie was last tested)
