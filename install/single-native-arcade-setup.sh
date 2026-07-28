@@ -83,7 +83,7 @@ setup_pi_gpu() {
     fi
     if ! grep -q "^dtoverlay=vc4-kms-v3d" "$config"; then
         log "Enabling vc4-kms-v3d overlay in $config"
-        echo "dtoverlay=vc4-kms-v3d" >> "$config"
+        echo "dtoverlay=vc4-kms-v3d,cma-128" >> "$config"
     else
         log "vc4-kms-v3d overlay already enabled"
     fi

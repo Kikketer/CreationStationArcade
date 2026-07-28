@@ -45,6 +45,8 @@ For testing or playing on a regular PC:
 
 For a Pi or similar ARM board that boots straight into the game:
 
+- Supported Pi models: Pi 3, Pi 4, Pi 5, and Pi Zero 2 W (all with a 64-bit OS). Original Pi Zero / Pi 1 are not supported because the `Game` binary is `aarch64`.
+
 1. In `make-web` `/desktop`, upload your MakeCode Arcade PNG export and choose **arm64**.
 2. On the target machine:
 
@@ -59,7 +61,7 @@ For a Pi or similar ARM board that boots straight into the game:
    The installer handles:
    - Packages: `libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`, `libgl1-mesa-dri`, `libegl1`, `libgles2`
    - User groups: `video`, `input`, `audio`
-   - Pi `vc4-kms-v3d` overlay (when a Raspberry Pi is detected)
+   - Pi `vc4-kms-v3d,cma-128` overlay (when a Raspberry Pi is detected)
    - `getty@tty1` autologin and the auto-launch block in `~/.bash_profile`/`~/.profile`
    - Runtime environment: `SDL_VIDEODRIVER=kmsdrm` and `SDL_RENDER_DRIVER=opengles2`
 

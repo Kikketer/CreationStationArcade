@@ -50,8 +50,10 @@ sudo bash install/single-native-arcade-setup.sh --game=YourGame
 
 ## Raspberry Pi notes
 
-- The installer detects Raspberry Pi and adds `dtoverlay=vc4-kms-v3d` to `/boot/firmware/config.txt` or `/boot/config.txt` if it is missing.
+- The installer detects Raspberry Pi and adds `dtoverlay=vc4-kms-v3d,cma-128` to `/boot/firmware/config.txt` or `/boot/config.txt` if it is missing.
 - Make sure the OS is 64-bit (`arm64`). The bundled `Game` binaries are 64-bit and will not run on 32-bit `armhf` Pi OS.
+- Supported: Pi 3, Pi 4, Pi 5, and Pi Zero 2 W (with a 64-bit OS). Original Pi Zero / Pi 1 are not supported.
+- Pi 3 / Zero 2 W use the `vc4` DRI driver; Pi 4 / Pi 5 use the `v3d` DRI driver. Both are included in `libgl1-mesa-dri`.
 - If KMSDRM still fails on a Pi, verify the overlay is present and the `video` group membership is active after reboot.
 
 ## MESA-LOADER errors or "SDL Error: Invalid window"
