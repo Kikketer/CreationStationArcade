@@ -2,16 +2,18 @@
 
 ## Temporarily disable the autologin launcher
 
-Log in as an admin (or via SSH) and reset the `pi` user's shell:
+Log in from another console/TTY or SSH and run:
 
 ```bash
-sudo usermod -s /bin/bash pi
+cd /home/pi/CreationStationArcade
+./toggle-arcade.sh disable
 ```
 
-After fixing things, set it back to the runtime launcher:
+That comments out the launcher block in `~/.bash_profile` and `~/.profile` and kills any running arcade processes.  To re-enable:
 
 ```bash
-sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi
+cd /home/pi/CreationStationArcade
+./toggle-arcade.sh enable
 ```
 
 ## Kill the running game and launcher
