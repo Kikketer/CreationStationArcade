@@ -170,7 +170,19 @@ inject_launcher() {
         touch "$file"
         chown "$ARCADE_USER:$ARCADE_USER" "$file" 2>/dev/null || true
     fi
-    if ! grep -q "single-native-arcade launcher" "$file" 2>/dev/null; then
+    if grep -q "single-native-arcade launcher" "$file" 2>/dev/null; then
+        # Update the game name in the existing launcher block (even if toggled off).
+        local tmp
+        tmp="$(mktemp)"
+        while IFS= read -r line || [ -n "$line" ]; do
+            if [[ "$line" =~ ^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME=\"[^\"]*\"[[:space:]]*$ ]]; then
+                echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
+            else
+                echo "$line"
+            fi
+        done < "$file" > "$tmp"
+        mv "$tmp" "$file"
+    else
         {
             echo ""
             echo "# single-native-arcade launcher"
