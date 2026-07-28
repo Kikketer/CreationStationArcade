@@ -172,6 +172,11 @@ inject_launcher "$BASH_PROFILE"
 inject_launcher "$PROFILE"
 chown "$ARCADE_USER:$ARCADE_USER" "$BASH_PROFILE" "$PROFILE" 2>/dev/null || true
 
+# Ensure the launcher block is enabled (in case it was toggled off).
+log "Ensuring autolaunch is enabled for $ARCADE_USER..."
+su - "$ARCADE_USER" -c "bash '$RUN_DIR/toggle-arcade.sh' enable" 2>/dev/null || \
+    log "WARNING: could not enable autolaunch as $ARCADE_USER"
+
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
