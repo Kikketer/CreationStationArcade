@@ -17,7 +17,16 @@ sudo reboot
 
 ## Reset
 
-The native `Game` handles reset with the `r` / `R` key. The exact button on your USB controller depends on its mapping. No external reset monitor is running in this first pass.
+The native `Game` handles reset with the `r` / `R` key.
+
+A dedicated cabinet reset button can be wired to **GPIO 27** (physical pin **13**) and **GND** (physical pin **14**). The `launcher.sh` starts `gpio-reset-keyboard.py` automatically; when the switch pulls GPIO 27 to ground, the helper injects an `r` key event, triggering `control.reset()` inside the running `Game` without restarting the process.
+
+- Pin 13: switch wire
+- Pin 14: GND (right next to pin 13)
+
+Use a momentary normally-open switch. The pin is pulled up internally, so the button is active-low.
+
+USB gamepads and keyboards still control the game normally, but only the cabinet GPIO button or a physical `r` key press will soft-reset.
 
 ## Environment variables
 

@@ -59,8 +59,8 @@ For a Pi or similar ARM board that boots straight into the game:
    ```
 
    The installer handles:
-   - Packages: `libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`, `libgl1-mesa-dri`, `libegl1`, `libgles2`
-   - User groups: `video`, `input`, `audio`
+   - Packages: `libsdl2-2.0-0`, `libdrm2`, `libgbm1`, `libudev1`, `libasound2`, `libgl1-mesa-dri`, `libegl1`, `libgles2`, `python3-rpi.gpio`
+   - User groups: `video`, `input`, `audio`, `gpio`
    - Pi `vc4-kms-v3d,cma-128` overlay (when a Raspberry Pi is detected)
    - `getty@tty1` autologin and the auto-launch block in `~/.bash_profile`/`~/.profile`
    - Runtime environment: `SDL_VIDEODRIVER=kmsdrm` and `SDL_RENDER_DRIVER=opengles2`
@@ -68,6 +68,24 @@ For a Pi or similar ARM board that boots straight into the game:
 3. After reboot, the cabinet boots straight into `./Game -f` in `games/<YourGame>/`.
 
 If `--game` is omitted, the installer picks the first valid `games/<Name>/` folder.
+
+#### GPIO reset button
+
+A dedicated cabinet reset button is supported out of the box. It triggers the native `Game`'s soft reset (`control.reset`) by injecting the `r` key through a uinput virtual keyboard, so the `Game` process never exits.
+
+Default wiring:
+
+- Connect one side of a momentary normally-open switch to **GPIO 27** (physical pin **13**).
+- Connect the other side to **GND** (physical pin **14**, right next to pin 13).
+
+Pin layout for a 2-pin connector:
+
+```
+Pin 13  GPIO 27  -> one switch wire
+Pin 14  GND      -> other switch wire
+```
+
+Because the switch pulls the pin to ground, `launcher.sh` runs `gpio-reset-keyboard.py` with `--active-low`. To use a different ground-adjacent GPIO, set `GPIO_RESET_PIN` in the launcher or before reboot. To use an active-high (3.3 V) button instead, set `GPIO_RESET_ACTIVE_HIGH=1`.
 
 To disable autolaunch for debugging, see `notes.md` or run `./toggle-arcade.sh disable`.
 

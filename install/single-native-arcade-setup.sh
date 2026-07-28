@@ -47,7 +47,7 @@ log "User:               $ARCADE_USER"
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2
+apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2 python3-rpi.gpio
 
 # 1a. Architecture check
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
@@ -94,8 +94,23 @@ if is_raspberry_pi; then
 fi
 
 # 2. User / permissions
-log "Adding $ARCADE_USER to video, input, and audio groups..."
-usermod -aG video,input,audio "$ARCADE_USER" 2>/dev/null || true
+log "Adding $ARCADE_USER to video, input, audio, and gpio groups..."
+usermod -aG video,input,audio,gpio "$ARCADE_USER" 2>/dev/null || true
+
+# uinput permission for the GPIO reset keyboard helper
+log "Configuring /dev/uinput permissions..."
+modprobe uinput || true
+if [ ! -f /etc/modules-load.d/uinput.conf ]; then
+    echo "uinput" > /etc/modules-load.d/uinput.conf
+fi
+if [ ! -f /etc/udev/rules.d/99-uinput.rules ]; then
+    cat > /etc/udev/rules.d/99-uinput.rules <<'EOF'
+KERNEL=="uinput", MODE="0666"
+EOF
+fi
+if [ -f /etc/rc.local ] && ! grep -q "chmod 0666 /dev/uinput" /etc/rc.local; then
+    sed -i '/^exit 0/i chmod 0666 /dev/uinput' /etc/rc.local
+fi
 
 # 3. Determine active game
 list_valid_games() {
@@ -181,6 +196,7 @@ su - "$ARCADE_USER" -c "bash '$RUN_DIR/toggle-arcade.sh' enable" 2>/dev/null || 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/toggle-arcade.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/gpio-reset-keyboard.py" 2>/dev/null || true
 find "$GAMES_DIR" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$RUN_DIR" 2>/dev/null || true
 
