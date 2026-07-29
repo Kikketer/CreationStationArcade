@@ -51,17 +51,32 @@ _log "Active game: $GAME_NAME"
 _log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER SDL_RENDER_DRIVER=${SDL_RENDER_DRIVER:-<default>}"
 
 # GPIO reset helper: cabinet button on a ground-adjacent pin -> uinput 'r' key.
-GPIO_RESET_PIN="${GPIO_RESET_PIN:-27}"
-GPIO_RESET_ARGS=()
-if [ "${GPIO_RESET_ACTIVE_HIGH:-0}" != "1" ]; then
-    GPIO_RESET_ARGS+=(--active-low)
+# Use the RPi.GPIO helper on Pi, the gpiod helper on boards like La Frite,
+# or skip it entirely if neither GPIO library is installed.
+if python3 -c "import RPi.GPIO" >/dev/null 2>&1; then
+    GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard.py"
+elif python3 -c "import gpiod" >/dev/null 2>&1; then
+    GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard-gpiod.py"
+else
+    GPIO_RESET_HELPER=""
 fi
-pkill -f "gpio-reset-keyboard.py" 2>/dev/null || true
-export GPIO_RESET_PIN
-python3 "$RUN_DIR/gpio-reset-keyboard.py" "${GPIO_RESET_ARGS[@]}" >> "$LOG_FILE" 2>&1 &
-RESET_PID=$!
-trap 'kill "$RESET_PID" 2>/dev/null || true' EXIT
-_log "GPIO reset helper started (pin=$GPIO_RESET_PIN args=${GPIO_RESET_ARGS[*]})"
+
+if [ -n "$GPIO_RESET_HELPER" ]; then
+    GPIO_RESET_ARGS=()
+    if [ -n "${GPIO_RESET_PIN:-}" ]; then
+        GPIO_RESET_ARGS+=(--pin "$GPIO_RESET_PIN")
+    fi
+    if [ "${GPIO_RESET_ACTIVE_HIGH:-0}" != "1" ]; then
+        GPIO_RESET_ARGS+=(--active-low)
+    fi
+    pkill -f "gpio-reset-keyboard" 2>/dev/null || true
+    python3 "$GPIO_RESET_HELPER" "${GPIO_RESET_ARGS[@]}" >> "$LOG_FILE" 2>&1 &
+    RESET_PID=$!
+    trap 'kill "$RESET_PID" 2>/dev/null || true' EXIT
+    _log "GPIO reset helper started ($GPIO_RESET_HELPER pin=${GPIO_RESET_PIN:-<default>} args=${GPIO_RESET_ARGS[*]})"
+else
+    _log "GPIO reset helper skipped (no GPIO library installed)"
+fi
 
 # Main loop: keep the native game running.
 while true; do
