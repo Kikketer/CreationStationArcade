@@ -22,7 +22,7 @@ class TestLaFriteNativeArcadeSetup(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _run_inject(self, game, target, run_dir="/tmp/arcade-run", pin="13"):
+    def _run_inject(self, game, target, run_dir="/tmp/arcade-run", pin="20"):
         script = f"""\
 ARCADE_USER='{self.user}'
 ARCADE_USER_HOME='/tmp/home-test'
@@ -34,7 +34,7 @@ inject_launcher '{target}'
 """
         subprocess.run(["bash", "-c", script], check=True)
 
-    def _launcher_block(self, game, commented=False, pin="13"):
+    def _launcher_block(self, game, commented=False, pin="20"):
         prefix = "# " if commented else ""
         return (
             f"\n"
