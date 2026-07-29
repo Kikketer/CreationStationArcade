@@ -129,6 +129,10 @@ def main():
             last = None
             while True:
                 state = line.get_value()
+                if last is None:
+                    log(f"Initial GPIO state on {pin_spec}: {state}")
+                elif state != last:
+                    log(f"GPIO state changed on {pin_spec}: {last} -> {state}")
                 if state == active and last != active:
                     time.sleep(debounce_s)
                     if line.get_value() == active:

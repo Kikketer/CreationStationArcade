@@ -5,6 +5,7 @@
 set -o pipefail
 
 LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
+export ARCADE_LOG="$LOG_FILE"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
 GAMES_DIR="$RUN_DIR/games"
@@ -70,7 +71,7 @@ if [ -n "$GPIO_RESET_HELPER" ]; then
         GPIO_RESET_ARGS+=(--active-low)
     fi
     pkill -f "gpio-reset-keyboard" 2>/dev/null || true
-    python3 "$GPIO_RESET_HELPER" "${GPIO_RESET_ARGS[@]}" >> "$LOG_FILE" 2>&1 &
+    python3 "$GPIO_RESET_HELPER" "${GPIO_RESET_ARGS[@]}" &
     RESET_PID=$!
     trap 'kill "$RESET_PID" 2>/dev/null || true' EXIT
     _log "GPIO reset helper started ($GPIO_RESET_HELPER pin=${GPIO_RESET_PIN:-<default>} args=${GPIO_RESET_ARGS[*]})"
