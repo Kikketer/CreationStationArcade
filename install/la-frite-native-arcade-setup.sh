@@ -174,6 +174,22 @@ if [ -f /etc/rc.local ] && ! grep -q "chmod 0666 /dev/uinput" /etc/rc.local; the
     sed -i '/^exit 0/i chmod 0666 /dev/uinput' /etc/rc.local
 fi
 
+# GPIO chip permissions for the gpiod reset helper
+log "Configuring /dev/gpiochip* permissions..."
+getent group gpio >/dev/null 2>&1 || groupadd gpio 2>/dev/null || true
+if [ ! -f /etc/udev/rules.d/99-arcade-gpio.rules ]; then
+    cat > /etc/udev/rules.d/99-arcade-gpio.rules <<'EOF'
+SUBSYSTEM=="gpio", KERNEL=="gpiochip*", GROUP="gpio", MODE="0660"
+EOF
+fi
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger --subsystem-match=gpio 2>/dev/null || true
+# Fix the current devices right away so a reboot isn't strictly required.
+if [ -e /dev/gpiochip0 ]; then
+    chgrp gpio /dev/gpiochip* 2>/dev/null || true
+    chmod 0660 /dev/gpiochip* 2>/dev/null || true
+fi
+
 # 3. Determine active game
 list_valid_games() {
     find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d | sort | while read -r d; do
