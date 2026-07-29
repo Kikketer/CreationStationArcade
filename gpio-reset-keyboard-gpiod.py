@@ -12,7 +12,7 @@ import gpiod
 
 LOG_FILE = os.environ.get("ARCADE_LOG", "/home/pi/arcade.log")
 UINPUT_PATH = "/dev/uinput"
-DEFAULT_CHIP = "/dev/gpiochip0"
+DEFAULT_CHIP = "/dev/gpiochip1"
 DEFAULT_PIN = os.environ.get("GPIO_RESET_PIN", "20")
 
 EV_KEY = 0x01
