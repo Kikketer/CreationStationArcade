@@ -19,14 +19,14 @@ while [ $# -gt 0 ]; do
             echo "Usage: $0 [--user=UserName] [--game=GameName] [--gpio-reset-pin=Pin]"
             echo "  --user             defaults to SUDO_USER, then the user running sudo, then 'arcade'."
             echo "  --game             selects the games/<Name>/Game + libpxt.so to boot."
-            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default 27)."
+            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default 13)."
             exit 0
             ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
 
-GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-27}"
+GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-13}"
 
 if [ -n "$REQUESTED_USER" ]; then
     ARCADE_USER="$REQUESTED_USER"

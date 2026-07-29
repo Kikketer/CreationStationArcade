@@ -62,17 +62,18 @@ else
 fi
 
 if [ -n "$GPIO_RESET_HELPER" ]; then
-    GPIO_RESET_PIN="${GPIO_RESET_PIN:-27}"
     GPIO_RESET_ARGS=()
+    if [ -n "${GPIO_RESET_PIN:-}" ]; then
+        GPIO_RESET_ARGS+=(--pin "$GPIO_RESET_PIN")
+    fi
     if [ "${GPIO_RESET_ACTIVE_HIGH:-0}" != "1" ]; then
         GPIO_RESET_ARGS+=(--active-low)
     fi
     pkill -f "gpio-reset-keyboard" 2>/dev/null || true
-    export GPIO_RESET_PIN
-    python3 "$GPIO_RESET_HELPER" --pin "$GPIO_RESET_PIN" "${GPIO_RESET_ARGS[@]}" >> "$LOG_FILE" 2>&1 &
+    python3 "$GPIO_RESET_HELPER" "${GPIO_RESET_ARGS[@]}" >> "$LOG_FILE" 2>&1 &
     RESET_PID=$!
     trap 'kill "$RESET_PID" 2>/dev/null || true' EXIT
-    _log "GPIO reset helper started ($GPIO_RESET_HELPER pin=$GPIO_RESET_PIN args=${GPIO_RESET_ARGS[*]})"
+    _log "GPIO reset helper started ($GPIO_RESET_HELPER pin=${GPIO_RESET_PIN:-<default>} args=${GPIO_RESET_ARGS[*]})"
 else
     _log "GPIO reset helper skipped (no GPIO library installed)"
 fi
