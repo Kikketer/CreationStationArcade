@@ -40,7 +40,8 @@ def log(msg):
 
 
 def create_vkbd():
-    fd = open(UINPUT_PATH, "wb+")
+    raw = os.open(UINPUT_PATH, os.O_RDWR)
+    fd = os.fdopen(raw, "wb")
     fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
     fcntl.ioctl(fd, UI_SET_KEYBIT, KEY_R)
     dev = struct.pack(
