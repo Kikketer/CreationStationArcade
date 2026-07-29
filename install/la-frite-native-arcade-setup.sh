@@ -1,6 +1,14 @@
 #!/bin/bash
 # la-frite-native-arcade-setup.sh — one-shot installer for the La Frite single native arcade kiosk.
 # Run from the checkout directory on the target machine (usually as root).
+if [ -z "${BASH_VERSION:-}" ]; then
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    else
+        echo "ERROR: This script requires bash." >&2
+        exit 1
+    fi
+fi
 set -e
 
 REQUESTED_GAME=""
@@ -109,13 +117,28 @@ if is_la_frite; then
 fi
 
 log "Checking meson + lima DRM support..."
-if ! grep -qE "^meson " /proc/modules 2>/dev/null || ! grep -qE "^lima " /proc/modules 2>/dev/null; then
-    log "WARNING: meson display or lima GPU module not loaded."
+
+# Drivers may be built into the kernel or loaded as modules.
+is_driver_present() {
+    local name="$1"
+    grep -qE "^${name}[[:space:]]" /proc/modules 2>/dev/null && return 0
+    [ -d "/sys/module/${name}" ] && return 0
+    return 1
+}
+
+has_meson=false
+has_lima=false
+is_driver_present "meson" && has_meson=true
+is_driver_present "meson_drm" && has_meson=true
+is_driver_present "lima" && has_lima=true
+
+if ! $has_meson || ! $has_lima; then
+    log "WARNING: meson display or lima GPU support not detected."
     log "If the game does not draw, try one of these fallbacks before launching:"
     log "    export SDL_RENDER_DRIVER=software"
     log "    export MESA_LOADER_DRIVER_OVERRIDE=lima"
 else
-    log "meson/lima kernel modules are loaded"
+    log "meson/lima DRM support looks active"
 fi
 
 if ! ls /dev/dri/card* >/dev/null 2>&1; then
