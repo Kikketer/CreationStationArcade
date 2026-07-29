@@ -22,24 +22,26 @@ class TestLaFriteNativeArcadeSetup(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _run_inject(self, game, target, run_dir="/tmp/arcade-run"):
+    def _run_inject(self, game, target, run_dir="/tmp/arcade-run", pin="27"):
         script = f"""\
 ARCADE_USER='{self.user}'
 ARCADE_USER_HOME='/tmp/home-test'
 GAME_NAME='{game}'
+GPIO_RESET_PIN='{pin}'
 RUN_DIR='{run_dir}'
 {self.function_body}
 inject_launcher '{target}'
 """
         subprocess.run(["bash", "-c", script], check=True)
 
-    def _launcher_block(self, game, commented=False):
+    def _launcher_block(self, game, commented=False, pin="27"):
         prefix = "# " if commented else ""
         return (
             f"\n"
             f"# single-native-arcade launcher\n"
             f'{prefix}if [ "$(tty)" = "/dev/tty1" ]; then\n'
             f'{prefix}  export ARCADE_LOG="$HOME/arcade.log"\n'
+            f'{prefix}  export GPIO_RESET_PIN="{pin}"\n'
             f'{prefix}  export SINGLE_GAME_NAME="{game}"\n'
             f'{prefix}  cd "/tmp/arcade-run" || exit 1\n'
             f'{prefix}  exec bash "/tmp/arcade-run/launcher.sh"\n'
@@ -83,6 +85,14 @@ inject_launcher '{target}'
         content = Path(target).read_text()
         self.assertEqual(content.count("single-native-arcade launcher"), 1)
         self.assertEqual(content.count('SINGLE_GAME_NAME="PaddleTheRiver"'), 1)
+
+    def test_existing_block_updates_reset_pin(self):
+        target = os.path.join(self.tmpdir, "bash_profile")
+        Path(target).write_text(self._launcher_block("ControllerTest", pin="7"))
+        self._run_inject("PaddleTheRiver", target, pin="5")
+        content = Path(target).read_text()
+        self.assertIn('GPIO_RESET_PIN="5"', content)
+        self.assertNotIn('GPIO_RESET_PIN="7"', content)
 
     def test_log_path_uses_home_not_pi(self):
         target = os.path.join(self.tmpdir, "profile")

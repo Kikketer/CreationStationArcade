@@ -5,6 +5,7 @@ set -e
 
 REQUESTED_GAME=""
 REQUESTED_USER=""
+REQUESTED_RESET_PIN=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -12,15 +13,20 @@ while [ $# -gt 0 ]; do
         --user) REQUESTED_USER="$2"; shift 2 ;;
         --game=*) REQUESTED_GAME="${1#*=}"; shift ;;
         --game) REQUESTED_GAME="$2"; shift 2 ;;
+        --gpio-reset-pin=*) REQUESTED_RESET_PIN="${1#*=}"; shift ;;
+        --gpio-reset-pin) REQUESTED_RESET_PIN="$2"; shift 2 ;;
         -h|--help)
-            echo "Usage: $0 [--user=UserName] [--game=GameName]"
-            echo "  --user  defaults to SUDO_USER, then the user running sudo, then 'arcade'."
-            echo "  --game  selects the games/<Name>/Game + libpxt.so to boot."
+            echo "Usage: $0 [--user=UserName] [--game=GameName] [--gpio-reset-pin=Pin]"
+            echo "  --user             defaults to SUDO_USER, then the user running sudo, then 'arcade'."
+            echo "  --game             selects the games/<Name>/Game + libpxt.so to boot."
+            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default 27)."
             exit 0
             ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
+
+GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-27}"
 
 if [ -n "$REQUESTED_USER" ]; then
     ARCADE_USER="$REQUESTED_USER"
@@ -62,11 +68,12 @@ log "=== la-frite-native-arcade setup ==="
 log "Checkout directory: $RUN_DIR"
 log "User:               $ARCADE_USER"
 log "Log file:           $LOG_FILE"
+log "Reset pin:          $GPIO_RESET_PIN"
 
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2
+apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2 python3-libgpiod
 
 # 1a. Architecture check
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
@@ -117,8 +124,10 @@ if ! ls /dev/dri/card* >/dev/null 2>&1; then
 fi
 
 # 2. User / permissions
-log "Adding $ARCADE_USER to video, input, and audio groups..."
-for group in video input audio; do
+log "Adding $ARCADE_USER to video, input, audio, and gpio groups..."
+# Ensure the gpio group exists for /dev/gpiochip* access.
+getent group gpio >/dev/null 2>&1 || groupadd gpio 2>/dev/null || true
+for group in video input audio gpio; do
     if getent group "$group" >/dev/null 2>&1; then
         usermod -aG "$group" "$ARCADE_USER" 2>/dev/null || \
             log "WARNING: could not add $ARCADE_USER to $group group"
@@ -126,6 +135,21 @@ for group in video input audio; do
         log "WARNING: group $group does not exist; skipping"
     fi
 done
+
+# uinput permission for the GPIO reset keyboard helper
+log "Configuring /dev/uinput permissions..."
+modprobe uinput || true
+if [ ! -f /etc/modules-load.d/uinput.conf ]; then
+    echo "uinput" > /etc/modules-load.d/uinput.conf
+fi
+if [ ! -f /etc/udev/rules.d/99-uinput.rules ]; then
+    cat > /etc/udev/rules.d/99-uinput.rules <<'EOF'
+KERNEL=="uinput", MODE="0666"
+EOF
+fi
+if [ -f /etc/rc.local ] && ! grep -q "chmod 0666 /dev/uinput" /etc/rc.local; then
+    sed -i '/^exit 0/i chmod 0666 /dev/uinput' /etc/rc.local
+fi
 
 # 3. Determine active game
 list_valid_games() {
@@ -186,13 +210,16 @@ inject_launcher() {
         chown "$ARCADE_USER:$ARCADE_USER" "$file" 2>/dev/null || true
     fi
     if grep -q "single-native-arcade launcher" "$file" 2>/dev/null; then
-        # Update the game name in the existing launcher block (even if toggled off).
+        # Update the game name and reset pin in the existing launcher block (even if toggled off).
         local tmp
         tmp="$(mktemp)"
         while IFS= read -r line || [ -n "$line" ]; do
-            local re='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME="[^"]*"[[:space:]]*$'
-            if [[ "$line" =~ $re ]]; then
+            local re_game='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME="[^"]*"[[:space:]]*$'
+            local re_pin='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)GPIO_RESET_PIN="[^"]*"[[:space:]]*$'
+            if [[ "$line" =~ $re_game ]]; then
                 echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
+            elif [[ "$line" =~ $re_pin ]]; then
+                echo "${BASH_REMATCH[1]}GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
             else
                 echo "$line"
             fi
@@ -204,6 +231,7 @@ inject_launcher() {
             echo "# single-native-arcade launcher"
             echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
             echo '  export ARCADE_LOG="$HOME/arcade.log"'
+            echo "  export GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
             echo "  export SINGLE_GAME_NAME=\"$GAME_NAME\""
             echo "  cd \"$RUN_DIR\" || exit 1"
             echo "  exec bash \"$RUN_DIR/launcher.sh\""
@@ -226,6 +254,7 @@ chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/toggle-arcade.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/gpio-reset-keyboard.py" 2>/dev/null || true
+chmod +x "$RUN_DIR/gpio-reset-keyboard-gpiod.py" 2>/dev/null || true
 find "$GAMES_DIR" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$RUN_DIR" 2>/dev/null || true
 
