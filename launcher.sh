@@ -80,10 +80,17 @@ else
 fi
 
 # Main loop: keep the native game running.
-while true; do
+MAX_RETRIES="${ARCADE_MAX_RETRIES:-5}"
+RETRY=0
+while [ "$RETRY" -lt "$MAX_RETRIES" ]; do
     _log "Launching $GAME_NAME (native Game)"
     "$RUN_DIR/single-native-launch.sh" "$GAME_DIR" >> "$LOG_FILE" 2>&1
     STATUS=$?
-    _log "single-native-launch.sh exited with status $STATUS; restarting in 2s"
-    sleep 2
+    RETRY=$((RETRY + 1))
+    if [ "$RETRY" -lt "$MAX_RETRIES" ]; then
+        _log "single-native-launch.sh exited with status $STATUS; restarting in 2s (attempt $RETRY/$MAX_RETRIES)"
+        sleep 2
+    fi
 done
+_log "ERROR: $GAME_NAME failed $MAX_RETRIES times; giving up"
+exit 1
