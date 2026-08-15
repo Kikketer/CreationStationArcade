@@ -1,4 +1,4 @@
-# Creation Station Arcade
+# Creation Station Arcade (Chromium Edition)
 
 How to setup a Raspberry PI 3:
 

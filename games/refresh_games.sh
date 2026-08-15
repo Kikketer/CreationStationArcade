@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # Regenerates games.json from .js files in this directory.
 # Preserves existing entries (so manual edits like playerCount aren't lost).
 # Only adds new entries for .js files not already in games.json.

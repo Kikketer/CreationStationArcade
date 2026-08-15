@@ -1,9 +1,45 @@
 [
   {
-    "name": "The Involuntary Hike",
+    "name": "Mushrooms",
+    "author": "Louisa",
+    "playerCount": 1,
+    "file": "LouisaMushrooms.js"
+  },
+  {
+    "name": "Stickman Battleverse",
+    "author": "Charlie",
+    "playerCount": 1,
+    "file": "CharlieStickmanBattleverse.js"
+  },
+  {
+    "name": "Choken Joken",
+    "author": "Harley",
+    "playerCount": 1,
+    "file": "HarleyChokenJoken.js"
+  },
+  {
+    "name": "Soccer",
+    "author": "Max",
+    "playerCount": 1,
+    "file": "MaxSoccer.js"
+  },
+  {
+    "name": "Space Game",
+    "author": "Noah",
+    "playerCount": 1,
+    "file": "NoahSpaceGame.js"
+  },
+  {
+    "name": "Stranger Things",
+    "author": "Theo",
+    "playerCount": 1,
+    "file": "TheoStrangerThings.js"
+  },
+  {
+    "name": "Rock Climber",
     "author": "Eli",
     "playerCount": 1,
-    "file": "EliTheInvoluntaryHike.js"
+    "file": "EliRockClimber.js"
   },
   {
     "name": "Paddle The River",
@@ -34,6 +70,12 @@
     "author": "Eli",
     "playerCount": 4,
     "file": "EliSuperStarStory.js"
+  },
+  {
+    "name": "The Involuntary Hike",
+    "author": "Eli",
+    "playerCount": 1,
+    "file": "EliTheInvoluntaryHike.js"
   },
   {
     "name": "Bunny Cat",
