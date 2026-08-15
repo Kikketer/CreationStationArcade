@@ -1,1 +1,7 @@
 *.data
+.DS_Store
+__pycache__/
+*.pyc
+*.elf
+arcade.log
+.lgd-*

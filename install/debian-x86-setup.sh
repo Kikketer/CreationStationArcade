@@ -129,7 +129,6 @@ else
 fi
 
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/simpleLaunch.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/pullFromGit.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/menu-launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/kill-to-menu.sh" 2>/dev/null || true
