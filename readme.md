@@ -1,5 +1,7 @@
 # Creation Station Arcade
 
+**Full setup docs:** <https://kikketer.github.io/CreationStationArcade> — step-by-step guides for every arcade flavor, written for a non-technical reader.
+
 ## Branches
 
 This repo uses long-lived branches to represent different arcade machine configurations.
