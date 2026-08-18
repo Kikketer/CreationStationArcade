@@ -1,0 +1,51 @@
+site_name: Creation Station Arcade — Setup Guide
+site_description: Plain-language setup guides for every flavor of the Creation Station Arcade, a Raspberry Pi arcade cabinet that runs MakeCode Arcade games.
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+nav:
+  - Home: index.md
+  - Pick Your Arcade: pick-your-arcade.md
+  - Installation Guides:
+      - ELF Menu Arcade (Pi 3): elf-menu.md
+      - Pi 3 / Pi Zero Single-Game ELF: pi3-elf-kiosk.md
+      - Chromium Kiosk (Menu): chromium-kiosk.md
+      - Chromium Single-Game: single-game-kiosk.md
+      - Native SDL Single-Game: single-native-arcade.md
