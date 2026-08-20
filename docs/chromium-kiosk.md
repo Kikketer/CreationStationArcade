@@ -11,10 +11,10 @@ It's the best choice if you:
 - Want the full MakeCode Arcade simulator capability (extensions and all).
 
 !!! tip "Just one game?"
-        If you'd rather boot straight into a single game in Chromium, use the [Chromium Single-Game](single-game-kiosk.md) guide instead — it's the same base, just simplified for one game.
+    If you'd rather boot straight into a single game in Chromium, use the [Chromium Single-Game](single-game-kiosk.md) guide instead — it's the same base, just simplified for one game.
 
 !!! note "Why not a Pi 3?"
-        The ELF flavors don't work on a Pi 5 (the "Hardware" line gotcha), so on a Pi 5 you use Chromium or Native instead. Chromium is heavier on the Pi than the ELF path, so it wants a Pi 5 (or a PC), not a Pi 3.
+    The ELF flavors don't work on a Pi 5 (the "Hardware" line gotcha), so on a Pi 5 you use Chromium or Native instead. Chromium is heavier on the Pi than the ELF path, so it wants a Pi 5 (or a PC), not a Pi 3.
 
 ## What you'll need
 
@@ -95,13 +95,13 @@ bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh
 **What this does** — The all-in-one installer for this flavor. It installs the packages, configures the Pi to auto-log in and start a graphical session, creates a separate "runtime" folder the arcade runs from, and turns on a background service that pulls game updates on boot.
 
 !!! tip "Using GPIO buttons instead of USB gamepads?"
-        If you're wiring real arcade buttons to the Pi's GPIO pins (instead of using USB gamepads), add the flag:
+    If you're wiring real arcade buttons to the Pi's GPIO pins (instead of using USB gamepads), add the flag:
 
-        ```bash
-        bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
-        ```
+    ```bash
+    bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
+    ```
 
-        **What this does** — Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
+    **What this does** — Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
 
 ### Step 6 — (Optional) Set up USB controller player assignments
 

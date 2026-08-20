@@ -11,10 +11,10 @@ It's the best choice if you:
 - Are okay using raw `.elf` files exported from MakeCode Arcade.
 
 !!! tip "Want a menu of games instead?"
-        If you'd rather have a list of games to pick from on a Pi 3, use the [ELF Menu Arcade](elf-menu.md) guide.
+    If you'd rather have a list of games to pick from on a Pi 3, use the [ELF Menu Arcade](elf-menu.md) guide.
 
 !!! note "About the Pi Zero"
-        The Pi Zero has only **one USB port**. If you plug a wired USB gamepad into it, that port is busy, so you can't also use the USB-drive/gadget feature at the same time. Use a **Pi Zero W** with Wi-Fi to transfer games, or move the SD card. The Zero is also slower than the Pi 3 (single-core 1 GHz, 512 MB RAM), so boots and restarts take longer.
+    The Pi Zero has only **one USB port**. If you plug a wired USB gamepad into it, that port is busy, so you can't also use the USB-drive/gadget feature at the same time. Use a **Pi Zero W** with Wi-Fi to transfer games, or move the SD card. The Zero is also slower than the Pi 3 (single-core 1 GHz, 512 MB RAM), so boots and restarts take longer.
 
 ## What you'll need
 
@@ -98,15 +98,15 @@ bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=AndyPadd
 **What this does** — The all-in-one installer for this flavor. Replace `AndyPaddleTheRiver` with the name of any `.elf` file that's in the project's `games/` folder (use the name **without** the `.elf`). The script will tell you which games are available if you give it a name it can't find.
 
 !!! tip "Which input mode?"
-        By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which is what the standard MakeCode Arcade raw ELF expects.
+    By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which is what the standard MakeCode Arcade raw ELF expects.
 
-        If you're using the **4-player raw ELF fork** (the one that reads GPIO pins instead of keyboard events), add `--input-mode=gpio`:
+    If you're using the **4-player raw ELF fork** (the one that reads GPIO pins instead of keyboard events), add `--input-mode=gpio`:
 
-        ```bash
-        bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
-        ```
+    ```bash
+    bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
+    ```
 
-        **What this does** — Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. Only use this with the 4-player raw ELF fork.
+    **What this does** — Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. Only use this with the 4-player raw ELF fork.
 
 ### Step 6 — Install the boot splash screen (hides boot text)
 
@@ -173,13 +173,13 @@ The raw `.elf` game needs the Pi to report a line called `Hardware` about itself
 The setup script checks for the line and warns you if it's missing. The danger is the same as the menu flavor: **don't run `sudo apt upgrade`**, because a newer kernel can delete the `Hardware` line and your game will stop launching.
 
 !!! warning "Do not run `sudo apt upgrade` on this arcade"
-        The setup script deliberately skips the full upgrade to protect the kernel version. To check whether your Pi still has the line:
+    The setup script deliberately skips the full upgrade to protect the kernel version. To check whether your Pi still has the line:
 
-        ```bash
-        grep Hardware /proc/cpuinfo
-        ```
+    ```bash
+    grep Hardware /proc/cpuinfo
+    ```
 
-        **What this does** — Prints the `Hardware` line. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF won't run. Back up your working SD card image once the arcade runs, so you can re-flash it if the kernel ever updates by accident.
+    **What this does** — Prints the `Hardware` line. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF won't run. Back up your working SD card image once the arcade runs, so you can re-flash it if the kernel ever updates by accident.
 
 ### Pi Zero: only one USB port
 

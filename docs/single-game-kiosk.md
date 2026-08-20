@@ -11,7 +11,7 @@ It's the best choice if you:
 - Want the full MakeCode Arcade simulator capability (extensions and all), but don't need a menu.
 
 !!! tip "Want a menu of games instead?"
-        Use the [Chromium Kiosk (Menu)](chromium-kiosk.md) guide — it's the same base with a menu.
+    Use the [Chromium Kiosk (Menu)](chromium-kiosk.md) guide — it's the same base with a menu.
 
 ## What you'll need
 

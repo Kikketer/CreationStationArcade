@@ -12,10 +12,10 @@ It's the best choice if you:
 - Are getting your game from the `make-web` `/desktop` tool, which builds the native `Game` binary.
 
 !!! warning "Needs a 64-bit operating system"
-        The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
+    The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
 
 !!! tip "Want a menu, or a browser-based game?"
-        This flavor has no menu and no browser. For a menu of games on a Pi 5/PC, use [Chromium Kiosk (Menu)](chromium-kiosk.md). For a single game in a browser, use [Chromium Single-Game](single-game-kiosk.md).
+    This flavor has no menu and no browser. For a menu of games on a Pi 5/PC, use [Chromium Kiosk (Menu)](chromium-kiosk.md). For a single game in a browser, use [Chromium Single-Game](single-game-kiosk.md).
 
 ## What you'll need
 
@@ -104,7 +104,7 @@ chmod +x games/MyGame/Game
 **What this does** — Creates a folder for your game inside `games/`, extracts the archive into it (the archive contains `Game` and `libpxt.so` — both must stay in that folder together), and marks `Game` as runnable. Replace `MyGame` and the archive name with your actual file names.
 
 !!! warning "Keep `Game` and `libpxt.so` together"
-        The `Game` program needs `libpxt.so` sitting right next to it in the same folder. Don't move one without the other.
+    The `Game` program needs `libpxt.so` sitting right next to it in the same folder. Don't move one without the other.
 
 ### Step 6 — Run the one-shot setup script
 
@@ -119,10 +119,10 @@ sudo reboot
 **What this does** — The all-in-one installer for this flavor. Replace `MyGame` with the folder name you created in Step 5 (the name of the folder under `games/`, not the archive). The script installs the libraries the `Game` binary needs, enables the Pi's KMS graphics overlay, sets up auto-login so the cabinet boots straight into the game, and writes the launch settings. The reboot starts it.
 
 !!! tip "No `--game` argument?"
-        If you leave off `--game`, the installer picks the first valid game it finds under `games/` (a folder containing both `Game` and `libpxt.so`). That's handy if you only have one game.
+    If you leave off `--game`, the installer picks the first valid game it finds under `games/` (a folder containing both `Game` and `libpxt.so`). That's handy if you only have one game.
 
 !!! note "What the installer sets up behind the scenes"
-        On a Raspberry Pi it enables the `dtoverlay=vc4-kms-v3d,cma-128` line in your boot config so the Pi has a graphics device for SDL to use. It also sets the runtime environment variables `SDL_VIDEODRIVER=kmsdrm` and `SDL_RENDER_DRIVER=opengles2` (on ARM64) so the `Game` binary draws to the screen correctly. You don't have to do any of this by hand.
+    On a Raspberry Pi it enables the `dtoverlay=vc4-kms-v3d,cma-128` line in your boot config so the Pi has a graphics device for SDL to use. It also sets the runtime environment variables `SDL_VIDEODRIVER=kmsdrm` and `SDL_RENDER_DRIVER=opengles2` (on ARM64) so the `Game` binary draws to the screen correctly. You don't have to do any of this by hand.
 
 ### Step 7 — (Optional) Wire the GPIO reset button
 
@@ -176,7 +176,7 @@ You can also save the new game folder to the project and upload it through git t
 This means the graphics setup is incomplete. The `Game` binary needs the OpenGL ES renderer explicitly. The installer sets `SDL_RENDER_DRIVER=opengles2` for you, but if it's missing you'll see a black window. Make sure you ran the installer (it sets this), and on a Pi make sure the `vc4-kms-v3d,cma-128` overlay is enabled in your boot config (the installer does this too). Re-run the installer to rewrite both.
 
 !!! note "Why this happens"
-        Without `SDL_RENDER_DRIVER=opengles2` the window opens but stays black. Without the EGL/GLES libraries (`libegl1`, `libgles2`) the window can fail to create at all. The installer installs all of these, so re-running it fixes both.
+    Without `SDL_RENDER_DRIVER=opengles2` the window opens but stays black. Without the EGL/GLES libraries (`libegl1`, `libgles2`) the window can fail to create at all. The installer installs all of these, so re-running it fixes both.
 
 ### "no native game found" during setup
 

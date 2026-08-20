@@ -11,7 +11,7 @@ It's the best choice if you:
 - Are okay using raw `.elf` files exported from MakeCode Arcade.
 
 !!! tip "One game, not a menu?"
-        If you'd rather boot straight into a single game with no menu, use the [Pi 3 / Pi Zero Single-Game ELF](pi3-elf-kiosk.md) guide instead. It's simpler.
+    If you'd rather boot straight into a single game with no menu, use the [Pi 3 / Pi Zero Single-Game ELF](pi3-elf-kiosk.md) guide instead. It's simpler.
 
 ## What you'll need
 
@@ -212,7 +212,7 @@ When you add or change a game and upload it to the project, the arcade doesn't p
 So after you push a new game: reboot once (wait for it to finish), then reboot again. Your new game will appear.
 
 !!! note "Why two reboots?"
-        The arcade runs from the runtime folder, but only the source folder talks to the internet. The first reboot refreshes the source; the second copies source → runtime. This keeps a half-downloaded update from breaking the game you're currently playing.
+    The arcade runs from the runtime folder, but only the source folder talks to the internet. The first reboot refreshes the source; the second copies source → runtime. This keeps a half-downloaded update from breaking the game you're currently playing.
 
 ## If something goes wrong
 
@@ -223,17 +223,17 @@ The raw `.elf` games need the Pi to report a line called `Hardware` about itself
 The danger: if you run the normal "update everything" command on your Pi 3, it can pull down the newer kernel that deletes the `Hardware` line, and your arcade will stop booting.
 
 !!! warning "Do not run `sudo apt upgrade` on this arcade"
-        The setup scripts in this project deliberately skip the full upgrade to protect the kernel version. If you ever run `sudo apt upgrade` (or accept a prompt that upgrades the kernel), the `Hardware` line may disappear and the ELF games will fail to launch.
+    The setup scripts in this project deliberately skip the full upgrade to protect the kernel version. If you ever run `sudo apt upgrade` (or accept a prompt that upgrades the kernel), the `Hardware` line may disappear and the ELF games will fail to launch.
 
-        To check whether your Pi still has the line:
+    To check whether your Pi still has the line:
 
-        ```bash
-        grep Hardware /proc/cpuinfo
-        ```
+    ```bash
+    grep Hardware /proc/cpuinfo
+    ```
 
-        **What this does** — Prints the `Hardware` line from the Pi's CPU info. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF games won't run.
+    **What this does** — Prints the `Hardware` line from the Pi's CPU info. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF games won't run.
 
-        **Back up your working SD card image** once the arcade is running, so if the kernel ever updates by accident you can re-flash the good version.
+    **Back up your working SD card image** once the arcade is running, so if the kernel ever updates by accident you can re-flash the good version.
 
 ### No HDMI audio
 
