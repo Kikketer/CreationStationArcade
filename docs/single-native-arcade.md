@@ -45,8 +45,7 @@ This flavor runs a native `Game` binary that you build with the `make-web` `/des
     - **x86-64** for a desktop Linux PC.
 4. Download the resulting `.tar.gz` archive (for example `SafeName-arm64.tar.gz`).
 
-!!! note "What this does"
-        Builds a compiled `Game` program for your target machine and packages it (with its helper library `libpxt.so`) into a downloadable archive.
+**What this does** — Builds a compiled `Game` program for your target machine and packages it (with its helper library `libpxt.so`) into a downloadable archive.
 
 ### Step 2 — Flash the operating system
 
@@ -59,8 +58,7 @@ For a **Raspberry Pi**, use the **64-bit Lite** version of Raspberry Pi OS.
 5. Under **Choose Storage**, pick your microSD card.
 6. Click **Write** and wait for it to finish.
 
-!!! note "What this does"
-        Copies a fresh, minimal 64-bit operating system onto the SD card. 64-bit is required — the `Game` binary won't run on a 32-bit OS.
+**What this does** — Copies a fresh, minimal 64-bit operating system onto the SD card. 64-bit is required — the `Game` binary won't run on a 32-bit OS.
 
 For a **regular PC**, install a 64-bit Debian or Ubuntu server.
 
@@ -73,8 +71,7 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server.
     sudo raspi-config
     ```
 
-    !!! note "What this does"
-            Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
+    **What this does** — Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
 
 3. Check the connection:
 
@@ -82,8 +79,7 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server.
     ping -c 3 google.com
     ```
 
-    !!! note "What this does"
-        Sends three test messages to the internet. Replies mean you're online.
+    **What this does** — Sends three test messages to the internet. Replies mean you're online.
 
 ### Step 4 — Download the arcade project
 
@@ -92,8 +88,7 @@ sudo apt update && sudo apt install -y git
 git clone -b single-native-arcade https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade
 ```
 
-!!! note "What this does"
-        Updates the package list, installs `git`, then copies the Creation Station Arcade project (the native single-game branch) into `/home/pi/CreationStationArcade`. This flavor runs directly from that folder — there's no separate "runtime" folder like the other flavors.
+**What this does** — Updates the package list, installs `git`, then copies the Creation Station Arcade project (the native single-game branch) into `/home/pi/CreationStationArcade`. This flavor runs directly from that folder — there's no separate "runtime" folder like the other flavors.
 
 ### Step 5 — Add your game to the project
 
@@ -106,8 +101,7 @@ tar xzf MyGame-arm64.tar.gz -C games/MyGame
 chmod +x games/MyGame/Game
 ```
 
-!!! note "What this does"
-        Creates a folder for your game inside `games/`, extracts the archive into it (the archive contains `Game` and `libpxt.so` — both must stay in that folder together), and marks `Game` as runnable. Replace `MyGame` and the archive name with your actual file names.
+**What this does** — Creates a folder for your game inside `games/`, extracts the archive into it (the archive contains `Game` and `libpxt.so` — both must stay in that folder together), and marks `Game` as runnable. Replace `MyGame` and the archive name with your actual file names.
 
 !!! warning "Keep `Game` and `libpxt.so` together"
         The `Game` program needs `libpxt.so` sitting right next to it in the same folder. Don't move one without the other.
@@ -122,8 +116,7 @@ sudo bash install/single-native-arcade-setup.sh --game=MyGame
 sudo reboot
 ```
 
-!!! note "What this does"
-        The all-in-one installer for this flavor. Replace `MyGame` with the folder name you created in Step 5 (the name of the folder under `games/`, not the archive). The script installs the libraries the `Game` binary needs, enables the Pi's KMS graphics overlay, sets up auto-login so the cabinet boots straight into the game, and writes the launch settings. The reboot starts it.
+**What this does** — The all-in-one installer for this flavor. Replace `MyGame` with the folder name you created in Step 5 (the name of the folder under `games/`, not the archive). The script installs the libraries the `Game` binary needs, enables the Pi's KMS graphics overlay, sets up auto-login so the cabinet boots straight into the game, and writes the launch settings. The reboot starts it.
 
 !!! tip "No `--game` argument?"
         If you leave off `--game`, the installer picks the first valid game it finds under `games/` (a folder containing both `Game` and `libpxt.so`). That's handy if you only have one game.
@@ -147,8 +140,7 @@ Pin 14  GND      -> other switch wire
 
 Because the button pulls the pin to ground, the launcher runs the reset helper in "active-low" mode by default. To use a different GPIO pin, set `GPIO_RESET_PIN` before rebooting. To use an active-high (3.3 V) button instead, set `GPIO_RESET_ACTIVE_HIGH=1`.
 
-!!! note "What this does"
-        The reset button wires to GPIO 27 and ground. The launcher's reset helper watches that pin and, when it's pressed, injects an `r` keypress into the running `Game`, which the game turns into a soft reset. No external kill script runs — the game handles the reset itself.
+**What this does** — The reset button wires to GPIO 27 and ground. The launcher's reset helper watches that pin and, when it's pressed, injects an `r` keypress into the running `Game`, which the game turns into a soft reset. No external kill script runs — the game handles the reset itself.
 
 ### Step 8 — Play
 
@@ -167,8 +159,7 @@ This flavor has no menu. To switch games:
     sudo reboot
     ```
 
-    !!! note "What this does"
-        Updates the auto-launch settings to boot into the new game, then reboots into it.
+    **What this does** — Updates the auto-launch settings to boot into the new game, then reboots into it.
 
 ## Putting a new game on the arcade
 
@@ -195,8 +186,7 @@ The installer looks for a folder under `games/` that contains **both** `Game` an
 ls -l /home/pi/CreationStationArcade/games/MyGame/
 ```
 
-!!! note "What this does"
-        Lists the files in your game folder. You should see both `Game` and `libpxt.so`. If `Game` isn't marked executable, run `chmod +x games/MyGame/Game`. If a file is missing, re-extract the archive (Step 5).
+**What this does** — Lists the files in your game folder. You should see both `Game` and `libpxt.so`. If `Game` isn't marked executable, run `chmod +x games/MyGame/Game`. If a file is missing, re-extract the archive (Step 5).
 
 ### I'm on a 32-bit Pi (original Pi Zero / Pi 1)
 
@@ -211,8 +201,7 @@ sudo /home/pi/CreationStationArcade/install/hdmi-audio-fix.sh
 sudo reboot
 ```
 
-!!! note "What this does"
-        Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
+**What this does** — Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
 
 ### I need to get back to a normal prompt
 
@@ -222,8 +211,7 @@ The auto-launch runs on TTY1. To disable it for debugging, use the toggle script
 bash /home/pi/CreationStationArcade/toggle-arcade.sh disable
 ```
 
-!!! note "What this does"
-        Turns off the auto-launch so the next time you log in on TTY1 you get a normal shell instead of the game. Re-enable it with `toggle-arcade.sh enable` when you're done. See the project's `notes.md` for more.
+**What this does** — Turns off the auto-launch so the next time you log in on TTY1 you get a normal shell instead of the game. Re-enable it with `toggle-arcade.sh enable` when you're done. See the project's `notes.md` for more.
 
 ### I need to kill a stuck game from another session
 
@@ -234,5 +222,4 @@ sudo pkill -9 -f "games/[^/]+/Game"
 sudo pkill -9 -f launcher.sh
 ```
 
-!!! note "What this does"
-        Force-stops any running `Game` process and the launcher loop. Then see `notes.md` for restoring the launcher shell.
+**What this does** — Force-stops any running `Game` process and the launcher loop. Then see `notes.md` for restoring the launcher shell.

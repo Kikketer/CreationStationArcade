@@ -42,8 +42,7 @@ This flavor needs the **32-bit Lite** version of Raspberry Pi OS. "Lite" means n
 5. Under **Choose Storage**, pick your microSD card.
 6. Click **Write**. Wait for it to finish.
 
-!!! note "What this does"
-        It copies a fresh, minimal operating system onto the SD card. The Pi will boot from this card.
+**What this does** — It copies a fresh, minimal operating system onto the SD card. The Pi will boot from this card.
 
 ### Step 2 — Boot the Pi and connect it to the internet
 
@@ -60,8 +59,7 @@ This flavor needs the **32-bit Lite** version of Raspberry Pi OS. "Lite" means n
     sudo raspi-config
     ```
 
-    !!! note "What this does"
-            Opens the Pi's settings menu. Use your arrow keys to go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
+    **What this does** — Opens the Pi's settings menu. Use your arrow keys to go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
 
 5. Make sure the Pi is online by running:
 
@@ -69,8 +67,7 @@ This flavor needs the **32-bit Lite** version of Raspberry Pi OS. "Lite" means n
     ping -c 3 google.com
     ```
 
-    !!! note "What this does"
-            Sends three test messages to the internet. If you see replies, the Pi is online. Press `Ctrl+C` if it doesn't stop on its own.
+    **What this does** — Sends three test messages to the internet. If you see replies, the Pi is online. Press `Ctrl+C` if it doesn't stop on its own.
 
 ### Step 3 — Install the tool that downloads the arcade software
 
@@ -80,8 +77,7 @@ The Pi needs a small program called `git` to download the arcade files from the 
 sudo apt install git
 ```
 
-!!! note "What this does"
-        Installs `git`, the program that copies code projects from the internet onto your Pi. Type `y` if it asks to confirm.
+**What this does** — Installs `git`, the program that copies code projects from the internet onto your Pi. Type `y` if it asks to confirm.
 
 ### Step 4 — Download the arcade project
 
@@ -89,8 +85,7 @@ sudo apt install git
 git clone https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src
 ```
 
-!!! note "What this does"
-        Copies the entire Creation Station Arcade project into a folder called `CreationStationArcade-src` inside your home folder. The `-src` at the end matters — the next step depends on it.
+**What this does** — Copies the entire Creation Station Arcade project into a folder called `CreationStationArcade-src` inside your home folder. The `-src` at the end matters — the next step depends on it.
 
 ### Step 5 — Create the runtime folder
 
@@ -103,8 +98,7 @@ This flavor uses **two folders**:
 bash /home/pi/CreationStationArcade-src/setup.sh
 ```
 
-!!! note "What this does"
-        Creates the runtime folder (`CreationStationArcade` — without the `-src`) and copies the project files into it. The `setup.sh` script checks that you ran it from the `-src` folder and refuses if you didn't.
+**What this does** — Creates the runtime folder (`CreationStationArcade` — without the `-src`) and copies the project files into it. The `setup.sh` script checks that you ran it from the `-src` folder and refuses if you didn't.
 
 ### Step 6 — Install the boot splash screen (hides the boot text)
 
@@ -115,8 +109,7 @@ sudo /home/pi/CreationStationArcade/install/splash-setup.sh
 sudo reboot
 ```
 
-!!! note "What this does"
-        The first command installs a tiny image viewer (`fbi`), turns on a background service that shows the arcade logo, and edits the Pi's boot settings so the kernel text is hidden. The second command restarts the Pi so the changes take effect. Log back in as `pi` / `raspberry` after it reboots.
+**What this does** — The first command installs a tiny image viewer (`fbi`), turns on a background service that shows the arcade logo, and edits the Pi's boot settings so the kernel text is hidden. The second command restarts the Pi so the changes take effect. Log back in as `pi` / `raspberry` after it reboots.
 
 ### Step 7 — (Only if games have no sound) Fix HDMI audio
 
@@ -127,8 +120,7 @@ sudo /home/pi/CreationStationArcade/install/hdmi-audio-fix.sh
 sudo reboot
 ```
 
-!!! note "What this does"
-        Copies in corrected audio settings for the Pi's HDMI output and backs up your old ones. Reboot so the new settings load. (You can skip this step if your games already have sound.)
+**What this does** — Copies in corrected audio settings for the Pi's HDMI output and backs up your old ones. Reboot so the new settings load. (You can skip this step if your games already have sound.)
 
 ### Step 8 — Create an "admin" user
 
@@ -139,8 +131,7 @@ sudo adduser admin
 sudo usermod -aG sudo admin
 ```
 
-!!! note "What this does"
-        Creates a new user called `admin` and gives it permission to run administrator commands. It'll ask you to set a password for `admin` — pick one you'll remember.
+**What this does** — Creates a new user called `admin` and gives it permission to run administrator commands. It'll ask you to set a password for `admin` — pick one you'll remember.
 
 ### Step 9 — Set up shared file permissions
 
@@ -157,8 +148,7 @@ echo "umask 002" | sudo tee /etc/profile.d/arcadeadmin.sh
 source /etc/profile.d/arcadeadmin.sh
 ```
 
-!!! note "What this does"
-        Makes a group called `arcadeadmin`, adds both users to it, sets the home folder so any new files are automatically shared between them, and sets a default rule so future files keep those shared permissions.
+**What this does** — Makes a group called `arcadeadmin`, adds both users to it, sets the home folder so any new files are automatically shared between them, and sets a default rule so future files keep those shared permissions.
 
 ### Step 10 — (Optional) Set up a custom menu folder
 
@@ -169,8 +159,7 @@ sudo mkdir -p /sd/prj
 sudo chmod +w /sd/prj
 ```
 
-!!! note "What this does"
-        Creates a folder at `/sd/prj` that the custom menu will read from. Skip this if you're happy with the default games folder.
+**What this does** — Creates a folder at `/sd/prj` that the custom menu will read from. Skip this if you're happy with the default games folder.
 
 ### Step 11 — Lock the `pi` user to the arcade
 
@@ -180,8 +169,7 @@ The last setup step makes the `pi` user boot straight into the arcade instead of
 sudo usermod -s /home/pi/CreationStationArcade/launcher.sh pi
 ```
 
-!!! note "What this does"
-        Changes the `pi` user's "login shell" — the program that runs when `pi` logs in — to the arcade's `launcher.sh` script. From now on, whenever the Pi boots and auto-logs in as `pi`, it goes straight into the arcade loop.
+**What this does** — Changes the `pi` user's "login shell" — the program that runs when `pi` logs in — to the arcade's `launcher.sh` script. From now on, whenever the Pi boots and auto-logs in as `pi`, it goes straight into the arcade loop.
 
 ### Step 12 — Reboot and play
 
@@ -204,8 +192,7 @@ If you don't need 4 players, you can export a regular raw `.elf` from MakeCode A
     ?nolocalhost=1&compile=rawELF&hw=rpi#editor
     ```
 
-    !!! note "What this does"
-            Tells MakeCode to show the hidden "raw ELF" export option for the Raspberry Pi hardware.
+    **What this does** — Tells MakeCode to show the hidden "raw ELF" export option for the Raspberry Pi hardware.
 
 3. Click the **Download** button (bottom-left). You'll get a `.elf` file.
 4. Put that `.elf` file into the `games/` folder of the arcade project (on the `pi` or `admin` account, or by pushing it through git).
@@ -244,8 +231,7 @@ The danger: if you run the normal "update everything" command on your Pi 3, it c
         grep Hardware /proc/cpuinfo
         ```
 
-        !!! note "What this does"
-                Prints the `Hardware` line from the Pi's CPU info. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF games won't run.
+        **What this does** — Prints the `Hardware` line from the Pi's CPU info. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF games won't run.
 
         **Back up your working SD card image** once the arcade is running, so if the kernel ever updates by accident you can re-flash the good version.
 
@@ -275,5 +261,4 @@ Log in as the `admin` user (from Step 8) instead of `pi`. The `admin` account ha
 sudo usermod -s /bin/bash pi
 ```
 
-!!! note "What this does"
-        Switches the `pi` user back to a normal text shell so you can log in and troubleshoot. Re-run Step 11 to lock it back to the arcade when you're done.
+**What this does** — Switches the `pi` user back to a normal text shell so you can log in and troubleshoot. Re-run Step 11 to lock it back to the arcade when you're done.
