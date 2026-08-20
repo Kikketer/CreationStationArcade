@@ -45,7 +45,8 @@ For a **Raspberry Pi 5**, use the **64-bit Lite** version of Raspberry Pi OS.
 5. Under **Choose Storage**, pick your microSD card.
 6. Click **Write** and wait for it to finish.
 
-**What this does** — Copies a fresh, minimal 64-bit operating system onto the SD card. Use 64-bit — the Pi 5 needs it.
+!!! note "What this does"
+    Copies a fresh, minimal 64-bit operating system onto the SD card. Use 64-bit — the Pi 5 needs it.
 
 For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop needed). The setup script will install the graphical pieces it requires.
 
@@ -58,7 +59,8 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop neede
     sudo raspi-config
     ```
 
-    **What this does** — Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
+    !!! note "What this does"
+        Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
 
 3. Check the connection:
 
@@ -66,7 +68,8 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop neede
     ping -c 3 google.com
     ```
 
-    **What this does** — Sends three test messages to the internet. Replies mean you're online.
+    !!! note "What this does"
+        Sends three test messages to the internet. Replies mean you're online.
 
 ### Step 3 — Install the download tool
 
@@ -74,7 +77,8 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop neede
 sudo apt install git
 ```
 
-**What this does** — Installs `git`, the program that copies code projects from the internet onto your machine.
+!!! note "What this does"
+    Installs `git`, the program that copies code projects from the internet onto your machine.
 
 ### Step 4 — Download the arcade project
 
@@ -82,7 +86,8 @@ sudo apt install git
 git clone -b chromium-kiosk https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src
 ```
 
-**What this does** — Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b chromium-kiosk` part grabs the Chromium menu flavor specifically. (On a PC, you can clone it wherever you like; the rest of this guide assumes `/home/pi/CreationStationArcade-src`.)
+!!! note "What this does"
+    Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b chromium-kiosk` part grabs the Chromium menu flavor specifically. (On a PC, you can clone it wherever you like; the rest of this guide assumes `/home/pi/CreationStationArcade-src`.)
 
 ### Step 5 — Run the one-shot setup script
 
@@ -92,7 +97,8 @@ This flavor has a single setup script that does almost everything: installs Chro
 bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh
 ```
 
-**What this does** — The all-in-one installer for this flavor. It installs the packages, configures the Pi to auto-log in and start a graphical session, creates a separate "runtime" folder the arcade runs from, and turns on a background service that pulls game updates on boot.
+!!! note "What this does"
+    The all-in-one installer for this flavor. It installs the packages, configures the Pi to auto-log in and start a graphical session, creates a separate "runtime" folder the arcade runs from, and turns on a background service that pulls game updates on boot.
 
 !!! tip "Using GPIO buttons instead of USB gamepads?"
     If you're wiring real arcade buttons to the Pi's GPIO pins (instead of using USB gamepads), add the flag:
@@ -101,7 +107,8 @@ bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh
     bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
     ```
 
-    **What this does** — Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
+    !!! note "What this does"
+        Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
 
 ### Step 6 — (Optional) Set up USB controller player assignments
 
@@ -111,7 +118,8 @@ If you're using USB gamepads and you want each USB port to always map to the sam
 sudo bash /home/pi/CreationStationArcade-src-run/setup-usb-controllers.sh
 ```
 
-**What this does** — Creates stable controller-to-player mappings based on which USB port each controller is plugged into. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
+!!! note "What this does"
+    Creates stable controller-to-player mappings based on which USB port each controller is plugged into. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
 
 ### Step 7 — Reboot and play
 
@@ -133,7 +141,8 @@ Games in this flavor are a `.js` file plus a matching `.png` image, listed in a 
     bash games/refresh_games.sh
     ```
 
-    **What this does** — Rebuilds `games.json` from the files in `games/`. You can also edit `games.json` by hand to set each game's `name`, `author`, and `playerCount`.
+    !!! note "What this does"
+        Rebuilds `games.json` from the files in `games/`. You can also edit `games.json` by hand to set each game's `name`, `author`, and `playerCount`.
 
 4. Save the change to the project and upload it (push it through git).
 5. Reboot the arcade. The launcher pulls the latest code on boot and syncs it into the runtime folder, so your new game appears after the reboot.
@@ -153,7 +162,8 @@ sudo /home/pi/CreationStationArcade-src-run/install/hdmi-audio-fix.sh
 sudo reboot
 ```
 
-**What this does** — Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
+!!! note "What this does"
+    Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
 
 ### USB controllers aren't detected
 
@@ -163,7 +173,8 @@ Check what the system sees:
 ls /dev/input/js*
 ```
 
-**What this does** — Lists the joystick devices the system has found. If nothing appears, your controller isn't being recognized — try a different USB port or cable. If devices appear but player numbers are wrong, re-run the USB controller setup from Step 6.
+!!! note "What this does"
+    Lists the joystick devices the system has found. If nothing appears, your controller isn't being recognized — try a different USB port or cable. If devices appear but player numbers are wrong, re-run the USB controller setup from Step 6.
 
 ### GPIO buttons don't work
 
