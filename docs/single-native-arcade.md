@@ -12,10 +12,10 @@ It's the best choice if you:
 - Are getting your game from the `make-web` `/desktop` tool, which builds the native `Game` binary.
 
 !!! warning "Needs a 64-bit operating system"
-        The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
+    The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
 
 !!! tip "Want a menu, or a browser-based game?"
-        This flavor has no menu and no browser. For a menu of games on a Pi 5/PC, use [Chromium Kiosk (Menu)](chromium-kiosk.md). For a single game in a browser, use [Chromium Single-Game](single-game-kiosk.md).
+    This flavor has no menu and no browser. For a menu of games on a Pi 5/PC, use [Chromium Kiosk (Menu)](chromium-kiosk.md). For a single game in a browser, use [Chromium Single-Game](single-game-kiosk.md).
 
 ## What you'll need
 
@@ -46,7 +46,7 @@ This flavor runs a native `Game` binary that you build with the `make-web` `/des
 4. Download the resulting `.tar.gz` archive (for example `SafeName-arm64.tar.gz`).
 
 !!! note "What this does"
-        Builds a compiled `Game` program for your target machine and packages it (with its helper library `libpxt.so`) into a downloadable archive.
+    Builds a compiled `Game` program for your target machine and packages it (with its helper library `libpxt.so`) into a downloadable archive.
 
 ### Step 2 — Flash the operating system
 
@@ -60,7 +60,7 @@ For a **Raspberry Pi**, use the **64-bit Lite** version of Raspberry Pi OS.
 6. Click **Write** and wait for it to finish.
 
 !!! note "What this does"
-        Copies a fresh, minimal 64-bit operating system onto the SD card. 64-bit is required — the `Game` binary won't run on a 32-bit OS.
+    Copies a fresh, minimal 64-bit operating system onto the SD card. 64-bit is required — the `Game` binary won't run on a 32-bit OS.
 
 For a **regular PC**, install a 64-bit Debian or Ubuntu server.
 
@@ -74,7 +74,7 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server.
     ```
 
     !!! note "What this does"
-            Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
+        Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
 
 3. Check the connection:
 
@@ -93,7 +93,7 @@ git clone -b single-native-arcade https://github.com/kikketer/CreationStationArc
 ```
 
 !!! note "What this does"
-        Updates the package list, installs `git`, then copies the Creation Station Arcade project (the native single-game branch) into `/home/pi/CreationStationArcade`. This flavor runs directly from that folder — there's no separate "runtime" folder like the other flavors.
+    Updates the package list, installs `git`, then copies the Creation Station Arcade project (the native single-game branch) into `/home/pi/CreationStationArcade`. This flavor runs directly from that folder — there's no separate "runtime" folder like the other flavors.
 
 ### Step 5 — Add your game to the project
 
@@ -107,10 +107,10 @@ chmod +x games/MyGame/Game
 ```
 
 !!! note "What this does"
-        Creates a folder for your game inside `games/`, extracts the archive into it (the archive contains `Game` and `libpxt.so` — both must stay in that folder together), and marks `Game` as runnable. Replace `MyGame` and the archive name with your actual file names.
+    Creates a folder for your game inside `games/`, extracts the archive into it (the archive contains `Game` and `libpxt.so` — both must stay in that folder together), and marks `Game` as runnable. Replace `MyGame` and the archive name with your actual file names.
 
 !!! warning "Keep `Game` and `libpxt.so` together"
-        The `Game` program needs `libpxt.so` sitting right next to it in the same folder. Don't move one without the other.
+    The `Game` program needs `libpxt.so` sitting right next to it in the same folder. Don't move one without the other.
 
 ### Step 6 — Run the one-shot setup script
 
@@ -123,13 +123,13 @@ sudo reboot
 ```
 
 !!! note "What this does"
-        The all-in-one installer for this flavor. Replace `MyGame` with the folder name you created in Step 5 (the name of the folder under `games/`, not the archive). The script installs the libraries the `Game` binary needs, enables the Pi's KMS graphics overlay, sets up auto-login so the cabinet boots straight into the game, and writes the launch settings. The reboot starts it.
+    The all-in-one installer for this flavor. Replace `MyGame` with the folder name you created in Step 5 (the name of the folder under `games/`, not the archive). The script installs the libraries the `Game` binary needs, enables the Pi's KMS graphics overlay, sets up auto-login so the cabinet boots straight into the game, and writes the launch settings. The reboot starts it.
 
 !!! tip "No `--game` argument?"
-        If you leave off `--game`, the installer picks the first valid game it finds under `games/` (a folder containing both `Game` and `libpxt.so`). That's handy if you only have one game.
+    If you leave off `--game`, the installer picks the first valid game it finds under `games/` (a folder containing both `Game` and `libpxt.so`). That's handy if you only have one game.
 
 !!! note "What the installer sets up behind the scenes"
-        On a Raspberry Pi it enables the `dtoverlay=vc4-kms-v3d,cma-128` line in your boot config so the Pi has a graphics device for SDL to use. It also sets the runtime environment variables `SDL_VIDEODRIVER=kmsdrm` and `SDL_RENDER_DRIVER=opengles2` (on ARM64) so the `Game` binary draws to the screen correctly. You don't have to do any of this by hand.
+    On a Raspberry Pi it enables the `dtoverlay=vc4-kms-v3d,cma-128` line in your boot config so the Pi has a graphics device for SDL to use. It also sets the runtime environment variables `SDL_VIDEODRIVER=kmsdrm` and `SDL_RENDER_DRIVER=opengles2` (on ARM64) so the `Game` binary draws to the screen correctly. You don't have to do any of this by hand.
 
 ### Step 7 — (Optional) Wire the GPIO reset button
 
@@ -148,7 +148,7 @@ Pin 14  GND      -> other switch wire
 Because the button pulls the pin to ground, the launcher runs the reset helper in "active-low" mode by default. To use a different GPIO pin, set `GPIO_RESET_PIN` before rebooting. To use an active-high (3.3 V) button instead, set `GPIO_RESET_ACTIVE_HIGH=1`.
 
 !!! note "What this does"
-        The reset button wires to GPIO 27 and ground. The launcher's reset helper watches that pin and, when it's pressed, injects an `r` keypress into the running `Game`, which the game turns into a soft reset. No external kill script runs — the game handles the reset itself.
+    The reset button wires to GPIO 27 and ground. The launcher's reset helper watches that pin and, when it's pressed, injects an `r` keypress into the running `Game`, which the game turns into a soft reset. No external kill script runs — the game handles the reset itself.
 
 ### Step 8 — Play
 
@@ -185,7 +185,7 @@ You can also save the new game folder to the project and upload it through git t
 This means the graphics setup is incomplete. The `Game` binary needs the OpenGL ES renderer explicitly. The installer sets `SDL_RENDER_DRIVER=opengles2` for you, but if it's missing you'll see a black window. Make sure you ran the installer (it sets this), and on a Pi make sure the `vc4-kms-v3d,cma-128` overlay is enabled in your boot config (the installer does this too). Re-run the installer to rewrite both.
 
 !!! note "Why this happens"
-        Without `SDL_RENDER_DRIVER=opengles2` the window opens but stays black. Without the EGL/GLES libraries (`libegl1`, `libgles2`) the window can fail to create at all. The installer installs all of these, so re-running it fixes both.
+    Without `SDL_RENDER_DRIVER=opengles2` the window opens but stays black. Without the EGL/GLES libraries (`libegl1`, `libgles2`) the window can fail to create at all. The installer installs all of these, so re-running it fixes both.
 
 ### "no native game found" during setup
 
@@ -196,7 +196,7 @@ ls -l /home/pi/CreationStationArcade/games/MyGame/
 ```
 
 !!! note "What this does"
-        Lists the files in your game folder. You should see both `Game` and `libpxt.so`. If `Game` isn't marked executable, run `chmod +x games/MyGame/Game`. If a file is missing, re-extract the archive (Step 5).
+    Lists the files in your game folder. You should see both `Game` and `libpxt.so`. If `Game` isn't marked executable, run `chmod +x games/MyGame/Game`. If a file is missing, re-extract the archive (Step 5).
 
 ### I'm on a 32-bit Pi (original Pi Zero / Pi 1)
 
@@ -212,7 +212,7 @@ sudo reboot
 ```
 
 !!! note "What this does"
-        Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
+    Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
 
 ### I need to get back to a normal prompt
 
@@ -223,7 +223,7 @@ bash /home/pi/CreationStationArcade/toggle-arcade.sh disable
 ```
 
 !!! note "What this does"
-        Turns off the auto-launch so the next time you log in on TTY1 you get a normal shell instead of the game. Re-enable it with `toggle-arcade.sh enable` when you're done. See the project's `notes.md` for more.
+    Turns off the auto-launch so the next time you log in on TTY1 you get a normal shell instead of the game. Re-enable it with `toggle-arcade.sh enable` when you're done. See the project's `notes.md` for more.
 
 ### I need to kill a stuck game from another session
 
@@ -235,4 +235,4 @@ sudo pkill -9 -f launcher.sh
 ```
 
 !!! note "What this does"
-        Force-stops any running `Game` process and the launcher loop. Then see `notes.md` for restoring the launcher shell.
+    Force-stops any running `Game` process and the launcher loop. Then see `notes.md` for restoring the launcher shell.

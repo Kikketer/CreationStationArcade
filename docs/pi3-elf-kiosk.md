@@ -11,10 +11,10 @@ It's the best choice if you:
 - Are okay using raw `.elf` files exported from MakeCode Arcade.
 
 !!! tip "Want a menu of games instead?"
-        If you'd rather have a list of games to pick from on a Pi 3, use the [ELF Menu Arcade](elf-menu.md) guide.
+    If you'd rather have a list of games to pick from on a Pi 3, use the [ELF Menu Arcade](elf-menu.md) guide.
 
 !!! note "About the Pi Zero"
-        The Pi Zero has only **one USB port**. If you plug a wired USB gamepad into it, that port is busy, so you can't also use the USB-drive/gadget feature at the same time. Use a **Pi Zero W** with Wi-Fi to transfer games, or move the SD card. The Zero is also slower than the Pi 3 (single-core 1 GHz, 512 MB RAM), so boots and restarts take longer.
+    The Pi Zero has only **one USB port**. If you plug a wired USB gamepad into it, that port is busy, so you can't also use the USB-drive/gadget feature at the same time. Use a **Pi Zero W** with Wi-Fi to transfer games, or move the SD card. The Zero is also slower than the Pi 3 (single-core 1 GHz, 512 MB RAM), so boots and restarts take longer.
 
 ## What you'll need
 
@@ -46,7 +46,7 @@ This flavor needs the **32-bit Lite** version of Raspberry Pi OS.
 6. Click **Write** and wait for it to finish.
 
 !!! note "What this does"
-        Copies a fresh, minimal (no desktop) operating system onto the SD card.
+    Copies a fresh, minimal (no desktop) operating system onto the SD card.
 
 ### Step 2 — Boot the Pi and get it online
 
@@ -63,7 +63,7 @@ This flavor needs the **32-bit Lite** version of Raspberry Pi OS.
     ```
 
     !!! note "What this does"
-            Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
+        Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
 
 4. Check the connection:
 
@@ -72,7 +72,7 @@ This flavor needs the **32-bit Lite** version of Raspberry Pi OS.
     ```
 
     !!! note "What this does"
-            Sends three test messages to the internet. Replies mean you're online.
+        Sends three test messages to the internet. Replies mean you're online.
 
 ### Step 3 — Install the download tool
 
@@ -81,7 +81,7 @@ sudo apt install git
 ```
 
 !!! note "What this does"
-        Installs `git`, the program that copies code projects from the internet onto your Pi.
+    Installs `git`, the program that copies code projects from the internet onto your Pi.
 
 ### Step 4 — Download the arcade project
 
@@ -90,7 +90,7 @@ git clone -b pi3-elf-kiosk https://github.com/kikketer/CreationStationArcade /ho
 ```
 
 !!! note "What this does"
-        Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b pi3-elf-kiosk` part grabs the single-game ELF flavor specifically.
+    Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b pi3-elf-kiosk` part grabs the single-game ELF flavor specifically.
 
 ### Step 5 — Run the one-shot setup script
 
@@ -101,19 +101,19 @@ bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=AndyPadd
 ```
 
 !!! note "What this does"
-        The all-in-one installer for this flavor. Replace `AndyPaddleTheRiver` with the name of any `.elf` file that's in the project's `games/` folder (use the name **without** the `.elf`). The script will tell you which games are available if you give it a name it can't find.
+    The all-in-one installer for this flavor. Replace `AndyPaddleTheRiver` with the name of any `.elf` file that's in the project's `games/` folder (use the name **without** the `.elf`). The script will tell you which games are available if you give it a name it can't find.
 
 !!! tip "Which input mode?"
-        By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which is what the standard MakeCode Arcade raw ELF expects.
+    By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which is what the standard MakeCode Arcade raw ELF expects.
 
-        If you're using the **4-player raw ELF fork** (the one that reads GPIO pins instead of keyboard events), add `--input-mode=gpio`:
+    If you're using the **4-player raw ELF fork** (the one that reads GPIO pins instead of keyboard events), add `--input-mode=gpio`:
 
-        ```bash
-        bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
-        ```
+    ```bash
+    bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
+    ```
 
-        !!! note "What this does"
-                Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. Only use this with the 4-player raw ELF fork.
+    !!! note "What this does"
+        Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. Only use this with the 4-player raw ELF fork.
 
 ### Step 6 — Install the boot splash screen (hides boot text)
 
@@ -123,7 +123,7 @@ sudo reboot
 ```
 
 !!! note "What this does"
-        Installs a tiny image viewer (`fbi`), turns on a service that shows the arcade logo during boot, and edits the boot settings to hide the scrolling kernel text. Log back in as `pi` / `raspberry` after the reboot.
+    Installs a tiny image viewer (`fbi`), turns on a service that shows the arcade logo during boot, and edits the boot settings to hide the scrolling kernel text. Log back in as `pi` / `raspberry` after the reboot.
 
 ### Step 7 — (Only if games have no sound) Fix HDMI audio
 
@@ -133,7 +133,7 @@ sudo reboot
 ```
 
 !!! note "What this does"
-        Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load. Skip this if your games already have sound.
+    Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load. Skip this if your games already have sound.
 
 ### Step 8 — Reboot and play
 
@@ -149,7 +149,7 @@ sudo reboot
 ```
 
 !!! note "What this does"
-        Re-runs the installer pointed at a different game. It updates the auto-launch settings and the reset-button service to use the new game name, then the reboot starts it.
+    Re-runs the installer pointed at a different game. It updates the auto-launch settings and the reset-button service to use the new game name, then the reboot starts it.
 
 To see which games are available:
 
@@ -158,7 +158,7 @@ ls /home/pi/CreationStationArcade-src/games/*.elf
 ```
 
 !!! note "What this does"
-        Lists every `.elf` file in the games folder. Use the file name **without** the `.elf` part as the `--game` value.
+    Lists every `.elf` file in the games folder. Use the file name **without** the `.elf` part as the `--game` value.
 
 ## Putting a new game on the arcade
 
@@ -170,7 +170,7 @@ ls /home/pi/CreationStationArcade-src/games/*.elf
     ```
 
     !!! note "What this does"
-            Turns on the hidden "raw ELF" export for the Raspberry Pi hardware.
+        Turns on the hidden "raw ELF" export for the Raspberry Pi hardware.
 
 3. Click **Download** (bottom-left) to get a `.elf` file.
 4. Copy that `.elf` file into the project's `games/` folder (on the Pi as `pi` or `admin`, or by pushing it through git).
@@ -185,14 +185,14 @@ The raw `.elf` game needs the Pi to report a line called `Hardware` about itself
 The setup script checks for the line and warns you if it's missing. The danger is the same as the menu flavor: **don't run `sudo apt upgrade`**, because a newer kernel can delete the `Hardware` line and your game will stop launching.
 
 !!! warning "Do not run `sudo apt upgrade` on this arcade"
-        The setup script deliberately skips the full upgrade to protect the kernel version. To check whether your Pi still has the line:
+    The setup script deliberately skips the full upgrade to protect the kernel version. To check whether your Pi still has the line:
 
-        ```bash
-        grep Hardware /proc/cpuinfo
-        ```
+    ```bash
+    grep Hardware /proc/cpuinfo
+    ```
 
-        !!! note "What this does"
-                Prints the `Hardware` line. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF won't run. Back up your working SD card image once the arcade runs, so you can re-flash it if the kernel ever updates by accident.
+    !!! note "What this does"
+        Prints the `Hardware` line. You want to see `Hardware : BCM2835`. If nothing prints, the line is gone and the ELF won't run. Back up your working SD card image once the arcade runs, so you can re-flash it if the kernel ever updates by accident.
 
 ### Pi Zero: only one USB port
 
@@ -211,7 +211,7 @@ sudo systemctl status arcade-monitor.service
 ```
 
 !!! note "What this does"
-        Shows whether the reset-button monitor service is running. If it says "failed" or "inactive", try `sudo systemctl restart arcade-monitor.service`. A reboot will also start it.
+    Shows whether the reset-button monitor service is running. If it says "failed" or "inactive", try `sudo systemctl restart arcade-monitor.service`. A reboot will also start it.
 
 ### The game doesn't launch on boot
 

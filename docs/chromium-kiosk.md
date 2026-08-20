@@ -11,10 +11,10 @@ It's the best choice if you:
 - Want the full MakeCode Arcade simulator capability (extensions and all).
 
 !!! tip "Just one game?"
-        If you'd rather boot straight into a single game in Chromium, use the [Chromium Single-Game](single-game-kiosk.md) guide instead — it's the same base, just simplified for one game.
+    If you'd rather boot straight into a single game in Chromium, use the [Chromium Single-Game](single-game-kiosk.md) guide instead — it's the same base, just simplified for one game.
 
 !!! note "Why not a Pi 3?"
-        The ELF flavors don't work on a Pi 5 (the "Hardware" line gotcha), so on a Pi 5 you use Chromium or Native instead. Chromium is heavier on the Pi than the ELF path, so it wants a Pi 5 (or a PC), not a Pi 3.
+    The ELF flavors don't work on a Pi 5 (the "Hardware" line gotcha), so on a Pi 5 you use Chromium or Native instead. Chromium is heavier on the Pi than the ELF path, so it wants a Pi 5 (or a PC), not a Pi 3.
 
 ## What you'll need
 
@@ -46,7 +46,7 @@ For a **Raspberry Pi 5**, use the **64-bit Lite** version of Raspberry Pi OS.
 6. Click **Write** and wait for it to finish.
 
 !!! note "What this does"
-        Copies a fresh, minimal 64-bit operating system onto the SD card. Use 64-bit — the Pi 5 needs it.
+    Copies a fresh, minimal 64-bit operating system onto the SD card. Use 64-bit — the Pi 5 needs it.
 
 For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop needed). The setup script will install the graphical pieces it requires.
 
@@ -60,7 +60,7 @@ For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop neede
     ```
 
     !!! note "What this does"
-            Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
+        Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
 
 3. Check the connection:
 
@@ -78,7 +78,7 @@ sudo apt install git
 ```
 
 !!! note "What this does"
-        Installs `git`, the program that copies code projects from the internet onto your machine.
+    Installs `git`, the program that copies code projects from the internet onto your machine.
 
 ### Step 4 — Download the arcade project
 
@@ -87,7 +87,7 @@ git clone -b chromium-kiosk https://github.com/kikketer/CreationStationArcade /h
 ```
 
 !!! note "What this does"
-        Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b chromium-kiosk` part grabs the Chromium menu flavor specifically. (On a PC, you can clone it wherever you like; the rest of this guide assumes `/home/pi/CreationStationArcade-src`.)
+    Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b chromium-kiosk` part grabs the Chromium menu flavor specifically. (On a PC, you can clone it wherever you like; the rest of this guide assumes `/home/pi/CreationStationArcade-src`.)
 
 ### Step 5 — Run the one-shot setup script
 
@@ -98,17 +98,17 @@ bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh
 ```
 
 !!! note "What this does"
-        The all-in-one installer for this flavor. It installs the packages, configures the Pi to auto-log in and start a graphical session, creates a separate "runtime" folder the arcade runs from, and turns on a background service that pulls game updates on boot.
+    The all-in-one installer for this flavor. It installs the packages, configures the Pi to auto-log in and start a graphical session, creates a separate "runtime" folder the arcade runs from, and turns on a background service that pulls game updates on boot.
 
 !!! tip "Using GPIO buttons instead of USB gamepads?"
-        If you're wiring real arcade buttons to the Pi's GPIO pins (instead of using USB gamepads), add the flag:
+    If you're wiring real arcade buttons to the Pi's GPIO pins (instead of using USB gamepads), add the flag:
 
-        ```bash
-        bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
-        ```
+    ```bash
+    bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
+    ```
 
-        !!! note "What this does"
-                Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
+    !!! note "What this does"
+        Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
 
 ### Step 6 — (Optional) Set up USB controller player assignments
 
@@ -119,7 +119,7 @@ sudo bash /home/pi/CreationStationArcade-src-run/setup-usb-controllers.sh
 ```
 
 !!! note "What this does"
-        Creates stable controller-to-player mappings based on which USB port each controller is plugged into. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
+    Creates stable controller-to-player mappings based on which USB port each controller is plugged into. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
 
 ### Step 7 — Reboot and play
 
@@ -163,7 +163,7 @@ sudo reboot
 ```
 
 !!! note "What this does"
-        Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
+    Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
 
 ### USB controllers aren't detected
 
@@ -174,7 +174,7 @@ ls /dev/input/js*
 ```
 
 !!! note "What this does"
-        Lists the joystick devices the system has found. If nothing appears, your controller isn't being recognized — try a different USB port or cable. If devices appear but player numbers are wrong, re-run the USB controller setup from Step 6.
+    Lists the joystick devices the system has found. If nothing appears, your controller isn't being recognized — try a different USB port or cable. If devices appear but player numbers are wrong, re-run the USB controller setup from Step 6.
 
 ### GPIO buttons don't work
 

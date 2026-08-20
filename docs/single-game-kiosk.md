@@ -11,7 +11,7 @@ It's the best choice if you:
 - Want the full MakeCode Arcade simulator capability (extensions and all), but don't need a menu.
 
 !!! tip "Want a menu of games instead?"
-        Use the [Chromium Kiosk (Menu)](chromium-kiosk.md) guide — it's the same base with a menu.
+    Use the [Chromium Kiosk (Menu)](chromium-kiosk.md) guide — it's the same base with a menu.
 
 ## What you'll need
 
@@ -37,7 +37,7 @@ git clone -b single-game-kiosk https://github.com/kikketer/CreationStationArcade
 ```
 
 !!! note "What this does"
-        Copies the Creation Station Arcade project into `CreationStationArcade-src`, using the single-game Chromium branch. This branch already contains the single-game launcher and reset scripts, on top of the Chromium kiosk base.
+    Copies the Creation Station Arcade project into `CreationStationArcade-src`, using the single-game Chromium branch. This branch already contains the single-game launcher and reset scripts, on top of the Chromium kiosk base.
 
 Then run the same one-shot installer:
 
@@ -46,7 +46,7 @@ bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh
 ```
 
 !!! note "What this does"
-        The all-in-one Chromium kiosk installer (packages, auto-login, Pi 5 graphics fix, runtime folder, background updates, hidden boot text). Add `--gpio-controllers` if you're wiring real arcade buttons to the GPIO pins instead of using USB gamepads.
+    The all-in-one Chromium kiosk installer (packages, auto-login, Pi 5 graphics fix, runtime folder, background updates, hidden boot text). Add `--gpio-controllers` if you're wiring real arcade buttons to the GPIO pins instead of using USB gamepads.
 
 When you're done with those steps, come back here to switch the base into single-game mode.
 
@@ -84,7 +84,7 @@ nano ~/.xinitrc
 ```
 
 !!! note "What this does"
-        Opens the `.xinitrc` file in a simple text editor. This file runs when the graphical session starts.
+    Opens the `.xinitrc` file in a simple text editor. This file runs when the graphical session starts.
 
 Find the line that launches the menu launcher:
 
@@ -102,7 +102,7 @@ exec bash single-game-launcher.sh
 (Replace `ChrisVikingsOfFour` with your game from the table above.) Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X` in `nano`).
 
 !!! note "What this does"
-        Tells the graphical session to run the single-game launcher instead of the menu launcher, and sets which game it boots into.
+    Tells the graphical session to run the single-game launcher instead of the menu launcher, and sets which game it boots into.
 
 ### Step 4 — Turn on the single-game reset service
 
@@ -118,7 +118,7 @@ sudo systemctl start gpio-monitor-single-game
 ```
 
 !!! note "What this does"
-        Stops and disables the menu's reset monitor, copies the single-game reset service into place, reloads the service list, then enables and starts the single-game reset monitor. Now the reset button restarts your one game.
+    Stops and disables the menu's reset monitor, copies the single-game reset service into place, reloads the service list, then enables and starts the single-game reset monitor. Now the reset button restarts your one game.
 
 ### Step 5 — (If using GPIO buttons) Enable the gamepad service
 
@@ -130,7 +130,7 @@ sudo systemctl start gpio-gamepad
 ```
 
 !!! note "What this does"
-        Turns on the GPIO virtual-gamepad service so your wired buttons work. Skip this if you're using USB gamepads.
+    Turns on the GPIO virtual-gamepad service so your wired buttons work. Skip this if you're using USB gamepads.
 
 ### Step 6 — (If using USB gamepads) Set up stable player assignments
 
@@ -139,7 +139,7 @@ sudo bash /home/pi/CreationStationArcade-src-run/setup-usb-controllers.sh
 ```
 
 !!! note "What this does"
-        Maps each USB port to a fixed player number so player 1 is always player 1. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
+    Maps each USB port to a fixed player number so player 1 is always player 1. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
 
 ### Step 7 — Reboot and play
 
@@ -180,7 +180,7 @@ tail -20 /home/pi/arcade.log
 ```
 
 !!! note "What this does"
-        Prints the last 20 lines of the arcade's log file, which usually says why a launch failed (missing game file, Chromium not found, etc.).
+    Prints the last 20 lines of the arcade's log file, which usually says why a launch failed (missing game file, Chromium not found, etc.).
 
 Verify the game file actually exists:
 
@@ -189,7 +189,7 @@ ls /home/pi/CreationStationArcade-src-run/games/YourGameName.js
 ```
 
 !!! note "What this does"
-        Checks that the `.js` file for your game is in the runtime games folder. If it's missing, the game name in `SINGLE_GAME_NAME` is probably spelled wrong, or the file wasn't synced — reboot once more to let the background update pull it.
+    Checks that the `.js` file for your game is in the runtime games folder. If it's missing, the game name in `SINGLE_GAME_NAME` is probably spelled wrong, or the file wasn't synced — reboot once more to let the background update pull it.
 
 ### The reset button doesn't restart the game
 
@@ -200,7 +200,7 @@ sudo systemctl status gpio-monitor-single-game
 ```
 
 !!! note "What this does"
-        Shows whether the single-game reset monitor is running. If it's failed or inactive, try `sudo systemctl restart gpio-monitor-single-game`, or reboot.
+    Shows whether the single-game reset monitor is running. If it's failed or inactive, try `sudo systemctl restart gpio-monitor-single-game`, or reboot.
 
 ### USB controllers aren't working
 
@@ -210,7 +210,7 @@ ls /dev/input/js*
 ```
 
 !!! note "What this does"
-        The first command checks the GPIO gamepad service status (only relevant if you use GPIO buttons). The second lists the joystick devices the system sees. If nothing appears, try a different USB port or cable, then re-run the USB controller setup from Step 6.
+    The first command checks the GPIO gamepad service status (only relevant if you use GPIO buttons). The second lists the joystick devices the system sees. If nothing appears, try a different USB port or cable, then re-run the USB controller setup from Step 6.
 
 ### I want to switch back to the menu version
 
@@ -224,7 +224,7 @@ sudo systemctl start gpio-monitor
 ```
 
 !!! note "What this does"
-        Turns the single-game reset monitor back off and turns the menu reset monitor back on, so the reset button returns you to the menu instead of restarting one game.
+    Turns the single-game reset monitor back off and turns the menu reset monitor back on, so the reset button returns you to the menu instead of restarting one game.
 
 ### I need a normal prompt to fix something
 
