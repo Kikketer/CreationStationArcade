@@ -135,7 +135,7 @@
     }
 
     function parseMeta(code) {
-      let meta = { cdnUrl: CDN_URL, version: "arcade", targetVersion: "4.0.14" };
+      let meta = { cdnUrl: CDN_URL, version: "arcade", targetVersion: "4.1.6" };
       code.replace(/^\/\/\s+meta=([^\n]+)\n/m, (m, metasrc) => {
         try { meta = JSON.parse(metasrc); } catch (_) {}
         return m;
@@ -168,7 +168,7 @@
             code: code,
             partDefinitions: {},
             cdnUrl: meta.cdnUrl || CDN_URL,
-            version: meta.targetVersion || "4.0.14",
+            version: meta.targetVersion || "4.1.6",
             storedState: {},
             frameCounter: 1,
             options: { theme: "green", player: "" },
