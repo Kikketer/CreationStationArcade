@@ -1,0 +1,50 @@
+name: Update simulator
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-simulator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout chromium-kiosk
+        uses: actions/checkout@v4
+        with:
+          ref: chromium-kiosk
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check for new pxt-arcade version
+        id: check
+        run: |
+          LATEST=$(npm view pxt-arcade version)
+          CURRENT=$(node -e "console.log(require('./scripts/sim-version.json').simulator)")
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ "$LATEST" != "$CURRENT" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update simulator files
+        if: steps.check.outputs.changed == 'true'
+        run: node scripts/update-simulator.mjs "${{ steps.check.outputs.latest }}"
+
+      - name: Commit and push to chromium-kiosk
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Update simulator to ${{ steps.check.outputs.latest }}"
+          git push origin chromium-kiosk
