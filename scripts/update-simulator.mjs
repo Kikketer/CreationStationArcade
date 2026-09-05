@@ -30,10 +30,12 @@ async function downloadSimulator(version) {
   const simUrl = `https://trg-arcade.userpxt.io/v${version}/---simulator`
   const baseUrl = `https://trg-arcade.userpxt.io/v${version}`
   const outputDir = path.join(repoRoot, '.tmp-sim')
+  fs.rmSync(outputDir, { recursive: true, force: true })
   fs.mkdirSync(outputDir, { recursive: true })
 
   const indexHtml = await downloadText(simUrl)
-  fs.writeFileSync(path.join(outputDir, 'index.html'), indexHtml)
+  const patchedHtml = indexHtml.replace(/https:\/\/cdn\.makecode\.com\//g, './cdn/')
+  fs.writeFileSync(path.join(outputDir, 'index.html'), patchedHtml)
 
   const resources = new Set()
   let match
@@ -94,13 +96,18 @@ function copyBlobFiles(sourceDir, hashes) {
   }
 }
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 function updateHtmlReferences(hashes) {
   const files = ['index.html', 'slim.html', 'webgpu.html', 'slim-webgpu.html']
   for (const name of files) {
     const filePath = path.join(simDir, name)
     let content = fs.readFileSync(filePath, 'utf8')
     for (const [filename, hash] of Object.entries(hashes)) {
-      const regex = new RegExp(`(href|src)="\\./cdn/blob/[a-f0-9]+/${filename}"`, 'g')
+      const escaped = escapeRegex(filename)
+      const regex = new RegExp(`(href|src)="\\./cdn/blob/[a-f0-9]+/${escaped}"`, 'g')
       content = content.replace(regex, `$1="./cdn/blob/${hash}/${filename}"`)
     }
     fs.writeFileSync(filePath, content)
@@ -126,16 +133,22 @@ function cleanupOldBlobs(hashes) {
   }
 }
 
+function writeVersion(version) {
+  fs.writeFileSync(versionPath, JSON.stringify({ simulator: version }, null, 2) + '\n')
+}
+
 async function main() {
   const version = getVersion()
   console.log(`Updating simulator to ${version}...`)
 
   let sourceDir = findMakeWebSim(version)
+  let downloaded = false
   if (sourceDir) {
     console.log(`Using make-web simulator: ${sourceDir}`)
   } else {
     console.log('make-web simulator not found, downloading from CDN...')
     sourceDir = await downloadSimulator(version)
+    downloaded = true
   }
 
   const indexHtml = fs.readFileSync(path.join(sourceDir, 'index.html'), 'utf8')
@@ -144,7 +157,12 @@ async function main() {
   copyBlobFiles(sourceDir, hashes)
   updateHtmlReferences(hashes)
   updatePlayHtml(version)
+  writeVersion(version)
   cleanupOldBlobs(hashes)
+
+  if (downloaded) {
+    fs.rmSync(sourceDir, { recursive: true, force: true })
+  }
 
   console.log(`Simulator updated to ${version}`)
 }

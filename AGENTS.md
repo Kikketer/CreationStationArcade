@@ -21,13 +21,19 @@ The arcade box runs the MakeCode Arcade JavaScript simulator from the `sim/` dir
 
 ### How to update
 
+#### Automatic (GitHub Actions)
+
+`.github/workflows/update-simulator.yml` runs weekly on Mondays at 06:00 UTC on the `chromium-kiosk` branch. It checks the latest `pxt-arcade` version on npm, runs the update script, and pushes the result directly back to `chromium-kiosk`.
+
+#### Manual
+
 1. Bump `scripts/sim-version.json` to the new version (e.g. `4.1.6`).
 2. Run the update script:
    ```bash
    node scripts/update-simulator.mjs
    ```
    The script first looks for an already-downloaded simulator at `../make-web/public/simulator/<version>` and falls back to downloading it from `https://trg-arcade.userpxt.io/v<version>/---simulator`.
-3. The script copies the blob files into `sim/cdn/blob/`, updates the `<script>` and `<link>` references in the four `sim/*.html` files, updates the fallback `targetVersion` in `public/play.html`, and removes unreferenced old blob directories.
+3. The script copies the blob files into `sim/cdn/blob/`, updates the `<script>` and `<link>` references in the four `sim/*.html` files, updates the fallback `targetVersion` in `public/play.html`, writes the new version to `scripts/sim-version.json`, and removes unreferenced old blob directories.
 4. Verify by starting the server and loading a game:
    ```bash
    node server.js
