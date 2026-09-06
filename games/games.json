@@ -120,6 +120,12 @@
     "file": "WilliamZombie.js"
   },
   {
+    "name": "Unpixel Tournament",
+    "author": "William",
+    "playerCount": 1,
+    "file": "WilliamUnpixelTournament.js"
+  },
+  {
     "name": "Your Game Here!",
     "author": "",
     "playerCount": 1,
