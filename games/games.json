@@ -1,5 +1,11 @@
 [
   {
+    "name": "Unpixel Tournament",
+    "author": "William",
+    "playerCount": 1,
+    "file": "WilliamUnpixelTournament.js"
+  },
+  {
     "name": "Mushrooms",
     "author": "Louisa",
     "playerCount": 1,
@@ -118,12 +124,6 @@
     "author": "William",
     "playerCount": 2,
     "file": "WilliamZombie.js"
-  },
-  {
-    "name": "Unpixel Tournament",
-    "author": "William",
-    "playerCount": 1,
-    "file": "WilliamUnpixelTournament.js"
   },
   {
     "name": "Your Game Here!",
