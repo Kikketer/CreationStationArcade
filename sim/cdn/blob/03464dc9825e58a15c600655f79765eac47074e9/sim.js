@@ -188,23 +188,29 @@ var pxsim;
     pxsim.simButtonsHidden = false;
     window.addEventListener("DOMContentLoaded", () => {
         const searchParams = new URL(window.location.toString()).searchParams;
-        const setThemeIfDefined = (themeType) => {
-            const paramVal = searchParams.get(themeType);
-            if (paramVal) {
-                themeFromQueryParameter = true;
-                pxsim.theme.setSimThemeColor(themeType, paramVal);
-            }
-        };
-        setThemeIfDefined("background-color");
-        setThemeIfDefined("button-stroke");
-        setThemeIfDefined("text-color");
-        setThemeIfDefined("button-fill");
-        setThemeIfDefined("dpad-fill");
+        const layout = searchParams.get("layout");
         const skin = searchParams.get("skin");
-        if (skin) {
+        if (layout !== null) {
+            themeFromQueryParameter = true;
+            if (layout)
+                pxsim.theme.applyLayout(layout);
+        }
+        else if (skin) {
             themeFromQueryParameter = true;
             pxsim.theme.applySkin(skin);
         }
+        pxsim.theme.themeParts.forEach(property => {
+            const value = searchParams.get(property);
+            if (value && pxsim.theme.setSimThemeColor(property, value)) {
+                themeFromQueryParameter = true;
+            }
+        });
+        window.addEventListener("message", ev => {
+            var _a;
+            if (((_a = ev.data) === null || _a === void 0 ? void 0 : _a.type) == "setsimtheme" && !themeFromQueryParameter) {
+                pxsim.theme.applyTheme(ev.data.theme);
+            }
+        });
         registerPointerEvents(!!searchParams.get("pointer-events"));
         pxsim.simButtonsHidden = !!searchParams.get("hideSimButtons");
         if (pxsim.simButtonsHidden)
@@ -307,8 +313,11 @@ var pxsim;
         pxsim.Keyboard.cancelTextPrompt();
         pxsim.initGamepad();
         const theme = pxsim.theme.parseTheme(msg.theme);
-        if (theme && !themeFromQueryParameter) {
-            pxsim.theme.applyTheme(theme);
+        if (!themeFromQueryParameter) {
+            if (theme)
+                pxsim.theme.applyTheme(theme);
+            else
+                pxsim.theme.resetTheme();
         }
         board().setActivePlayer(msg.activePlayer, theme);
         if (!forcedUpdateLoop) {
@@ -389,7 +398,6 @@ var pxsim;
                 }
             };
             window.addEventListener("message", (ev) => {
-                var _a;
                 if (ev.data.button !== undefined && ev.data.type !== "multiplayer") {
                     let key;
                     switch (ev.data.button) {
@@ -436,7 +444,7 @@ var pxsim;
                     }
                 }
                 else if (ev.data.type == "setsimthemecolor") {
-                    pxsim.theme.setSimThemeColor(ev.data.part, (_a = ev.data.color) === null || _a === void 0 ? void 0 : _a.replace("#", ""));
+                    pxsim.theme.setSimThemeColor(ev.data.part, ev.data.color);
                 }
             });
         }
@@ -539,6 +547,7 @@ var pxsim;
                 return;
             }
             if ((!theme || !Object.keys(theme).length) && !themeFromQueryParameter) {
+                pxsim.theme.resetTheme();
                 pxsim.theme.applySkin(newPlayerTheme);
             }
             this.activePlayer = playerNumber || undefined;
@@ -647,8 +656,11 @@ var pxsim;
                 wrapper && wrapper.classList.add("mp-client");
             }
             const theme = pxsim.theme.parseTheme(msg.theme);
-            if (theme && !themeFromQueryParameter) {
-                pxsim.theme.applyTheme(theme);
+            if (!themeFromQueryParameter) {
+                if (theme)
+                    pxsim.theme.applyTheme(theme);
+                else
+                    pxsim.theme.resetTheme();
             }
             this.setActivePlayer(msg.activePlayer, theme);
             this.updateStats();
@@ -925,6 +937,99 @@ var pxsim;
 (function (pxsim) {
     var theme;
     (function (theme_1) {
+        theme_1.themeParts = [
+            "background-color",
+            "button-stroke",
+            "text-color",
+            "button-fill",
+            "dpad-fill",
+            "joystick-handle-stroke",
+        ];
+        const skinAliases = {
+            p1: "red",
+            p2: "blue",
+            p3: "orange",
+            p4: "green",
+        };
+        const skinThemes = {
+            "high-contrast": {
+                "background-color": "#000000",
+                "button-stroke": "#FFFFFF",
+                "text-color": "#FFFFFF",
+                "button-fill": "#000000",
+                "dpad-fill": "#000000",
+                "joystick-handle-stroke": "#FFFFFF",
+            },
+            zune: {
+                "background-color": "#564131",
+                "button-stroke": "#524F4E",
+                "text-color": "#E7E7E7",
+                "joystick-handle-stroke": "#524F4E",
+            },
+            junior: {
+                "background-color": "#EB4444",
+                "button-stroke": "#670C0C",
+                "text-color": "#FFFFFF",
+                "button-fill": "#D54322",
+                "joystick-handle-stroke": "#670C0C",
+            },
+            retro: {
+                "background-color": "#FCF7E4",
+                "button-stroke": "#5C406C",
+                "text-color": "#5C406C",
+                "button-fill": "#A3809C",
+                "dpad-fill": "#A3809C",
+                "joystick-handle-stroke": "#5C406C",
+            },
+            brown: {
+                "background-color": "#8B4513",
+                "button-stroke": "#68320C",
+                "joystick-handle-stroke": "#68320C",
+            },
+            bubblegum: {
+                "background-color": "#F7ABB9",
+                "button-stroke": "#71C1C9",
+                "text-color": "#4E4E4E",
+                "button-fill": "#92F5FF",
+                "dpad-fill": "#F7ABB9",
+                "joystick-handle-stroke": "#71C1C9",
+            },
+            red: {
+                "background-color": "#ED3636",
+                "button-stroke": "#8D2525",
+                "joystick-handle-stroke": "#8D2525",
+            },
+            blue: {
+                "background-color": "#4E4EE9",
+                "button-stroke": "#3333A1",
+                "joystick-handle-stroke": "#3333A1",
+            },
+            orange: {
+                "background-color": "#FF9A14",
+                "button-stroke": "#B0701A",
+                "joystick-handle-stroke": "#B0701A",
+            },
+            green: {
+                "background-color": "#4EB94E",
+                "button-stroke": "#245D24",
+                "joystick-handle-stroke": "#245D24",
+            },
+            purple: {
+                "background-color": "#660FC7",
+                "button-stroke": "#4C0B95",
+                "joystick-handle-stroke": "#4C0B95",
+            },
+            microcode: {
+                "background-color": "#3F3F3F",
+                "button-stroke": "#212121",
+                "text-color": "#D9D9D9",
+                "button-fill": "#2D2D2D",
+                "joystick-handle-stroke": "#212121",
+            },
+        };
+        const whiteLogoColor = "#FFFFFF";
+        const grayLogoColor = "#737373";
+        const appliedThemeParts = new Set(theme_1.themeParts);
         function parseTheme(theme) {
             if (!theme)
                 return undefined;
@@ -933,32 +1038,58 @@ var pxsim;
         theme_1.parseTheme = parseTheme;
         function applyTheme(theme) {
             const parsedTheme = parseTheme(theme);
-            if (parsedTheme.skin) {
+            resetTheme();
+            if (!parsedTheme)
+                return;
+            if (parsedTheme.layout !== undefined) {
+                if (parsedTheme.layout)
+                    applyLayout(parsedTheme.layout.toLowerCase());
+            }
+            else if (parsedTheme.skin) {
                 applySkin(parsedTheme.skin.toLowerCase());
             }
-            const setThemeIfDefined = (themeType) => {
-                const paramVal = parsedTheme[themeType];
-                if (paramVal) {
-                    setSimThemeColor(themeType, paramVal);
-                }
-            };
-            setThemeIfDefined("background-color");
-            setThemeIfDefined("button-stroke");
-            setThemeIfDefined("text-color");
-            setThemeIfDefined("button-fill");
-            setThemeIfDefined("dpad-fill");
+            applyThemeColors(parsedTheme);
         }
         theme_1.applyTheme = applyTheme;
+        function applyThemeColors(theme) {
+            Object.keys(theme).forEach(property => {
+                if (isThemeColorProperty(property) && theme[property]) {
+                    setSimThemeColor(property, theme[property]);
+                }
+            });
+        }
+        function resetTheme() {
+            appliedThemeParts.forEach(part => setSimThemeColor(part, undefined));
+            const wrapper = document.getElementById("wrap");
+            wrapper === null || wrapper === void 0 ? void 0 : wrapper.classList.remove("zune", "junior", "retro", "high-contrast", "portrait-only");
+            const gameButtonSvg = document.querySelector(".game-button-svg");
+            gameButtonSvg === null || gameButtonSvg === void 0 ? void 0 : gameButtonSvg.setAttribute("width", "200px");
+            gameButtonSvg === null || gameButtonSvg === void 0 ? void 0 : gameButtonSvg.setAttribute("height", "200px");
+            gameButtonSvg === null || gameButtonSvg === void 0 ? void 0 : gameButtonSvg.setAttribute("viewBox", "0 0 40 40");
+            const joystickSvg = document.querySelector(".game-joystick-svg");
+            joystickSvg === null || joystickSvg === void 0 ? void 0 : joystickSvg.setAttribute("viewBox", "1 0 40 40");
+            resetCircle(".button-a", "28", "12.5");
+            resetLabel(".label-a", "28", "12.5");
+            resetCircle(".button-b", "13", "28");
+            resetLabel(".label-b", "13", "28");
+        }
+        theme_1.resetTheme = resetTheme;
+        function resetCircle(selector, x, y) {
+            const circle = document.querySelector(selector);
+            circle === null || circle === void 0 ? void 0 : circle.setAttribute("cx", x);
+            circle === null || circle === void 0 ? void 0 : circle.setAttribute("cy", y);
+            circle === null || circle === void 0 ? void 0 : circle.setAttribute("r", "9");
+        }
+        function resetLabel(selector, x, y) {
+            const label = document.querySelector(selector);
+            label === null || label === void 0 ? void 0 : label.setAttribute("x", x);
+            label === null || label === void 0 ? void 0 : label.setAttribute("y", y);
+        }
         function setSimThemeColor(part, color) {
-            if (!part || (!(color == undefined || /^(#|0x)?[0-9A-F]{6}$/i.test(color))))
-                return;
-            if (part != "background-color"
-                && part != "button-stroke"
-                && part != "text-color"
-                && part != "button-fill"
-                && part != "dpad-fill") {
-                return;
-            }
+            if (!isThemeColorProperty(part)
+                || color !== undefined && (typeof color !== "string" || !/^(#|0x)?[0-9A-F]{6}$/i.test(color)))
+                return false;
+            appliedThemeParts.add(part);
             const propName = `--sim-${part}`;
             const propColor = color ? `#${color.replace(/^(#|0x)/i, "")}` : undefined;
             const wrapper = document.getElementById("wrap");
@@ -968,63 +1099,78 @@ var pxsim;
             else {
                 wrapper.style.removeProperty(propName);
             }
+            if (part === "background-color") {
+                updateMicrosoftLogo(getComputedStyle(wrapper).getPropertyValue(propName).trim());
+            }
+            return true;
         }
         theme_1.setSimThemeColor = setSimThemeColor;
-        function applySkin(skin) {
-            switch (skin) {
+        function isThemeColorProperty(property) {
+            return property !== "layout"
+                && property !== "skin"
+                && /^[a-z][a-z0-9-]*$/.test(property);
+        }
+        theme_1.isThemeColorProperty = isThemeColorProperty;
+        function updateMicrosoftLogo(backgroundColor) {
+            const logo = document.querySelector(".game-player-msft");
+            if (!logo)
+                return;
+            const useGrayLogo = contrastRatio(backgroundColor, grayLogoColor)
+                > contrastRatio(backgroundColor, whiteLogoColor);
+            logo.classList.toggle("gray", useGrayLogo);
+        }
+        function contrastRatio(first, second) {
+            const firstLuminance = relativeLuminance(first);
+            const secondLuminance = relativeLuminance(second);
+            return (Math.max(firstLuminance, secondLuminance) + 0.05)
+                / (Math.min(firstLuminance, secondLuminance) + 0.05);
+        }
+        function relativeLuminance(color) {
+            const value = parseInt(color.slice(1), 16);
+            const channels = [value >> 16, value >> 8 & 0xff, value & 0xff]
+                .map(channel => channel / 255)
+                .map(channel => channel <= 0.04045
+                ? channel / 12.92
+                : Math.pow((channel + 0.055) / 1.055, 2.4));
+            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        }
+        function applyLayout(layout) {
+            switch (layout.toLowerCase()) {
                 case "zune": {
-                    zuneSkin();
-                    break;
-                }
-                case "p1":
-                case "red": {
-                    redSkin();
-                    break;
-                }
-                case "p2":
-                case "blue": {
-                    blueSkin();
-                    break;
-                }
-                case "p3":
-                case "orange": {
-                    orangeSkin();
-                    break;
-                }
-                case "p4":
-                case "green": {
-                    greenSkin();
-                    break;
-                }
-                case "brown": {
-                    brownSkin();
-                    break;
-                }
-                case "bubblegum": {
-                    bubblegumSkin();
-                    break;
-                }
-                case "purple": {
-                    purpleSkin();
-                    break;
-                }
-                case "microcode": {
-                    microcodeSkin();
+                    zuneLayout();
                     break;
                 }
                 case "junior": {
-                    juniorSkin();
+                    juniorLayout();
+                    break;
+                }
+                case "retro": {
+                    retroLayout();
+                    break;
+                }
+                case "high-contrast": {
+                    highContrastLayout();
                     break;
                 }
                 default:
                     break;
             }
         }
+        theme_1.applyLayout = applyLayout;
+        function applySkin(skin) {
+            const normalizedSkin = skin.toLowerCase();
+            const themeName = skinAliases[normalizedSkin] || normalizedSkin;
+            const theme = skinThemes[themeName];
+            if (theme)
+                applyThemeColors(theme);
+            applyLayout(themeName);
+        }
         theme_1.applySkin = applySkin;
-        function zuneSkin() {
-            setSimThemeColor("background-color", "#564131");
-            setSimThemeColor("button-stroke", "#524F4E");
-            setSimThemeColor("text-color", "#E7E7E7");
+        function highContrastLayout() {
+            var _a;
+            (_a = document.getElementById("wrap")) === null || _a === void 0 ? void 0 : _a.classList.add("high-contrast");
+        }
+        function zuneLayout() {
             const wrapper = document.getElementById("wrap");
             if (wrapper) {
                 wrapper.classList.add("zune", "portrait-only");
@@ -1058,11 +1204,7 @@ var pxsim;
                 aLabel.setAttribute("y", "12");
             }
         }
-        function juniorSkin() {
-            setSimThemeColor("background-color", "#EB4444");
-            setSimThemeColor("button-fill", "#D54322");
-            setSimThemeColor("button-stroke", "#670C0C");
-            setSimThemeColor("text-color", "#FFFFFF");
+        function juniorLayout() {
             const wrapper = document.getElementById("wrap");
             if (wrapper) {
                 wrapper.classList.add("junior", "portrait-only");
@@ -1079,46 +1221,20 @@ var pxsim;
                 aLabel.setAttribute("y", "13");
             }
         }
-        function brownSkin() {
-            setSimThemeColor("background-color", "#8B4513");
-            setSimThemeColor("button-stroke", "#68320C");
-        }
-        function bubblegumSkin() {
-            setSimThemeColor("background-color", "#F7ABB9");
-            setSimThemeColor("button-stroke", "#71C1C9");
-            setSimThemeColor("button-fill", "#92F5FF");
-            setSimThemeColor("text-color", "#4E4E4E");
-            setSimThemeColor("dpad-fill", "#F7ABB9");
-            const msftLogo = document.querySelector(".game-player-msft");
-            if (msftLogo) {
-                msftLogo.classList.add("gray");
-            }
-        }
-        function redSkin() {
-            setSimThemeColor("background-color", "#ED3636");
-            setSimThemeColor("button-stroke", "#8D2525");
-        }
-        function blueSkin() {
-            setSimThemeColor("background-color", "#4E4EE9");
-            setSimThemeColor("button-stroke", "#3333A1");
-        }
-        function orangeSkin() {
-            setSimThemeColor("background-color", "#FF9A14");
-            setSimThemeColor("button-stroke", "#B0701A");
-        }
-        function greenSkin() {
-            setSimThemeColor("background-color", "#4EB94E");
-            setSimThemeColor("button-stroke", "#245D24");
-        }
-        function purpleSkin() {
-            setSimThemeColor("background-color", "#660fC7");
-            setSimThemeColor("button-stroke", "#4C0B95");
-        }
-        function microcodeSkin() {
-            setSimThemeColor("background-color", "#3F3F3F");
-            setSimThemeColor("button-stroke", "#212121");
-            setSimThemeColor("button-fill", "#2D2D2D");
-            setSimThemeColor("text-color", "#D9D9D9");
+        function retroLayout() {
+            var _a;
+            (_a = document.getElementById("wrap")) === null || _a === void 0 ? void 0 : _a.classList.add("retro");
+            const joystick = document.querySelector(".game-joystick-svg");
+            if (!joystick || joystick.querySelector(".retro-direction-arrow"))
+                return;
+            const createArrow = (direction, points) => {
+                const arrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                arrow.setAttribute("points", points);
+                arrow.setAttribute("aria-hidden", "true");
+                arrow.classList.add("retro-direction-arrow", direction);
+                return arrow;
+            };
+            joystick.append(createArrow("up", "19,12 21.5,12 20.25,10"), createArrow("right", "28,19 28,21.5 30,20.25"), createArrow("down", "19,28 21.5,28 20.25,30"), createArrow("left", "12,19 12,21.5 10,20.25"));
         }
     })(theme = pxsim.theme || (pxsim.theme = {}));
 })(pxsim || (pxsim = {}));
@@ -1206,6 +1322,7 @@ var pxsim;
                 if (circle && label) {
                     circle.setAttribute("fill", pressed ? "var(--sim-background-color)" : "var(--sim-button-fill)");
                     label.setAttribute("fill", pressed ? "var(--sim-button-fill)" : "");
+                    circle.classList.toggle("active", pressed);
                 }
                 if (!quiet) {
                     if (pressed) {
@@ -1470,7 +1587,7 @@ var pxsim;
             //         <rect class="dpad-right" x="22" y="16" width="12" height="8" ry="2" fill="var(--sim-text-color)" stroke="none" strokeWidth="1" />
             //         <rect class="dpad-left" x="6" y="16" width="12" height="8" ry="2" fill="var(--sim-text-color)" stroke="none" strokeWidth="1" />
             //         <circle cx="20" cy="20" r="6" fill="var(--sim-text-color)" />
-            //         <circle class="joystick-handle" cx="20" cy="20" r="6" fill="var(--sim-button-fill)" stroke="#999" strokeWidth="2" />
+            //         <circle class="joystick-handle" cx="20" cy="20" r="6" fill="var(--sim-button-fill)" stroke="var(--sim-joystick-handle-stroke)" strokeWidth="2" />
             //     </svg>
             // </div>
             constructor(container) {
@@ -1533,6 +1650,7 @@ var pxsim;
             updateDirection(button, isPressed) {
                 if (button) {
                     button.setAttribute("fill", isPressed ? "var(--sim-background-color)" : "var(--sim-text-color)");
+                    button.classList.toggle("active", isPressed);
                 }
             }
             bindEvents(surface) {
@@ -3520,10 +3638,12 @@ var pxsim;
     var music;
     (function (music) {
         function playInstructions(b) {
+            setupOnStopAll();
             return pxsim.AudioContextManager.playInstructionsAsync(b.data);
         }
         music.playInstructions = playInstructions;
         function queuePlayInstructions(when, b) {
+            setupOnStopAll();
             pxsim.AudioContextManager.queuePlayInstructions(when, b);
         }
         music.queuePlayInstructions = queuePlayInstructions;
@@ -3545,15 +3665,24 @@ var pxsim;
         music.SEQUENCER_LOOPED_MESSAGE = 3246;
         let sequencers;
         let nextSequencerId = 0;
-        async function _createSequencer() {
-            if (!sequencers) {
+        let onStopAllSetup = false;
+        function setupOnStopAll() {
+            if (!onStopAllSetup) {
+                onStopAllSetup = true;
                 pxsim.AudioContextManager.onStopAll(() => {
-                    for (const seq of sequencers) {
-                        seq.sequencer.stop();
-                        seq.sequencer.dispose();
+                    if (sequencers) {
+                        for (const seq of sequencers) {
+                            seq.sequencer.stop();
+                            seq.sequencer.dispose();
+                        }
+                        sequencers = [];
                     }
-                    sequencers = [];
                 });
+            }
+        }
+        async function _createSequencer() {
+            setupOnStopAll();
+            if (!sequencers) {
                 sequencers = [];
             }
             const res = {

@@ -23,7 +23,24 @@ body {
     --sim-text-color: #cecece;
     --sim-button-fill: #333;
     --sim-dpad-fill: var(--sim-button-stroke);
+    --sim-joystick-handle-stroke: #999;
     -webkit-touch-callout: none;
+}
+
+#wrap.high-contrast .game-player:not(.just-screen)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    border: 0.25rem solid var(--sim-text-color);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#wrap.high-contrast .game-embed {
+    border-color: var(--sim-text-color);
+    background-color: var(--sim-text-color);
 }
 
 .sprite {
@@ -532,7 +549,7 @@ html {
     }
 }
 
-/** zune skin **/
+/** zune layout **/
 #wrap.zune #game-buttons-container,
 #wrap.junior #game-buttons-container {
     width: 100%;
@@ -554,7 +571,7 @@ html {
     width: unset;
 }
 
-/** junior skin **/
+/** junior layout **/
 #wrap.junior #joystick-container,
 #wrap.junior .game-sys-button-group,
 #wrap.junior .button-b,
@@ -565,6 +582,105 @@ html {
 #wrap.junior .game-embed {
     border-color: var(--sim-button-stroke);
     background-color: var(--sim-button-stroke);
+}
+
+/** retro layout **/
+#wrap.retro {
+    --sim-console-border: #96266c;
+    --sim-screen-side-border: #2f99a1;
+    --sim-screen-top-bottom-border: #f290c1;
+    --sim-button-a-fill: #ff8135;
+    --sim-button-b-fill: #ff91c4;
+}
+
+#wrap.retro .game-player {
+    box-sizing: border-box;
+    border: 0.3125rem solid var(--sim-console-border);
+    border-radius: 2rem;
+    overflow: hidden;
+}
+
+#wrap.retro .game-embed {
+    top: auto;
+    padding-bottom: 0;
+    margin-top: 0.75rem;
+    border-right: 0.5rem inset var(--sim-screen-side-border);
+    border-left: 0.5rem outset var(--sim-screen-side-border);
+    border-top: 0.5rem outset var(--sim-screen-top-bottom-border);
+    border-bottom: 0.5rem inset var(--sim-screen-top-bottom-border);
+}
+
+#wrap.retro .joystick-background,
+#wrap.retro .joystick-handle {
+    display: none;
+}
+
+#wrap.retro .game-joystick-svg > rect,
+#wrap.retro .game-joystick-svg > circle:not(.joystick-background):not(.joystick-handle) {
+    fill: var(--sim-dpad-fill);
+    stroke: var(--sim-button-stroke);
+    stroke-width: 1.5;
+}
+
+#wrap.retro .game-joystick-svg > circle:not(.joystick-background):not(.joystick-handle) {
+    r: 3;
+}
+
+.retro-direction-arrow {
+    display: none;
+}
+
+#wrap.retro .retro-direction-arrow {
+    display: block;
+    fill: var(--sim-text-color);
+}
+
+#wrap.retro .dpad-up.active ~ .retro-direction-arrow.up,
+#wrap.retro .dpad-right.active ~ .retro-direction-arrow.right,
+#wrap.retro .dpad-down.active ~ .retro-direction-arrow.down,
+#wrap.retro .dpad-left.active ~ .retro-direction-arrow.left {
+    fill: var(--sim-dpad-fill);
+}
+
+#wrap.retro .game-joystick-svg > rect.active {
+    fill: var(--sim-text-color);
+}
+
+#wrap.retro .button-a,
+#wrap.retro .button-b {
+    stroke: var(--sim-button-stroke);
+    stroke-width: 1.5;
+}
+
+#wrap.retro .button-a {
+    fill: var(--sim-button-a-fill);
+}
+
+#wrap.retro .button-b {
+    fill: var(--sim-button-b-fill);
+}
+
+#wrap.retro .button-a.active,
+#wrap.retro .button-b.active {
+    filter: brightness(0.7);
+}
+
+#wrap.retro .label-a,
+#wrap.retro .label-b {
+    fill: var(--sim-text-color);
+    font-size: 0.875rem;
+    font-style: italic;
+    font-weight: 500;
+    transform: translateY(2px);
+}
+
+#wrap.retro .game-menu-button {
+    padding-right: 0.4rem;
+    padding-left: 0.4rem;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 0.7;
+    text-transform: lowercase;
 }
 
 #safari-mute-button-outer {
