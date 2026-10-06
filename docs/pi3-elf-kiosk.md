@@ -24,7 +24,7 @@ It's the best choice if you:
 - A microSD card (16 GB or bigger).
 - A power supply for the Pi.
 - An HDMI screen.
-- A **USB gamepad** (recommended), OR arcade buttons wired to the Pi's GPIO pins (only for the 4-player raw ELF fork — see the input modes note below).
+- A **USB gamepad** (recommended), OR arcade buttons wired to the Pi's GPIO pins (see the input modes note below).
 - A way to put the microSD card into your regular computer.
 - An internet connection for the Pi (Wi-Fi or Ethernet; Wi-Fi only on the Pi Zero W).
 
@@ -104,16 +104,14 @@ bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=AndyPadd
     The all-in-one installer for this flavor. Replace `AndyPaddleTheRiver` with the name of any `.elf` file that's in the project's `games/` folder (use the name **without** the `.elf`). The script will tell you which games are available if you give it a name it can't find.
 
 !!! tip "Which input mode?"
-    By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which is what the standard MakeCode Arcade raw ELF expects.
-
-    If you're using a **4-player raw ELF** game — one built with the [4-player ELF compiler](https://www.makecode.games/compilers/elf), which reads GPIO pins instead of keyboard events — add `--input-mode=gpio`:
+    Games built with the [ELF compiler](https://www.makecode.games/compilers/elf) read GPIO pins instead of keyboard events — that's the recommended path — so add `--input-mode=gpio`:
 
     ```bash
     bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
     ```
 
     !!! note "What this does"
-        Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. Only use this with the 4-player raw ELF fork.
+        Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. The default **keyboard mode** is only for older `.elf` files exported with MakeCode's hidden `rawELF` flag — anything built with the ELF compiler needs `gpio` mode.
 
 ### Step 6 — Install the boot splash screen (hides boot text)
 
@@ -162,21 +160,13 @@ ls /home/pi/CreationStationArcade-src/games/*.elf
 
 ## Putting a new game on the arcade
 
-1. Open your game in the MakeCode Arcade editor in your browser.
-2. Add this to the **end of the web address**:
-
-    ```
-    ?nolocalhost=1&compile=rawELF&hw=rpi#editor
-    ```
+1. In the MakeCode Arcade editor, download your game as a `.png` (the regular download — the PNG is the whole game).
+2. Open the [ELF compiler](https://www.makecode.games/compilers/elf) and upload the PNG.
 
     !!! note "What this does"
-        Turns on the hidden "raw ELF" export for the Raspberry Pi hardware.
+        Builds a raw `.elf` for the Raspberry Pi. It's the 4-player GPIO variety, but it works fine for games that only use 1–2 players — just remember to use `--input-mode=gpio` in the setup step.
 
-3. Click **Download** (bottom-left) to get a `.elf` file.
-
-    !!! tip "4-player games?"
-        For a 4-player `.elf` that reads GPIO pins, upload your game's `.png` export to the [4-player ELF compiler](https://www.makecode.games/compilers/elf) instead.
-
+3. Download the resulting `.elf` file.
 4. Copy that `.elf` file into the project's `games/` folder (on the Pi as `pi` or `admin`, or by pushing it through git).
 5. Re-run the setup script with the new game name (see *Changing the game later* above) and reboot.
 

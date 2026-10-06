@@ -8,7 +8,7 @@ This repo uses long-lived branches to represent different arcade machine configu
 
 - `main` — the primary "elf + arcade" setup. The menu itself is an ELF file (`MadeArcadeMenu.elf`) and all games are launched from it. This is the closest to what MakeCode intended for the ELF arcades. Using the [4-player raw ELF compiler](https://www.makecode.games/compilers/elf) you can even use 4 players with GPIO pins.
 
-- `pi3-elf-kiosk` — single-game raw ELF kiosk for Raspberry Pi 3 / Pi Zero. No menu; boots straight into one configured `.elf` game. A USB gamepad is translated to a virtual keyboard (default) or can drive GPIO pins with `--input-mode=gpio` for the 4-player raw ELF fork.
+- `pi3-elf-kiosk` — single-game raw ELF kiosk for Raspberry Pi 3 / Pi Zero. No menu; boots straight into one configured `.elf` game. A USB gamepad is translated to a virtual keyboard (default) or can drive GPIO pins with `--input-mode=gpio` for games built with the [ELF compiler](https://www.makecode.games/compilers/elf).
 
 - `chromium-kiosk` — browser-based arcade for higher-end machines (Raspberry Pi 5 or regular x86 computers). A Node server serves a menu; games run in a separate fullscreen Chromium window, giving you the full MakeCode Arcade extension support you see in the simulator. Supports multiple games with a menu.
 
@@ -64,25 +64,11 @@ How to setup a Raspberry PI 3:
 
 ### Simple Addition
 
-If you don't need to use all 4 players you can simply export your game as a raw elf from the standard MakeCode Arcade interface. Raw elf is hidden and really crossing my fingers they don't remove this feature, but maybe if you promote my post and github fork we'd be able to get it built in for real! https://forum.makecode.com/t/4-player-gpio-raw-elf-export/41383
-
-All the go-forward compilers (desktop, 4-player ELF, PNG-to-JS) live at https://www.makecode.games/compilers.
-
-1. Put `?nolocalhost=1&compile=rawELF&hw=rpi#editor` on the end of the url.
-2. Load the game you wish to add to the arcade
-3. Click the "download" button on the bottom left
-4. You'll then have a `.elf` file downloaded
-5. Move this file to the CreationStationArcade/gaems directory
-6. Commit and push the repo
-7. The arcade will pull and copy over the next time it boots, it'll take two reboots (one to download, and one to copy over).
-
-### 4 Player Option
-
-4 Player games are not officially supported by MakeCode Arcade (even though the "cardboard" setup has the pin layout). So if you need to build a game for the 4 player controllers use the hosted [4-player ELF compiler](https://www.makecode.games/compilers/elf).
+Use the hosted [ELF compiler](https://www.makecode.games/compilers/elf) for every game — it's the 4-player GPIO variety, but it works fine for 1–2 player games too. All the go-forward compilers (desktop, ELF, PNG-to-JS) live at https://www.makecode.games/compilers.
 
 1. Export your game as a PNG from the MakeCode Arcade editor (regular download, the `.png` file is the whole game)
 2. Open https://www.makecode.games/compilers/elf and upload that PNG
-3. Download the resulting 4 player `.elf` file
+3. Download the resulting `.elf` file
 4. Copy this into the `CreationStationArcade/games` folder
 5. Update the `launcher.sh` to point to your new game name
 6. Commit and push
