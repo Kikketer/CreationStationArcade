@@ -4,13 +4,17 @@
 set -e
 
 REQUESTED_GAME=""
+ENABLE_GPIO=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --game=*) REQUESTED_GAME="${1#*=}"; shift ;;
         --game) REQUESTED_GAME="$2"; shift 2 ;;
+        --gpio) ENABLE_GPIO=1; shift ;;
         -h|--help)
-            echo "Usage: $0 [--game=GameName]"
+            echo "Usage: $0 [--game=GameName] [--gpio]"
             echo "If --game is omitted, the first available native game is selected."
+            echo "--gpio installs install/arcade.cfg as /etc/arcade.cfg so the Game"
+            echo "binary reads arcade buttons wired to the GPIO pins."
             exit 0
             ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -203,6 +207,21 @@ chown "$ARCADE_USER:$ARCADE_USER" "$BASH_PROFILE" "$PROFILE" 2>/dev/null || true
 log "Ensuring autolaunch is enabled for $ARCADE_USER..."
 su - "$ARCADE_USER" -c "bash '$RUN_DIR/toggle-arcade.sh' enable" 2>/dev/null || \
     log "WARNING: could not enable autolaunch as $ARCADE_USER"
+
+# 5b. GPIO button config (optional)
+# The Game binary reads /etc/arcade.cfg at startup; when present, GPIO pins
+# listed there become player buttons (edge-triggered, no polling).
+if [ "$ENABLE_GPIO" = "1" ]; then
+    if [ -f /etc/arcade.cfg ] && ! cmp -s "$RUN_DIR/install/arcade.cfg" /etc/arcade.cfg; then
+        cp /etc/arcade.cfg "/etc/arcade.cfg.bak.$(date +%s)"
+        log "Backed up existing /etc/arcade.cfg"
+    fi
+    cp "$RUN_DIR/install/arcade.cfg" /etc/arcade.cfg
+    chmod 644 /etc/arcade.cfg
+    log "Installed GPIO button config to /etc/arcade.cfg"
+else
+    log "GPIO buttons not enabled (pass --gpio to install /etc/arcade.cfg)"
+fi
 
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true

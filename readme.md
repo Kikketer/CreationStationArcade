@@ -1,6 +1,6 @@
 # Creation Station Arcade — Single Native Kiosk
 
-This branch (`single-native-arcade`) is a **minimal, single-game launcher** for the native MakeCode Arcade `Game` binary produced by `make-web` `/desktop`.
+This branch (`single-native-arcade`) is a **minimal, single-game launcher** for the native MakeCode Arcade `Game` binary produced by the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop).
 
 Do **not** merge this branch into `main` or any other kiosk branch. Each kiosk flavor is standalone.
 
@@ -13,7 +13,7 @@ The `Game` binary is a plain SDL2 executable. It does **not** choose a display b
 
 For testing or playing on a regular PC:
 
-1. In `make-web` `/desktop`, upload your MakeCode Arcade PNG export and choose **x86-64**.
+1. In the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), upload your MakeCode Arcade PNG export and choose **x86-64**.
 2. Download the tar.gz and extract:
 
    ```bash
@@ -47,7 +47,7 @@ For a Pi or similar ARM board that boots straight into the game:
 
 - Supported Pi models: Pi 3, Pi 4, Pi 5, and Pi Zero 2 W (all with a 64-bit OS). Original Pi Zero / Pi 1 are not supported because the `Game` binary is `aarch64`.
 
-1. In `make-web` `/desktop`, upload your MakeCode Arcade PNG export and choose **arm64**.
+1. In the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), upload your MakeCode Arcade PNG export and choose **arm64**.
 2. On the target machine:
 
    ```bash
@@ -106,9 +106,9 @@ To disable autolaunch for debugging, see `notes.md` or run `./toggle-arcade.sh d
 - `single-native-launch.sh` writes the running `Game` PID to `/tmp/creationstation_current_game.pid` and runs `./Game -f` inside `games/<Name>/`.
 - The native `Game` has its own reset path (press `r` / `R` for the menu/reset). We are intentionally **not** running an external GPIO kill script for this first pass.
 
-## Add a game from make-web /desktop
+## Add a game from the PNG to Desktop compiler
 
-1. In the `make-web` `/desktop` tool, upload your MakeCode Arcade PNG export and choose the target architecture:
+1. In the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), upload your MakeCode Arcade PNG export and choose the target architecture:
    - `arm64` for Raspberry Pi / ARM arcade cabinets
    - `x86-64` for desktop Linux PCs
 2. Download the `SafeName{-arm64}.tar.gz` archive.
@@ -152,7 +152,15 @@ This branch has no menu. To switch games, add a new `games/<Name>/` folder and r
 
 ## Input strategy
 
-This branch uses **Direct SDL joystick**. USB gamepads and zero-delay encoders that appear as `/dev/input/js*` or `/dev/input/event*` are handled directly by the native `Game` binary. No Python input bridge is required.
+USB gamepads and zero-delay encoders that appear as `/dev/input/js*` or `/dev/input/event*` are handled directly by the native `Game` binary. No Python input bridge is required.
+
+**GPIO buttons:** the `Game` binary also reads `/etc/arcade.cfg` at startup (Linux only). When present, GPIO pins listed there become player buttons — edge-triggered via `/dev/gpiochip*`, so there's no polling overhead. Run the installer with `--gpio` to install the default pin map (`install/arcade.cfg`, same BCM layout as the ELF flavor's `arcade.cfg`), or write your own `/etc/arcade.cfg`:
+
+```bash
+sudo bash install/single-native-arcade-setup.sh --game=YourGame --gpio
+```
+
+On a machine with no config file (or no `/dev/gpiochip*`), GPIO input is simply off — the same `Game` binary runs on a regular computer with keyboard/joystick unchanged. Point `ARCADE_GPIO_CFG` at a different file to override the location.
 
 ## Branch safety
 
