@@ -104,14 +104,16 @@ bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=AndyPadd
     The all-in-one installer for this flavor. Replace `AndyPaddleTheRiver` with the name of any `.elf` file that's in the project's `games/` folder (use the name **without** the `.elf`). The script will tell you which games are available if you give it a name it can't find.
 
 !!! tip "Which input mode?"
-    Games built with the [ELF compiler](https://www.makecode.games/compilers/elf) read GPIO pins instead of keyboard events — that's the recommended path — so add `--input-mode=gpio`:
+    By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which works fine for 1–2 player games.
+
+    If you're wiring **real arcade buttons to the GPIO pins** — or playing a 4-player game where extra players use GPIO — add `--input-mode=gpio`:
 
     ```bash
     bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
     ```
 
     !!! note "What this does"
-        Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. The default **keyboard mode** is only for older `.elf` files exported with MakeCode's hidden `rawELF` flag — anything built with the ELF compiler needs `gpio` mode.
+        Tells the setup to wire the USB gamepad to the Pi's GPIO pins instead of a virtual keyboard. Games built with the [ELF compiler](https://www.makecode.games/compilers/elf) support **both** modes — it reads `/sd/arcade.cfg` at launch and uses whichever input is configured there.
 
 ### Step 6 — Install the boot splash screen (hides boot text)
 
@@ -164,7 +166,7 @@ ls /home/pi/CreationStationArcade-src/games/*.elf
 2. Open the [ELF compiler](https://www.makecode.games/compilers/elf) and upload the PNG.
 
     !!! note "What this does"
-        Builds a raw `.elf` for the Raspberry Pi. It's the 4-player GPIO variety, but it works fine for games that only use 1–2 players — just remember to use `--input-mode=gpio` in the setup step.
+        Builds a raw `.elf` for the Raspberry Pi. It's the 4-player GPIO variety, but it works fine for games that only use 1–2 players and supports both keyboard and GPIO input.
 
 3. Download the resulting `.elf` file.
 4. Copy that `.elf` file into the project's `games/` folder (on the Pi as `pi` or `admin`, or by pushing it through git).
