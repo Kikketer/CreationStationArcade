@@ -25,6 +25,7 @@ It's the best choice if you:
 - A microSD card (Pi) or hard drive/SSD (PC), power supply, HDMI screen.
 - A **USB gamepad** or USB zero-delay encoder. (This flavor reads USB joysticks directly — no Python input bridge needed.)
 - **Optional:** a momentary push button and two wires for the GPIO reset button (Raspberry Pi only — see Step 7).
+- **Optional:** arcade buttons/joysticks wired to the GPIO pins instead of USB (Raspberry Pi or similar board — see Step 8).
 - A way to put the SD card into your regular computer (Pi only).
 - An internet connection.
 
@@ -150,9 +151,32 @@ Because the button pulls the pin to ground, the launcher runs the reset helper i
 !!! note "What this does"
     The reset button wires to GPIO 27 and ground. The launcher's reset helper watches that pin and, when it's pressed, injects an `r` keypress into the running `Game`, which the game turns into a soft reset. No external kill script runs — the game handles the reset itself.
 
-### Step 8 — Play
+### Step 8 — (Optional) Wire real arcade buttons to the GPIO pins
 
-After the reboot, the cabinet boots straight into `./Game -f` (fullscreen) inside your `games/MyGame/` folder. Plug in your USB gamepad and play. The reset button (if you wired one) restarts the game.
+If you're building a cabinet with real buttons and joysticks wired straight to the Pi's GPIO pins, the `Game` binary can read them directly — no USB encoder board needed. It uses the kernel's edge-triggered GPIO events, so there's no polling and no input lag to speak of.
+
+1. Re-run the installer with `--gpio`:
+
+    ```bash
+    sudo bash install/single-native-arcade-setup.sh --game=MyGame --gpio
+    ```
+
+    !!! note "What this does"
+        Copies `install/arcade.cfg` to `/etc/arcade.cfg` — the file the `Game` binary reads at startup to learn which GPIO pin is which button. Any existing `/etc/arcade.cfg` is backed up first.
+
+2. Wire your buttons to the pins listed in `/etc/arcade.cfg` — one wire of each button to the GPIO pin, the other to GND. The default map covers Player 1 plus menu/reset/exit, and matches the pin layout used by the ELF arcade flavors (so the same cabinet wiring works on both).
+
+3. For players 2–4, uncomment the `BTN_UP2`-style lines in `/etc/arcade.cfg` and wire those pins too.
+
+!!! note "What this does"
+    The `Game` binary checks for `/etc/arcade.cfg` when it starts. If the file exists, each `BTN_*` pin becomes that button for that player — pressed edges go straight into the game's input, same as a keyboard press. If the file doesn't exist (on a regular PC, for example), GPIO input is simply off and keyboard/joystick work as normal. To keep the config somewhere else, set `ARCADE_GPIO_CFG` to a different path.
+
+!!! warning "Needs a current build"
+    GPIO input requires a `Game` binary built by the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) after this feature landed. If your `Game` was compiled earlier, re-upload the PNG and rebuild it — older binaries just ignore `/etc/arcade.cfg`.
+
+### Step 9 — Play
+
+After the reboot, the cabinet boots straight into `./Game -f` (fullscreen) inside your `games/MyGame/` folder. Plug in your USB gamepad — or use your GPIO buttons — and play. The reset button (if you wired one) restarts the game.
 
 ## Changing the game later
 
