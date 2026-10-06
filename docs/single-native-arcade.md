@@ -9,7 +9,7 @@ It's the best choice if you:
 - Have a **64-bit Raspberry Pi** (Pi 3, Pi 4, Pi 5, or Pi Zero 2 W) **or** a **64-bit PC** (x86-64).
 - Want a dedicated cabinet for **one** game.
 - Want the best performance (no browser overhead).
-- Are getting your game from the `make-web` `/desktop` tool, which builds the native `Game` binary.
+- Are getting your game from the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), which builds the native `Game` binary.
 
 !!! warning "Needs a 64-bit operating system"
     The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
@@ -30,15 +30,15 @@ It's the best choice if you:
 
 **On your regular computer**
 
-- A web browser, to use the `make-web` `/desktop` tool that builds the native `Game` binary.
+- A web browser, to use the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) that builds the native `Game` binary.
 
 ## The walkthrough
 
-### Step 1 — Get your game binary from make-web
+### Step 1 — Get your game binary from the desktop compiler
 
-This flavor runs a native `Game` binary that you build with the `make-web` `/desktop` tool, not a raw `.elf` or a `.js` file.
+This flavor runs a native `Game` binary that you build with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), not a raw `.elf` or a `.js` file.
 
-1. In your browser, open the `make-web` `/desktop` tool.
+1. In your browser, open <https://www.makecode.games/compilers/desktop>.
 2. Upload your MakeCode Arcade PNG export.
 3. Choose the architecture that matches your cabinet:
     - **arm64** for a Raspberry Pi / ARM arcade cabinet.
@@ -172,7 +172,7 @@ This flavor has no menu. To switch games:
 
 ## Putting a new game on the arcade
 
-1. Build the native binary in the `make-web` `/desktop` tool (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
+1. Build the native binary with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
 2. Copy the `.tar.gz` onto the Pi and extract it into `games/<Name>/` (Step 5).
 3. Re-run the installer with `--game=<Name>` and reboot (above).
 

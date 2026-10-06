@@ -106,7 +106,7 @@ bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=AndyPadd
 !!! tip "Which input mode?"
     By default the script uses **keyboard mode** — your USB gamepad is translated into a virtual keyboard, which is what the standard MakeCode Arcade raw ELF expects.
 
-    If you're using the **4-player raw ELF fork** (the one that reads GPIO pins instead of keyboard events), add `--input-mode=gpio`:
+    If you're using a **4-player raw ELF** game — one built with the [4-player ELF compiler](https://www.makecode.games/compilers/elf), which reads GPIO pins instead of keyboard events — add `--input-mode=gpio`:
 
     ```bash
     bash /home/pi/CreationStationArcade-src/install/pi3-elf-setup.sh --game=YourGame --input-mode=gpio
@@ -173,6 +173,10 @@ ls /home/pi/CreationStationArcade-src/games/*.elf
         Turns on the hidden "raw ELF" export for the Raspberry Pi hardware.
 
 3. Click **Download** (bottom-left) to get a `.elf` file.
+
+    !!! tip "4-player games?"
+        For a 4-player `.elf` that reads GPIO pins, upload your game's `.png` export to the [4-player ELF compiler](https://www.makecode.games/compilers/elf) instead.
+
 4. Copy that `.elf` file into the project's `games/` folder (on the Pi as `pi` or `admin`, or by pushing it through git).
 5. Re-run the setup script with the new game name (see *Changing the game later* above) and reboot.
 

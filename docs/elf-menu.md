@@ -213,7 +213,12 @@ If you don't need 4 players, you can export a regular raw `.elf` from MakeCode A
 
 ### 4-player games
 
-4-player games aren't officially supported by MakeCode Arcade, so you have to build the `.elf` yourself using the 4-player raw ELF fork. See the project's `readme.md` for the full pxt setup. The short version: you check out the `feat-raw-elf-four-player` branches of the `pxt` and `pxt-arcade` forks, run `npm serve`, import your game, pick **Pi0 Raw Elf** as the hardware, and download the resulting `.elf`. Drop it into `games/` and update `launcher.sh` to point at it.
+4-player games aren't officially supported by MakeCode Arcade, so the `.elf` has to come from the 4-player raw ELF fork — but you don't have to build anything yourself. Use the hosted [4-player ELF compiler](https://www.makecode.games/compilers/elf):
+
+1. In the MakeCode Arcade editor, download your game as a `.png` (the regular download — the PNG is the whole game).
+2. Open <https://www.makecode.games/compilers/elf> and upload the PNG.
+3. Download the resulting `.elf` file.
+4. Drop it into `games/` and update `launcher.sh` to point at it.
 
 ### The two-reboot update flow
 
