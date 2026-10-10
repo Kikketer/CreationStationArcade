@@ -114,6 +114,11 @@ while [ "$RETRY" -lt "$MAX_RETRIES" ]; do
         sleep 5
         continue
     fi
+    # Keep .active-game in sync with what actually resolved, so a deleted
+    # game's stale name doesn't linger (e.g. fail-over to ControllerTest).
+    if [ "$(head -n1 "$ACTIVE_FILE" 2>/dev/null)" != "$GAME_NAME" ]; then
+        echo "$GAME_NAME" > "$ACTIVE_FILE"
+    fi
     export SINGLE_GAME_NAME="$GAME_NAME"
     export LD_LIBRARY_PATH="$GAME_DIR"
     _log "Launching $GAME_NAME (native Game)"
