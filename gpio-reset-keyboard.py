@@ -38,7 +38,9 @@ def log(msg):
 
 
 def create_vkbd():
-    fd = open(UINPUT_PATH, "wb+")
+    # "wb+" needs a seekable file; /dev/uinput is a character device.
+    # os.open + unbuffered fdopen avoids the seek probe entirely.
+    fd = os.fdopen(os.open(UINPUT_PATH, os.O_RDWR), "wb", buffering=0)
     fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
     fcntl.ioctl(fd, UI_SET_KEYBIT, KEY_R)
     dev = struct.pack(
