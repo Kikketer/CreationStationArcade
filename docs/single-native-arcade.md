@@ -186,26 +186,35 @@ This flavor has no menu. There are two ways to switch games:
 
 Once the installer has run, the cabinet watches for USB drives. To swap games:
 
-1. On your regular computer, make a folder named `arcade-game` at the **root** of a USB stick and put your game inside it:
+1. On your regular computer, build the "cartridge" with the pack script. Extract the compiler's `.tar.gz` (Step 1) somewhere, plug in the USB stick, and run:
+
+    ```bash
+    cd CreationStationArcade
+    bash install/pack-usb.sh /path/to/extracted-game /Volumes/MYSTICK MyGame
+    ```
+
+    !!! note "What this does"
+        Creates an `arcade-game/` folder at the root of the stick with `Game`, `libpxt.so`, and a `name.txt` — plus a `signature.txt` that binds the game to **this physical stick**. The signature is a hash of the stick's filesystem UUID and the game files, so dragging `arcade-game/` onto a different stick won't work — each cart has to be packed onto its own drive. (It's a hurdle against casual copying, not real DRM.) To accept unsigned folders anyway, add `ALLOW_UNSIGNED=1` to `/etc/arcade-usb-update.conf` on the cabinet.
+
+    The stick ends up looking like this:
 
     ```
     arcade-game/
-      Game         # required — the native binary (arm64 for a Pi, x86-64 for a PC)
-      libpxt.so    # required
-      name.txt     # optional — one line, the name for the games/ folder (default: USBGame)
-      arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO button map)
+      Game           # the native binary (arm64 for a Pi, x86-64 for a PC)
+      libpxt.so
+      name.txt       # the name for the games/ folder on the cabinet
+      signature.txt  # binds the game to this stick's filesystem UUID
+      arcade.cfg     # optional — copied to /etc/arcade.cfg (GPIO button map)
     ```
 
-    These are the same files from the compiler's `.tar.gz` (Step 1) — just extract them into `arcade-game/` instead of `games/MyGame/`.
-
 2. Plug the stick into the arcade.
-3. Wait — the cabinet checks the stick, copies the game into `games/`, points the launcher at it, and **reboots** into the new game all by itself (about 10–30 seconds).
+3. Wait — the cabinet checks the stick, verifies the signature, copies the game into `games/`, points the launcher at it, and **reboots** into the new game all by itself (about 10–30 seconds).
 
 !!! note "What this does"
-    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. If the drive has an `arcade-game/` folder with `Game` and `libpxt.so`, it gets copied in and the machine reboots into it. Drives without `arcade-game/` are ignored, and a `Game` built for the wrong architecture is refused — so a random or bad stick can't break the cabinet.
+    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. If the drive has an `arcade-game/` folder with `Game` and `libpxt.so` **and a signature that matches that stick**, it gets copied in and the machine reboots into it. Drives without `arcade-game/` are ignored, copied folders without a valid signature are refused, and a `Game` built for the wrong architecture is refused — so a random or bad stick can't break the cabinet.
 
 !!! tip "Didn't work?"
-    Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: the folder not named exactly `arcade-game`, the files nested one folder too deep, or a `Game` built for the wrong architecture (Step 1).
+    Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: packing the folder by hand instead of with `pack-usb.sh` (missing/bad `signature.txt`), the folder not named exactly `arcade-game`, the files nested one folder too deep, or a `Game` built for the wrong architecture (Step 1).
 
 **Option B — re-run the installer**
 
