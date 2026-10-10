@@ -84,51 +84,69 @@ if [ "$MOUNTED" != "1" ]; then
 fi
 
 # --- Stage the game from the stick ---
+# Newest candidate wins: compare the newest file inside arcade-game/ with the
+# mtimes of the .tar.gz files at the drive root and pick the freshest.
 GAME_NAME=""
 SRC=""
+SRC_MTIME=0
 
+DIR_MTIME=0
 if [ -d "$MNT/arcade-game" ]; then
+    DIR_MTIME="$(find "$MNT/arcade-game" -type f -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)"
+    DIR_MTIME="${DIR_MTIME:-0}"
+fi
+
+TARBALL=""
+TAR_MTIME=0
+NEWEST_TAR="$(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1)"
+if [ -n "$NEWEST_TAR" ]; then
+    TAR_MTIME="${NEWEST_TAR%% *}"
+    TAR_MTIME="${TAR_MTIME%%.*}"
+    TARBALL="${NEWEST_TAR#* }"
+fi
+
+if [ -d "$MNT/arcade-game" ] && [ "$DIR_MTIME" -ge "$TAR_MTIME" ]; then
     mkdir -p "$STAGE/game"
     cp -a "$MNT/arcade-game/." "$STAGE/game/"
     SRC="$STAGE/game"
     SRC_LABEL="arcade-game/"
-    # Freshness source: newest file mtime inside arcade-game/ on the stick.
-    SRC_MTIME="$(find "$MNT/arcade-game" -type f -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)"
-else
-    # First .tar.gz at the stick root wins (e.g. MyGame-arm64.tar.gz).
-    TARBALL="$(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' | LC_ALL=C sort | head -n1)"
-    if [ -n "$TARBALL" ]; then
+    SRC_MTIME="$DIR_MTIME"
+elif [ -n "$TARBALL" ]; then
+    # Try tarballs newest-first; a bad one falls through to the next.
+    while IFS= read -r cand && [ -z "$SRC" ]; do
+        [ -n "$cand" ] || continue
+        SRC_MTIME="${cand%% *}"
+        SRC_MTIME="${SRC_MTIME%%.*}"
+        TARBALL="${cand#* }"
         SRC_LABEL="$(basename "$TARBALL")"
         # Validate BEFORE extracting: the archive must list Game and libpxt.so
         # somewhere inside, and must not contain absolute paths or ../
         # traversal entries. A random tarball fails here without touching disk.
         LISTING="$(tar tzf "$TARBALL" 2>/dev/null || true)"
         if [ -z "$LISTING" ]; then
-            log "found $SRC_LABEL but it is not a readable tar.gz; ignoring"
-            exit 0
+            log "found $SRC_LABEL but it is not a readable tar.gz; trying next"
+            continue
         fi
         if echo "$LISTING" | grep -qE '^(/|\.\./)|/\.\./'; then
-            log "found $SRC_LABEL but it contains unsafe paths (absolute or ../); ignoring"
-            exit 0
+            log "found $SRC_LABEL but it contains unsafe paths (absolute or ../); trying next"
+            continue
         fi
         if ! echo "$LISTING" | grep -qE '(^|/)Game$' || ! echo "$LISTING" | grep -qE '(^|/)libpxt\.so$'; then
-            log "found $SRC_LABEL but it has no Game + libpxt.so inside; ignoring"
-            exit 0
+            log "found $SRC_LABEL but it has no Game + libpxt.so inside; trying next"
+            continue
         fi
         mkdir -p "$STAGE/tar"
-        if tar xzf "$TARBALL" -C "$STAGE/tar" 2>/dev/null; then
-            # Locate the dir holding Game + libpxt.so (archive may nest them).
-            SRC="$(dirname "$(find "$STAGE/tar" -name Game -type f | head -n1)" 2>/dev/null)"
-            [ -f "$SRC/Game" ] && [ -f "$SRC/libpxt.so" ] || SRC=""
-            # Name from the filename: strip .tar.gz and any -arch suffix.
-            GAME_NAME="$(basename "$TARBALL" .tar.gz | sed -E 's/-(arm64|x86-64|win64|amd64)$//' | tr -cd 'A-Za-z0-9._-')"
-            # Freshness source: the tarball's own mtime.
-            SRC_MTIME="$(stat -c %Y "$TARBALL" 2>/dev/null || echo 0)"
-        else
-            log "found $SRC_LABEL but could not extract it; ignoring"
-            exit 0
+        if ! tar xzf "$TARBALL" -C "$STAGE/tar" 2>/dev/null; then
+            log "found $SRC_LABEL but could not extract it; trying next"
+            rm -rf "$STAGE/tar"
+            continue
         fi
-    fi
+        # Locate the dir holding Game + libpxt.so (archive may nest them).
+        SRC="$(dirname "$(find "$STAGE/tar" -name Game -type f | head -n1)" 2>/dev/null)"
+        [ -f "$SRC/Game" ] && [ -f "$SRC/libpxt.so" ] || SRC=""
+        # Name from the filename: strip .tar.gz and any -arch suffix.
+        GAME_NAME="$(basename "$TARBALL" .tar.gz | sed -E 's/-(arm64|x86-64|win64|amd64)$//' | tr -cd 'A-Za-z0-9._-')"
+    done < <(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr)
 fi
 
 if [ -z "$SRC" ]; then
