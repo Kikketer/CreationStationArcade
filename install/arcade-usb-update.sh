@@ -83,16 +83,32 @@ else
     # First .tar.gz at the stick root wins (e.g. MyGame-arm64.tar.gz).
     TARBALL="$(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' | LC_ALL=C sort | head -n1)"
     if [ -n "$TARBALL" ]; then
+        SRC_LABEL="$(basename "$TARBALL")"
+        # Validate BEFORE extracting: the archive must list Game and libpxt.so
+        # somewhere inside, and must not contain absolute paths or ../
+        # traversal entries. A random tarball fails here without touching disk.
+        LISTING="$(tar tzf "$TARBALL" 2>/dev/null || true)"
+        if [ -z "$LISTING" ]; then
+            log "found $SRC_LABEL but it is not a readable tar.gz; ignoring"
+            exit 0
+        fi
+        if echo "$LISTING" | grep -qE '^(/|\.\./)|/\.\./'; then
+            log "found $SRC_LABEL but it contains unsafe paths (absolute or ../); ignoring"
+            exit 0
+        fi
+        if ! echo "$LISTING" | grep -qE '(^|/)Game$' || ! echo "$LISTING" | grep -qE '(^|/)libpxt\.so$'; then
+            log "found $SRC_LABEL but it has no Game + libpxt.so inside; ignoring"
+            exit 0
+        fi
         mkdir -p "$STAGE/tar"
         if tar xzf "$TARBALL" -C "$STAGE/tar" 2>/dev/null; then
             # Locate the dir holding Game + libpxt.so (archive may nest them).
             SRC="$(dirname "$(find "$STAGE/tar" -name Game -type f | head -n1)" 2>/dev/null)"
             [ -f "$SRC/Game" ] && [ -f "$SRC/libpxt.so" ] || SRC=""
-            SRC_LABEL="$(basename "$TARBALL")"
             # Name from the filename: strip .tar.gz and any -arch suffix.
             GAME_NAME="$(basename "$TARBALL" .tar.gz | sed -E 's/-(arm64|x86-64|win64|amd64)$//' | tr -cd 'A-Za-z0-9._-')"
         else
-            log "found $TARBALL but could not extract it; ignoring"
+            log "found $SRC_LABEL but could not extract it; ignoring"
             exit 0
         fi
     fi
@@ -104,6 +120,16 @@ if [ -z "$SRC" ]; then
 fi
 
 log "found game source: $SRC_LABEL"
+
+# Sanity: Game and libpxt.so must be real ELF binaries, not just files that
+# happen to have the right names.
+is_elf() {
+    [ "$(head -c4 "$1" 2>/dev/null | od -An -tx1 | tr -d ' ')" = "7f454c46" ]
+}
+if ! is_elf "$SRC/Game" || ! is_elf "$SRC/libpxt.so"; then
+    log "Game or libpxt.so is not an ELF binary; ignoring"
+    exit 0
+fi
 
 # name.txt inside the game folder overrides the filename-derived name.
 if [ -f "$SRC/name.txt" ]; then
