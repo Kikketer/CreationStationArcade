@@ -191,7 +191,7 @@ Once the installer has run, the cabinet watches for USB drives. To swap games:
     In Chrome or Edge you can skip the copying entirely: check **"Write to a USB cartridge"** on the [compiler page](https://www.makecode.games/compilers/desktop) and after it builds, pick the stick's root folder — the archive is written straight onto it.
 
     !!! note "What this does"
-        The cabinet extracts the first `.tar.gz` it finds at the drive root, checks it contains `Game` and `libpxt.so`, names the game after the file (a `name.txt` inside the archive overrides it), and installs it into `games/`. Other installed games are removed — only the new game and `ControllerTest` (the built-in sanity check) are kept.
+        The cabinet picks the most recently modified `.tar.gz` at the drive root (or `arcade-game/` if newer) and extracts it, checks it contains `Game` and `libpxt.so`, names the game after the file (a `name.txt` inside the archive overrides it), and installs it into `games/`. Other installed games are removed — only the new game and `ControllerTest` (the built-in sanity check) are kept.
 
     Alternatively, an extracted `arcade-game/` folder at the drive root works too — handy if you want to add an `arcade.cfg` for GPIO buttons:
 
