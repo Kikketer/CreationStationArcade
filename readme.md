@@ -136,7 +136,21 @@ To disable autolaunch for debugging, see `notes.md` or run `./toggle-arcade.sh d
 
 ## Change the active game
 
-This branch has no menu. To switch games, add a new `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
+This branch has no menu. There are two ways to switch games:
+
+**USB stick (no keyboard / no SSH needed):** the installer sets up a udev rule + `arcade-usb-update@.service` so that inserting a USB drive containing an `arcade-game/` folder at its root installs the game and reboots:
+
+```
+arcade-game/
+  Game         # required — native binary built for the box's architecture
+  libpxt.so    # required
+  name.txt     # optional — one line, becomes games/<Name> (default: USBGame)
+  arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO buttons)
+```
+
+Any drive without `arcade-game/` is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
+
+**Manual:** add a new `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
 
 ## Kill or restart the game
 

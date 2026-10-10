@@ -1,0 +1,7 @@
+[Unit]
+Description=Install arcade game from USB drive (%I)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/arcade-usb-update.sh /dev/%I
+TimeoutStartSec=120

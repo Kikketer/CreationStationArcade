@@ -223,6 +223,24 @@ else
     log "GPIO buttons not enabled (pass --gpio to install /etc/arcade.cfg)"
 fi
 
+# 5c. USB game update support
+# A udev rule starts arcade-usb-update@<dev>.service when a USB filesystem is
+# inserted; the script installs arcade-game/ from the drive and reboots.
+log "Installing USB game-update support..."
+cp "$RUN_DIR/install/arcade-usb-update.sh" /usr/local/sbin/arcade-usb-update.sh
+chmod 755 /usr/local/sbin/arcade-usb-update.sh
+cp "$RUN_DIR/install/arcade-usb-update@.service" /etc/systemd/system/arcade-usb-update@.service
+chmod 644 /etc/systemd/system/arcade-usb-update@.service
+cp "$RUN_DIR/install/99-arcade-usb.rules" /etc/udev/rules.d/99-arcade-usb.rules
+chmod 644 /etc/udev/rules.d/99-arcade-usb.rules
+cat > /etc/arcade-usb-update.conf <<EOF
+RUN_DIR="$RUN_DIR"
+ARCADE_USER="$ARCADE_USER"
+EOF
+chmod 644 /etc/arcade-usb-update.conf
+udevadm control --reload-rules 2>/dev/null || true
+systemctl daemon-reload 2>/dev/null || true
+
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true

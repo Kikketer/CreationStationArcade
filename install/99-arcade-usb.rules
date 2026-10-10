@@ -1,0 +1,4 @@
+# Inserting a USB drive containing a filesystem kicks off a one-shot
+# systemd service that looks for arcade-game/ on the drive and installs it.
+# The device node (%k, e.g. sda1) is passed as the service instance.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", TAG+="systemd", ENV{SYSTEMD_WANTS}+="arcade-usb-update@%k.service"
