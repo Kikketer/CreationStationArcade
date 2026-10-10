@@ -72,6 +72,39 @@ if [ ! -f "$SRC/Game" ] || [ ! -f "$SRC/libpxt.so" ]; then
     exit 0
 fi
 
+# Cartridge signature: the game is bound to this stick's filesystem UUID.
+# signature.txt = sha256("arcade-cart-v1", uuid, per-file hashes) written by
+# pack-usb.sh. A copied arcade-game/ on a different stick fails this check.
+# Set ALLOW_UNSIGNED=1 in /etc/arcade-usb-update.conf to accept unsigned carts.
+sha() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi
+}
+
+expected_signature() {
+    local uuid
+    uuid="$(blkid -o value -s UUID "$DEV" 2>/dev/null || true)"
+    [ -n "$uuid" ] || return 1
+    {
+        echo "arcade-cart-v1"
+        echo "$uuid"
+        find "$SRC" -mindepth 1 -maxdepth 1 -type f ! -name signature.txt ! -name '.*' \
+            | LC_ALL=C sort | while read -r f; do
+                h="$(sha "$f" | awk '{print $1}')"
+                echo "$h  $(basename "$f")"
+            done
+    } | sha | awk '{print $1}'
+}
+
+if [ "${ALLOW_UNSIGNED:-0}" != "1" ]; then
+    EXPECTED="$(expected_signature || true)"
+    ACTUAL="$(cat "$SRC/signature.txt" 2>/dev/null || true)"
+    if [ -z "$EXPECTED" ] || [ -z "$ACTUAL" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
+        log "arcade-game/ signature missing or not valid for this stick; refusing"
+        exit 0
+    fi
+    log "cartridge signature verified"
+fi
+
 # Game name: name.txt (sanitized) or a default.
 GAME_NAME=""
 if [ -f "$SRC/name.txt" ]; then
@@ -102,7 +135,7 @@ cp -a "$SRC/Game" "$SRC/libpxt.so" "$DEST/"
 chmod +x "$DEST/Game"
 # Copy any extra assets the game ships (data files, etc.) alongside the binary.
 find "$SRC" -mindepth 1 -maxdepth 1 ! -name Game ! -name libpxt.so ! -name name.txt ! -name arcade.cfg \
-    -exec cp -a {} "$DEST/" \; 2>/dev/null || true
+    ! -name signature.txt ! -name '.*' -exec cp -a {} "$DEST/" \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$DEST" 2>/dev/null || true
 
 # Optional GPIO button config on the stick.

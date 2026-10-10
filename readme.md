@@ -142,13 +142,20 @@ This branch has no menu. There are two ways to switch games:
 
 ```
 arcade-game/
-  Game         # required — native binary built for the box's architecture
-  libpxt.so    # required
-  name.txt     # optional — one line, becomes games/<Name> (default: USBGame)
-  arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO buttons)
+  Game           # required — native binary built for the box's architecture
+  libpxt.so      # required
+  name.txt       # optional — one line, becomes games/<Name> (default: USBGame)
+  arcade.cfg     # optional — copied to /etc/arcade.cfg (GPIO buttons)
+  signature.txt  # required — binds the game to this stick (see below)
 ```
 
-Any drive without `arcade-game/` is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
+Build a cart with `install/pack-usb.sh` — it copies the game into `arcade-game/` and writes `signature.txt`, a hash of the stick's filesystem UUID + the game files. The box refuses a folder whose signature is missing or doesn't match that stick's UUID, so `arcade-game/` can't be copied to another stick by drag-and-drop:
+
+```bash
+bash install/pack-usb.sh /path/to/extracted-game /Volumes/CART MyGame
+```
+
+Any drive without `arcade-game/` is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. To accept hand-assembled (unsigned) folders, add `ALLOW_UNSIGNED=1` to `/etc/arcade-usb-update.conf`. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
 
 **Manual:** add a new `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
 
