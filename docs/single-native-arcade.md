@@ -186,35 +186,31 @@ This flavor has no menu. There are two ways to switch games:
 
 Once the installer has run, the cabinet watches for USB drives. To swap games:
 
-1. On your regular computer, build the "cartridge" with the pack script. Extract the compiler's `.tar.gz` (Step 1) somewhere, plug in the USB stick, and run:
+1. Put the compiler's `.tar.gz` (Step 1) at the **root** of a USB stick — the exact file you downloaded, no extraction needed (e.g. `MyGame-arm64.tar.gz`).
 
-    ```bash
-    cd CreationStationArcade
-    bash install/pack-usb.sh /path/to/extracted-game /Volumes/MYSTICK MyGame
-    ```
+    In Chrome or Edge you can skip the copying entirely: check **"Write to a USB cartridge"** on the [compiler page](https://www.makecode.games/compilers/desktop) and after it builds, pick the stick's root folder — the archive is written straight onto it.
 
     !!! note "What this does"
-        Creates an `arcade-game/` folder at the root of the stick with `Game`, `libpxt.so`, and a `name.txt` — plus a `signature.txt` that binds the game to **this physical stick**. The signature is a hash of the stick's filesystem UUID and the game files, so dragging `arcade-game/` onto a different stick won't work — each cart has to be packed onto its own drive. (It's a hurdle against casual copying, not real DRM.) To accept unsigned folders anyway, add `ALLOW_UNSIGNED=1` to `/etc/arcade-usb-update.conf` on the cabinet.
+        The cabinet extracts the first `.tar.gz` it finds at the drive root, checks it contains `Game` and `libpxt.so`, names the game after the file (a `name.txt` inside the archive overrides it), and installs it into `games/`.
 
-    The stick ends up looking like this:
+    Alternatively, an extracted `arcade-game/` folder at the drive root works too — handy if you want to add an `arcade.cfg` for GPIO buttons:
 
     ```
     arcade-game/
-      Game           # the native binary (arm64 for a Pi, x86-64 for a PC)
+      Game         # the native binary (arm64 for a Pi, x86-64 for a PC)
       libpxt.so
-      name.txt       # the name for the games/ folder on the cabinet
-      signature.txt  # binds the game to this stick's filesystem UUID
-      arcade.cfg     # optional — copied to /etc/arcade.cfg (GPIO button map)
+      name.txt     # optional — the name for the games/ folder on the cabinet
+      arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO button map)
     ```
 
 2. Plug the stick into the arcade.
-3. Wait — the cabinet checks the stick, verifies the signature, copies the game into `games/`, points the launcher at it, and **reboots** into the new game all by itself (about 10–30 seconds).
+3. Wait — the cabinet checks the stick, extracts the game into `games/`, points the launcher at it, and **reboots** into the new game all by itself (about 10–30 seconds).
 
 !!! note "What this does"
-    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. If the drive has an `arcade-game/` folder with `Game` and `libpxt.so` **and a signature that matches that stick**, it gets copied in and the machine reboots into it. Drives without `arcade-game/` are ignored, copied folders without a valid signature are refused, and a `Game` built for the wrong architecture is refused — so a random or bad stick can't break the cabinet.
+    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. Drives without a game are ignored, and a `Game` built for the wrong architecture is refused — so a random or bad stick can't break the cabinet.
 
 !!! tip "Didn't work?"
-    Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: packing the folder by hand instead of with `pack-usb.sh` (missing/bad `signature.txt`), the folder not named exactly `arcade-game`, the files nested one folder too deep, or a `Game` built for the wrong architecture (Step 1).
+    Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: the tarball nested inside a folder instead of at the drive root, or a `Game` built for the wrong architecture (Step 1).
 
 **Option B — re-run the installer**
 
@@ -233,7 +229,7 @@ Once the installer has run, the cabinet watches for USB drives. To swap games:
 ## Putting a new game on the arcade
 
 1. Build the native binary with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
-2. Either drop it onto a USB stick in an `arcade-game/` folder and plug it into the cabinet (Option A above), or copy the `.tar.gz` onto the Pi and extract it into `games/<Name>/` (Step 5).
+2. Either drop the `.tar.gz` onto a USB stick and plug it into the cabinet (Option A above), or copy it onto the Pi and extract it into `games/<Name>/` (Step 5).
 3. If you installed manually, re-run the installer with `--game=<Name>` and reboot (above).
 
 You can also save the new game folder to the project and upload it through git to keep the source of truth in the repo.
