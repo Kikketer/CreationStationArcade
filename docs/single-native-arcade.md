@@ -180,7 +180,34 @@ After the reboot, the cabinet boots straight into `./Game -f` (fullscreen) insid
 
 ## Changing the game later
 
-This flavor has no menu. To switch games:
+This flavor has no menu. There are two ways to switch games:
+
+**Option A — USB stick (no keyboard, no SSH, no internet needed)**
+
+Once the installer has run, the cabinet watches for USB drives. To swap games:
+
+1. On your regular computer, make a folder named `arcade-game` at the **root** of a USB stick and put your game inside it:
+
+    ```
+    arcade-game/
+      Game         # required — the native binary (arm64 for a Pi, x86-64 for a PC)
+      libpxt.so    # required
+      name.txt     # optional — one line, the name for the games/ folder (default: USBGame)
+      arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO button map)
+    ```
+
+    These are the same files from the compiler's `.tar.gz` (Step 1) — just extract them into `arcade-game/` instead of `games/MyGame/`.
+
+2. Plug the stick into the arcade.
+3. Wait — the cabinet checks the stick, copies the game into `games/`, points the launcher at it, and **reboots** into the new game all by itself (about 10–30 seconds).
+
+!!! note "What this does"
+    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. If the drive has an `arcade-game/` folder with `Game` and `libpxt.so`, it gets copied in and the machine reboots into it. Drives without `arcade-game/` are ignored, and a `Game` built for the wrong architecture is refused — so a random or bad stick can't break the cabinet.
+
+!!! tip "Didn't work?"
+    Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: the folder not named exactly `arcade-game`, the files nested one folder too deep, or a `Game` built for the wrong architecture (Step 1).
+
+**Option B — re-run the installer**
 
 1. Add a new `games/<NewName>/` folder (Step 5) with the new `Game` and `libpxt.so`.
 2. Re-run the installer pointed at the new game:
@@ -197,8 +224,8 @@ This flavor has no menu. To switch games:
 ## Putting a new game on the arcade
 
 1. Build the native binary with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
-2. Copy the `.tar.gz` onto the Pi and extract it into `games/<Name>/` (Step 5).
-3. Re-run the installer with `--game=<Name>` and reboot (above).
+2. Either drop it onto a USB stick in an `arcade-game/` folder and plug it into the cabinet (Option A above), or copy the `.tar.gz` onto the Pi and extract it into `games/<Name>/` (Step 5).
+3. If you installed manually, re-run the installer with `--game=<Name>` and reboot (above).
 
 You can also save the new game folder to the project and upload it through git to keep the source of truth in the repo.
 
