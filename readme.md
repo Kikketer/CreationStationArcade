@@ -75,15 +75,17 @@ A dedicated cabinet reset button is supported out of the box. It triggers the na
 
 Default wiring:
 
-- Connect one side of a momentary normally-open switch to **GPIO 27** (physical pin **13**).
-- Connect the other side to **GND** (physical pin **14**, right next to pin 13).
+- Connect one side of a momentary normally-open switch to **GPIO 14** (physical pin **8**).
+- Connect the other side to **GND** (physical pin **6**, right next to pin 8).
 
 Pin layout for a 2-pin connector:
 
 ```
-Pin 13  GPIO 27  -> one switch wire
-Pin 14  GND      -> other switch wire
+Pin 8   GPIO 14  -> one switch wire
+Pin 6   GND      -> other switch wire
 ```
+
+GPIO 14 is the only header pin left unassigned by the default `/etc/arcade.cfg` button map, so it can never conflict with a player button. It doubles as UART TX, so the serial console must be disabled (the Raspberry Pi OS default).
 
 Because the switch pulls the pin to ground, `launcher.sh` runs `gpio-reset-keyboard.py` with `--active-low`. To use a different ground-adjacent GPIO, set `GPIO_RESET_PIN` in the launcher or before reboot. To use an active-high (3.3 V) button instead, set `GPIO_RESET_ACTIVE_HIGH=1`.
 
@@ -176,6 +178,10 @@ USB gamepads and zero-delay encoders that appear as `/dev/input/js*` or `/dev/in
 ```bash
 sudo bash install/single-native-arcade-setup.sh --game=YourGame --gpio
 ```
+
+The default pin map supports up to 4 players plus cabinet MENU/RESET/EXIT buttons. Each button is a momentary normally-open switch wired between its pin and any GND pin (all 8 GND header pins are equivalent — pick the closest one):
+
+![Raspberry Pi GPIO pinout — arcade button wiring](gpio-pinout.svg)
 
 On a machine with no config file (or no `/dev/gpiochip*`), GPIO input is simply off — the same `Game` binary runs on a regular computer with keyboard/joystick unchanged. Point `ARCADE_GPIO_CFG` at a different file to override the location.
 

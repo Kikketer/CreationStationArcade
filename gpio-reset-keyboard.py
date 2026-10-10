@@ -11,7 +11,10 @@ import RPi.GPIO as GPIO
 
 LOG_FILE = "/home/pi/arcade.log"
 UINPUT_PATH = "/dev/uinput"
-DEFAULT_PIN = int(os.environ.get("GPIO_RESET_PIN", "27"))
+# GPIO 14 (physical pin 8) is the only 40-pin header GPIO not used by the
+# default /etc/arcade.cfg button map, so it never conflicts with player buttons.
+# Requires the UART serial console to be disabled (the Pi OS default).
+DEFAULT_PIN = int(os.environ.get("GPIO_RESET_PIN", "14"))
 
 EV_KEY = 0x01
 EV_SYN = 0x00

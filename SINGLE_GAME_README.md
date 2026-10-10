@@ -19,10 +19,12 @@ sudo reboot
 
 The native `Game` handles reset with the `r` / `R` key.
 
-A dedicated cabinet reset button can be wired to **GPIO 27** (physical pin **13**) and **GND** (physical pin **14**). The `launcher.sh` starts `gpio-reset-keyboard.py` automatically; when the switch pulls GPIO 27 to ground, the helper injects an `r` key event, triggering `control.reset()` inside the running `Game` without restarting the process.
+A dedicated cabinet reset button can be wired to **GPIO 14** (physical pin **8**) and **GND** (physical pin **6**). The `launcher.sh` starts `gpio-reset-keyboard.py` automatically; when the switch pulls GPIO 14 to ground, the helper injects an `r` key event, triggering `control.reset()` inside the running `Game` without restarting the process.
 
-- Pin 13: switch wire
-- Pin 14: GND (right next to pin 13)
+- Pin 8: switch wire
+- Pin 6: GND (right next to pin 8)
+
+GPIO 14 is the only header pin not assigned in the default `/etc/arcade.cfg` button map, so it won't conflict with player buttons. It's also UART TX, so the serial console must be off (the Pi OS default).
 
 Use a momentary normally-open switch. The pin is pulled up internally, so the button is active-low.
 

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="700" viewBox="0 0 760 700" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <style>
+    text { fill: #111827; }
+    .pin-num { font-size: 11px; fill: #ffffff; font-weight: bold; }
+    .pin-label { font-size: 12px; fill: #ffffff; font-weight: bold; }
+    .pin-label-dark { font-size: 12px; fill: #374151; }
+    .title { font-size: 16px; font-weight: bold; }
+    .legend { font-size: 12px; }
+    .note { font-size: 11px; fill: #4b5563; }
+  </style>
+
+  <text x="10" y="24" class="title">Raspberry Pi 40-pin GPIO header — arcade button wiring (install/arcade.cfg)</text>
+  <text x="10" y="42" class="note">Buttons are momentary, normally-open, wired between the listed pin and any GND pin (internal pull-ups, active-low).</text>
+
+  <!-- Row 1 -->
+  <rect x="10"  y="60" width="360" height="24" rx="4" fill="#9ca3af"/><text x="20"  y="76" class="pin-num">1</text><text x="60"  y="76" class="pin-label">3V3</text>
+  <rect x="390" y="60" width="360" height="24" rx="4" fill="#9ca3af"/><text x="745" y="76" class="pin-num" text-anchor="end">2</text><text x="722" y="76" class="pin-label" text-anchor="end">5V</text>
+  <!-- Row 2 -->
+  <rect x="10"  y="88" width="360" height="24" rx="4" fill="#dc2626"/><text x="20"  y="104" class="pin-num">3</text><text x="60"  y="104" class="pin-label">GPIO 2  —  MENU (cabinet)</text>
+  <rect x="390" y="88" width="360" height="24" rx="4" fill="#9ca3af"/><text x="745" y="104" class="pin-num" text-anchor="end">4</text><text x="722" y="104" class="pin-label" text-anchor="end">5V</text>
+  <!-- Row 3 -->
+  <rect x="10"  y="116" width="360" height="24" rx="4" fill="#dc2626"/><text x="20"  y="132" class="pin-num">5</text><text x="60"  y="132" class="pin-label">GPIO 3  —  EXIT (cabinet)</text>
+  <rect x="390" y="116" width="360" height="24" rx="4" fill="#1f2937"/><text x="745" y="132" class="pin-num" text-anchor="end">6</text><text x="722" y="132" class="pin-label" text-anchor="end">GND</text>
+  <!-- Row 4 -->
+  <rect x="10"  y="144" width="360" height="24" rx="4" fill="#dc2626"/><text x="20"  y="160" class="pin-num">7</text><text x="60"  y="160" class="pin-label">GPIO 4  —  RESET (cabinet)</text>
+  <rect x="390" y="144" width="360" height="24" rx="4" fill="#dc2626"/><text x="745" y="160" class="pin-num" text-anchor="end">8</text><text x="722" y="160" class="pin-label" text-anchor="end">GPIO 14  —  RESET (uinput helper)</text>
+  <!-- Row 5 -->
+  <rect x="10"  y="172" width="360" height="24" rx="4" fill="#1f2937"/><text x="20"  y="188" class="pin-num">9</text><text x="60"  y="188" class="pin-label">GND</text>
+  <rect x="390" y="172" width="360" height="24" rx="4" fill="#9333ea"/><text x="745" y="188" class="pin-num" text-anchor="end">10</text><text x="722" y="188" class="pin-label" text-anchor="end">GPIO 15  —  P4 DOWN</text>
+  <!-- Row 6 -->
+  <rect x="10"  y="200" width="360" height="24" rx="4" fill="#16a34a"/><text x="20"  y="216" class="pin-num">11</text><text x="60"  y="216" class="pin-label">GPIO 17  —  P2 DOWN</text>
+  <rect x="390" y="200" width="360" height="24" rx="4" fill="#9333ea"/><text x="745" y="216" class="pin-num" text-anchor="end">12</text><text x="722" y="216" class="pin-label" text-anchor="end">GPIO 18  —  P4 RIGHT</text>
+  <!-- Row 7 -->
+  <rect x="10"  y="228" width="360" height="24" rx="4" fill="#16a34a"/><text x="20"  y="244" class="pin-num">13</text><text x="60"  y="244" class="pin-label">GPIO 27  —  P2 RIGHT</text>
+  <rect x="390" y="228" width="360" height="24" rx="4" fill="#1f2937"/><text x="745" y="244" class="pin-num" text-anchor="end">14</text><text x="722" y="244" class="pin-label" text-anchor="end">GND</text>
+  <!-- Row 8 -->
+  <rect x="10"  y="256" width="360" height="24" rx="4" fill="#16a34a"/><text x="20"  y="272" class="pin-num">15</text><text x="60"  y="272" class="pin-label">GPIO 22  —  P2 UP</text>
+  <rect x="390" y="256" width="360" height="24" rx="4" fill="#9333ea"/><text x="745" y="272" class="pin-num" text-anchor="end">16</text><text x="722" y="272" class="pin-label" text-anchor="end">GPIO 23  —  P4 UP</text>
+  <!-- Row 9 -->
+  <rect x="10"  y="284" width="360" height="24" rx="4" fill="#9ca3af"/><text x="20"  y="300" class="pin-num">17</text><text x="60"  y="300" class="pin-label">3V3</text>
+  <rect x="390" y="284" width="360" height="24" rx="4" fill="#9333ea"/><text x="745" y="300" class="pin-num" text-anchor="end">18</text><text x="722" y="300" class="pin-label" text-anchor="end">GPIO 24  —  P4 LEFT</text>
+  <!-- Row 10 -->
+  <rect x="10"  y="312" width="360" height="24" rx="4" fill="#16a34a"/><text x="20"  y="328" class="pin-num">19</text><text x="60"  y="328" class="pin-label">GPIO 10  —  P2 LEFT</text>
+  <rect x="390" y="312" width="360" height="24" rx="4" fill="#1f2937"/><text x="745" y="328" class="pin-num" text-anchor="end">20</text><text x="722" y="328" class="pin-label" text-anchor="end">GND</text>
+  <!-- Row 11 -->
+  <rect x="10"  y="340" width="360" height="24" rx="4" fill="#16a34a"/><text x="20"  y="356" class="pin-num">21</text><text x="60"  y="356" class="pin-label">GPIO 9  —  P2 B</text>
+  <rect x="390" y="340" width="360" height="24" rx="4" fill="#9333ea"/><text x="745" y="356" class="pin-num" text-anchor="end">22</text><text x="722" y="356" class="pin-label" text-anchor="end">GPIO 25  —  P4 B</text>
+  <!-- Row 12 -->
+  <rect x="10"  y="368" width="360" height="24" rx="4" fill="#16a34a"/><text x="20"  y="384" class="pin-num">23</text><text x="60"  y="384" class="pin-label">GPIO 11  —  P2 A</text>
+  <rect x="390" y="368" width="360" height="24" rx="4" fill="#9333ea"/><text x="745" y="384" class="pin-num" text-anchor="end">24</text><text x="722" y="384" class="pin-label" text-anchor="end">GPIO 8  —  P4 A</text>
+  <!-- Row 13 -->
+  <rect x="10"  y="396" width="360" height="24" rx="4" fill="#1f2937"/><text x="20"  y="412" class="pin-num">25</text><text x="60"  y="412" class="pin-label">GND</text>
+  <rect x="390" y="396" width="360" height="24" rx="4" fill="#ea580c"/><text x="745" y="412" class="pin-num" text-anchor="end">26</text><text x="722" y="412" class="pin-label" text-anchor="end">GPIO 7  —  P3 DOWN</text>
+  <!-- Row 14 -->
+  <rect x="10"  y="424" width="360" height="24" rx="4" fill="#2563eb"/><text x="20"  y="440" class="pin-num">27</text><text x="60"  y="440" class="pin-label">GPIO 0  —  P1 DOWN</text>
+  <rect x="390" y="424" width="360" height="24" rx="4" fill="#ea580c"/><text x="745" y="440" class="pin-num" text-anchor="end">28</text><text x="722" y="440" class="pin-label" text-anchor="end">GPIO 1  —  P3 RIGHT</text>
+  <!-- Row 15 -->
+  <rect x="10"  y="452" width="360" height="24" rx="4" fill="#2563eb"/><text x="20"  y="468" class="pin-num">29</text><text x="60"  y="468" class="pin-label">GPIO 5  —  P1 RIGHT</text>
+  <rect x="390" y="452" width="360" height="24" rx="4" fill="#1f2937"/><text x="745" y="468" class="pin-num" text-anchor="end">30</text><text x="722" y="468" class="pin-label" text-anchor="end">GND</text>
+  <!-- Row 16 -->
+  <rect x="10"  y="480" width="360" height="24" rx="4" fill="#2563eb"/><text x="20"  y="496" class="pin-num">31</text><text x="60"  y="496" class="pin-label">GPIO 6  —  P1 UP</text>
+  <rect x="390" y="480" width="360" height="24" rx="4" fill="#ea580c"/><text x="745" y="496" class="pin-num" text-anchor="end">32</text><text x="722" y="496" class="pin-label" text-anchor="end">GPIO 12  —  P3 UP</text>
+  <!-- Row 17 -->
+  <rect x="10"  y="508" width="360" height="24" rx="4" fill="#2563eb"/><text x="20"  y="524" class="pin-num">33</text><text x="60"  y="524" class="pin-label">GPIO 13  —  P1 LEFT</text>
+  <rect x="390" y="508" width="360" height="24" rx="4" fill="#1f2937"/><text x="745" y="524" class="pin-num" text-anchor="end">34</text><text x="722" y="524" class="pin-label" text-anchor="end">GND</text>
+  <!-- Row 18 -->
+  <rect x="10"  y="536" width="360" height="24" rx="4" fill="#2563eb"/><text x="20"  y="552" class="pin-num">35</text><text x="60"  y="552" class="pin-label">GPIO 19  —  P1 B</text>
+  <rect x="390" y="536" width="360" height="24" rx="4" fill="#ea580c"/><text x="745" y="552" class="pin-num" text-anchor="end">36</text><text x="722" y="552" class="pin-label" text-anchor="end">GPIO 16  —  P3 LEFT</text>
+  <!-- Row 19 -->
+  <rect x="10"  y="564" width="360" height="24" rx="4" fill="#2563eb"/><text x="20"  y="580" class="pin-num">37</text><text x="60"  y="580" class="pin-label">GPIO 26  —  P1 A</text>
+  <rect x="390" y="564" width="360" height="24" rx="4" fill="#ea580c"/><text x="745" y="580" class="pin-num" text-anchor="end">38</text><text x="722" y="580" class="pin-label" text-anchor="end">GPIO 20  —  P3 B</text>
+  <!-- Row 20 -->
+  <rect x="10"  y="592" width="360" height="24" rx="4" fill="#1f2937"/><text x="20"  y="608" class="pin-num">39</text><text x="60"  y="608" class="pin-label">GND</text>
+  <rect x="390" y="592" width="360" height="24" rx="4" fill="#ea580c"/><text x="745" y="608" class="pin-num" text-anchor="end">40</text><text x="722" y="608" class="pin-label" text-anchor="end">GPIO 21  —  P3 A</text>
+
+  <!-- Legend -->
+  <rect x="10"  y="636" width="14" height="14" fill="#2563eb"/><text x="30"  y="648" class="legend">Player 1</text>
+  <rect x="110" y="636" width="14" height="14" fill="#16a34a"/><text x="130" y="648" class="legend">Player 2</text>
+  <rect x="210" y="636" width="14" height="14" fill="#ea580c"/><text x="230" y="648" class="legend">Player 3</text>
+  <rect x="310" y="636" width="14" height="14" fill="#9333ea"/><text x="330" y="648" class="legend">Player 4</text>
+  <rect x="410" y="636" width="14" height="14" fill="#dc2626"/><text x="430" y="648" class="legend">Cabinet (MENU/RESET/EXIT)</text>
+  <rect x="630" y="636" width="14" height="14" fill="#1f2937"/><text x="650" y="648" class="legend">GND</text>
+
+  <text x="10" y="676" class="note">GPIO 14 (pin 8) is the only header pin not used by arcade.cfg, so the uinput reset helper defaults to it. It doubles</text>
+  <text x="10" y="690" class="note">as UART TX — the serial console must be disabled (the Raspberry Pi OS default) for the reset button to work.</text>
+</svg>
