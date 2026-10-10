@@ -191,7 +191,7 @@ Once the installer has run, the cabinet watches for USB drives. To swap games:
     In Chrome or Edge you can skip the copying entirely: check **"Write to a USB cartridge"** on the [compiler page](https://www.makecode.games/compilers/desktop) and after it builds, pick the stick's root folder — the archive is written straight onto it.
 
     !!! note "What this does"
-        The cabinet extracts the first `.tar.gz` it finds at the drive root, checks it contains `Game` and `libpxt.so`, names the game after the file (a `name.txt` inside the archive overrides it), and installs it into `games/`.
+        The cabinet extracts the first `.tar.gz` it finds at the drive root, checks it contains `Game` and `libpxt.so`, names the game after the file (a `name.txt` inside the archive overrides it), and installs it into `games/`. Other installed games are removed — only the new game and `ControllerTest` (the built-in sanity check) are kept.
 
     Alternatively, an extracted `arcade-game/` folder at the drive root works too — handy if you want to add an `arcade.cfg` for GPIO buttons:
 
@@ -204,10 +204,13 @@ Once the installer has run, the cabinet watches for USB drives. To swap games:
     ```
 
 2. Plug the stick into the arcade.
-3. Wait — the cabinet checks the stick, extracts the game into `games/`, points the launcher at it, and **reboots** into the new game all by itself (about 10–30 seconds).
+3. Wait a few seconds — the cabinet checks the stick, installs the game, and swaps to it **without rebooting**. The screen may flicker as the old game exits and the new one starts (about 10–30 seconds total).
 
 !!! note "What this does"
-    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. Drives without a game are ignored, and a `Game` built for the wrong architecture is refused — so a random or bad stick can't break the cabinet.
+    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. It records the game's name in the active-game file and stops the running `Game` — the launcher notices and starts the new one. Drives without a game are ignored, a `Game` built for the wrong architecture is refused, and a stick carrying the *same* game that's already installed is skipped — so a random or bad stick can't break the cabinet, and leaving the stick in during a reboot won't loop.
+
+!!! tip "Updating a game from the stick"
+    Rebuild the `.tar.gz`, put it on the stick, and plug it back in — the cabinet compares the file's modified time against what it already installed and only swaps if the stick is newer. The same file again is ignored.
 
 !!! tip "Didn't work?"
     Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: the tarball nested inside a folder instead of at the drive root, or a `Game` built for the wrong architecture (Step 1).
@@ -229,8 +232,11 @@ Once the installer has run, the cabinet watches for USB drives. To swap games:
 ## Putting a new game on the arcade
 
 1. Build the native binary with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
-2. Either drop the `.tar.gz` onto a USB stick and plug it into the cabinet (Option A above), or copy it onto the Pi and extract it into `games/<Name>/` (Step 5).
+2. Either drop the `.tar.gz` onto a USB stick and plug it into the cabinet (Option A above — no reboot needed), or copy it onto the Pi and extract it into `games/<Name>/` (Step 5).
 3. If you installed manually, re-run the installer with `--game=<Name>` and reboot (above).
+
+!!! tip "Deleting a game"
+    Remove a `games/<Name>/` folder (and reboot, or let the current game exit) and the cabinet falls back to `ControllerTest` — which then becomes the recorded active game until a new one arrives.
 
 You can also save the new game folder to the project and upload it through git to keep the source of truth in the repo.
 
