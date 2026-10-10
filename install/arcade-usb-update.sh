@@ -3,11 +3,13 @@
 # Triggered by the arcade-usb-update@.service systemd unit via udev when a
 # USB filesystem is inserted. Runs as root; no user interaction.
 #
-# USB format: a directory named "arcade-game" at the drive root containing:
-#   Game        — the native MakeCode Arcade binary (required)
-#   libpxt.so   — the runtime library (required)
-#   name.txt    — single-line game name for games/<Name> (optional)
-#   arcade.cfg  — GPIO button config, copied to /etc/arcade.cfg (optional)
+# USB format — either of these at the drive root:
+#   *.tar.gz        — the archive straight from the PNG to Desktop compiler
+#                     (must contain Game + libpxt.so at any depth; an optional
+#                     name.txt inside sets the games/<Name>, otherwise the
+#                     name comes from the filename)
+#   arcade-game/    — an already-extracted folder with Game + libpxt.so
+#                     (optional name.txt, arcade.cfg for GPIO buttons)
 #
 # /etc/arcade-usb-update.conf (written by the installer) provides:
 #   RUN_DIR      — checkout directory containing games/
@@ -23,6 +25,7 @@ ARCADE_USER="pi"
 
 LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
 MNT=/mnt/arcade-usb
+STAGE="$(mktemp -d)"
 
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] usb-update: $*"
@@ -58,6 +61,7 @@ done
 
 cleanup() {
     umount "$MNT" 2>/dev/null || true
+    rm -rf "$STAGE"
 }
 trap cleanup EXIT
 
@@ -66,68 +70,45 @@ if [ "$MOUNTED" != "1" ]; then
     exit 0
 fi
 
-SRC="$MNT/arcade-game"
-if [ ! -f "$SRC/Game" ] || [ ! -f "$SRC/libpxt.so" ]; then
-    log "no arcade-game/ directory with Game + libpxt.so on $DEV; ignoring"
+# --- Stage the game from the stick ---
+GAME_NAME=""
+SRC=""
+
+if [ -d "$MNT/arcade-game" ]; then
+    mkdir -p "$STAGE/game"
+    cp -a "$MNT/arcade-game/." "$STAGE/game/"
+    SRC="$STAGE/game"
+    SRC_LABEL="arcade-game/"
+else
+    # First .tar.gz at the stick root wins (e.g. MyGame-arm64.tar.gz).
+    TARBALL="$(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' | LC_ALL=C sort | head -n1)"
+    if [ -n "$TARBALL" ]; then
+        mkdir -p "$STAGE/tar"
+        if tar xzf "$TARBALL" -C "$STAGE/tar" 2>/dev/null; then
+            # Locate the dir holding Game + libpxt.so (archive may nest them).
+            SRC="$(dirname "$(find "$STAGE/tar" -name Game -type f | head -n1)" 2>/dev/null)"
+            [ -f "$SRC/Game" ] && [ -f "$SRC/libpxt.so" ] || SRC=""
+            SRC_LABEL="$(basename "$TARBALL")"
+            # Name from the filename: strip .tar.gz and any -arch suffix.
+            GAME_NAME="$(basename "$TARBALL" .tar.gz | sed -E 's/-(arm64|x86-64|win64|amd64)$//' | tr -cd 'A-Za-z0-9._-')"
+        else
+            log "found $TARBALL but could not extract it; ignoring"
+            exit 0
+        fi
+    fi
+fi
+
+if [ -z "$SRC" ]; then
+    log "no arcade-game/ folder or .tar.gz with Game + libpxt.so on $DEV; ignoring"
     exit 0
 fi
 
-# Cartridge signature: the game is bound to this stick's filesystem UUID.
-# signature.txt = sha256("arcade-cart-v1", uuid, per-file hashes) written by
-# pack-usb.sh. A copied arcade-game/ on a different stick fails this check.
-# Set ALLOW_UNSIGNED=1 in /etc/arcade-usb-update.conf to accept unsigned carts.
-sha() {
-    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi
-}
+log "found game source: $SRC_LABEL"
 
-# signature.txt schemes:
-#   v1:<hash> (or a bare hash) — bound to the stick's filesystem UUID,
-#      written by install/pack-usb.sh
-#   v2:<hash> — bound to a random key file (.arcade-cart-key) at the stick
-#      root, written by the desktop compiler's "USB cartridge" option.
-#      Copying arcade-game/ to another stick leaves the key file behind.
-expected_signature() {
-    local version="$1" secret
-    case "$version" in
-        v1)
-            secret="$(blkid -o value -s UUID "$DEV" 2>/dev/null || true)"
-            ;;
-        v2)
-            secret="$(cat "$MNT/.arcade-cart-key" 2>/dev/null | tr -d '[:space:]')"
-            ;;
-        *) return 1 ;;
-    esac
-    [ -n "$secret" ] || return 1
-    {
-        echo "arcade-cart-$version"
-        echo "$secret"
-        find "$SRC" -mindepth 1 -maxdepth 1 -type f ! -name signature.txt ! -name '.*' \
-            | LC_ALL=C sort | while read -r f; do
-                h="$(sha "$f" | awk '{print $1}')"
-                echo "$h  $(basename "$f")"
-            done
-    } | sha | awk '{print $1}'
-}
-
-if [ "${ALLOW_UNSIGNED:-0}" != "1" ]; then
-    ACTUAL="$(cat "$SRC/signature.txt" 2>/dev/null | tr -d '[:space:]')"
-    case "$ACTUAL" in
-        v2:*) VERSION="v2"; ACTUAL="${ACTUAL#v2:}" ;;
-        v1:*) VERSION="v1"; ACTUAL="${ACTUAL#v1:}" ;;
-        *)    VERSION="v1" ;;
-    esac
-    EXPECTED="$(expected_signature "$VERSION" || true)"
-    if [ -z "$EXPECTED" ] || [ -z "$ACTUAL" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
-        log "arcade-game/ signature missing or not valid for this stick; refusing"
-        exit 0
-    fi
-    log "cartridge signature verified ($VERSION)"
-fi
-
-# Game name: name.txt (sanitized) or a default.
-GAME_NAME=""
+# name.txt inside the game folder overrides the filename-derived name.
 if [ -f "$SRC/name.txt" ]; then
-    GAME_NAME="$(head -n1 "$SRC/name.txt" | tr -cd 'A-Za-z0-9._-')"
+    OVERRIDE="$(head -n1 "$SRC/name.txt" | tr -cd 'A-Za-z0-9._-')"
+    [ -n "$OVERRIDE" ] && GAME_NAME="$OVERRIDE"
 fi
 [ -n "$GAME_NAME" ] || GAME_NAME="USBGame"
 
@@ -154,7 +135,7 @@ cp -a "$SRC/Game" "$SRC/libpxt.so" "$DEST/"
 chmod +x "$DEST/Game"
 # Copy any extra assets the game ships (data files, etc.) alongside the binary.
 find "$SRC" -mindepth 1 -maxdepth 1 ! -name Game ! -name libpxt.so ! -name name.txt ! -name arcade.cfg \
-    ! -name signature.txt ! -name '.*' -exec cp -a {} "$DEST/" \; 2>/dev/null || true
+    ! -name '.*' -exec cp -a {} "$DEST/" \; 2>/dev/null || true
 chown -R "$ARCADE_USER:$ARCADE_USER" "$DEST" 2>/dev/null || true
 
 # Optional GPIO button config on the stick.

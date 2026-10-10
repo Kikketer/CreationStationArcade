@@ -138,27 +138,20 @@ To disable autolaunch for debugging, see `notes.md` or run `./toggle-arcade.sh d
 
 This branch has no menu. There are two ways to switch games:
 
-**USB stick (no keyboard / no SSH needed):** the installer sets up a udev rule + `arcade-usb-update@.service` so that inserting a USB drive containing an `arcade-game/` folder at its root installs the game and reboots:
+**USB stick (no keyboard / no SSH needed):** the installer sets up a udev rule + `arcade-usb-update@.service` so that inserting a USB drive containing a game installs it and reboots. Two ways to get a game on the stick:
 
-```
-arcade-game/
-  Game           # required — native binary built for the box's architecture
-  libpxt.so      # required
-  name.txt       # optional — one line, becomes games/<Name> (default: USBGame)
-  arcade.cfg     # optional — copied to /etc/arcade.cfg (GPIO buttons)
-  signature.txt  # required — binds the game to this stick (see below)
-```
+- **Just drop the `.tar.gz` on it** — the exact file the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) downloads (e.g. `MyGame-arm64.tar.gz`) at the drive root. In Chrome/Edge you can even check "Write to a USB cartridge" on the compiler page and it writes the file straight to the stick for you.
+- **Or an extracted `arcade-game/` folder** at the drive root:
 
-Build a cart two ways:
-
-- **In the browser (Chrome/Edge):** check "Write to a USB cartridge" on the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop). After compiling it asks for the stick's root folder and writes `arcade-game/` + `signature.txt` directly — plus a `.arcade-cart-key` file at the stick root. The signature binds the game to that key file, so copying `arcade-game/` to another stick leaves the key behind and gets refused.
-- **From the terminal:** `install/pack-usb.sh` copies the game into `arcade-game/` and writes `signature.txt`, a hash of the stick's filesystem UUID + the game files (`v1:` signature). The box refuses a folder whose signature is missing or doesn't match that stick's UUID:
-
-  ```bash
-  bash install/pack-usb.sh /path/to/extracted-game /Volumes/CART MyGame
+  ```
+  arcade-game/
+    Game         # required — native binary built for the box's architecture
+    libpxt.so    # required
+    name.txt     # optional — one line, becomes games/<Name>
+    arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO buttons)
   ```
 
-Any drive without `arcade-game/` is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. To accept hand-assembled (unsigned) folders, add `ALLOW_UNSIGNED=1` to `/etc/arcade-usb-update.conf`. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
+The box extracts the archive, checks for `Game` + `libpxt.so`, names the game from the filename (a `name.txt` inside overrides it), installs it into `games/`, and reboots. Any drive without a game is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
 
 **Manual:** add a new `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
 
