@@ -80,13 +80,27 @@ sha() {
     if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi
 }
 
+# signature.txt schemes:
+#   v1:<hash> (or a bare hash) — bound to the stick's filesystem UUID,
+#      written by install/pack-usb.sh
+#   v2:<hash> — bound to a random key file (.arcade-cart-key) at the stick
+#      root, written by the desktop compiler's "USB cartridge" option.
+#      Copying arcade-game/ to another stick leaves the key file behind.
 expected_signature() {
-    local uuid
-    uuid="$(blkid -o value -s UUID "$DEV" 2>/dev/null || true)"
-    [ -n "$uuid" ] || return 1
+    local version="$1" secret
+    case "$version" in
+        v1)
+            secret="$(blkid -o value -s UUID "$DEV" 2>/dev/null || true)"
+            ;;
+        v2)
+            secret="$(cat "$MNT/.arcade-cart-key" 2>/dev/null | tr -d '[:space:]')"
+            ;;
+        *) return 1 ;;
+    esac
+    [ -n "$secret" ] || return 1
     {
-        echo "arcade-cart-v1"
-        echo "$uuid"
+        echo "arcade-cart-$version"
+        echo "$secret"
         find "$SRC" -mindepth 1 -maxdepth 1 -type f ! -name signature.txt ! -name '.*' \
             | LC_ALL=C sort | while read -r f; do
                 h="$(sha "$f" | awk '{print $1}')"
@@ -96,13 +110,18 @@ expected_signature() {
 }
 
 if [ "${ALLOW_UNSIGNED:-0}" != "1" ]; then
-    EXPECTED="$(expected_signature || true)"
-    ACTUAL="$(cat "$SRC/signature.txt" 2>/dev/null || true)"
+    ACTUAL="$(cat "$SRC/signature.txt" 2>/dev/null | tr -d '[:space:]')"
+    case "$ACTUAL" in
+        v2:*) VERSION="v2"; ACTUAL="${ACTUAL#v2:}" ;;
+        v1:*) VERSION="v1"; ACTUAL="${ACTUAL#v1:}" ;;
+        *)    VERSION="v1" ;;
+    esac
+    EXPECTED="$(expected_signature "$VERSION" || true)"
     if [ -z "$EXPECTED" ] || [ -z "$ACTUAL" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
         log "arcade-game/ signature missing or not valid for this stick; refusing"
         exit 0
     fi
-    log "cartridge signature verified"
+    log "cartridge signature verified ($VERSION)"
 fi
 
 # Game name: name.txt (sanitized) or a default.

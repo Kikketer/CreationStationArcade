@@ -83,7 +83,7 @@ echo "$CART_NAME" > "$DEST/name.txt"
             h="$(sha "$f" | awk '{print $1}')"
             echo "$h  $(basename "$f")"
         done
-} | sha | awk '{print $1}' > "$DEST/signature.txt"
+} | sha | awk '{print "v1:" $1}' > "$DEST/signature.txt"
 
 sync 2>/dev/null || true
 

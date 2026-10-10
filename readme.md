@@ -149,11 +149,14 @@ arcade-game/
   signature.txt  # required — binds the game to this stick (see below)
 ```
 
-Build a cart with `install/pack-usb.sh` — it copies the game into `arcade-game/` and writes `signature.txt`, a hash of the stick's filesystem UUID + the game files. The box refuses a folder whose signature is missing or doesn't match that stick's UUID, so `arcade-game/` can't be copied to another stick by drag-and-drop:
+Build a cart two ways:
 
-```bash
-bash install/pack-usb.sh /path/to/extracted-game /Volumes/CART MyGame
-```
+- **In the browser (Chrome/Edge):** check "Write to a USB cartridge" on the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop). After compiling it asks for the stick's root folder and writes `arcade-game/` + `signature.txt` directly — plus a `.arcade-cart-key` file at the stick root. The signature binds the game to that key file, so copying `arcade-game/` to another stick leaves the key behind and gets refused.
+- **From the terminal:** `install/pack-usb.sh` copies the game into `arcade-game/` and writes `signature.txt`, a hash of the stick's filesystem UUID + the game files (`v1:` signature). The box refuses a folder whose signature is missing or doesn't match that stick's UUID:
+
+  ```bash
+  bash install/pack-usb.sh /path/to/extracted-game /Volumes/CART MyGame
+  ```
 
 Any drive without `arcade-game/` is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. To accept hand-assembled (unsigned) folders, add `ALLOW_UNSIGNED=1` to `/etc/arcade-usb-update.conf`. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
 
