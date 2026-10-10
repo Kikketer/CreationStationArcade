@@ -18,21 +18,39 @@ _log() {
 
 _log "Launcher starting (RUN_DIR=$RUN_DIR)"
 
-# Determine the active game. SINGLE_GAME_NAME can name a directory in games/.
-GAME_NAME="${SINGLE_GAME_NAME:-}"
-if [ -z "$GAME_NAME" ]; then
-    while IFS= read -r -d '' d; do
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
-            GAME_NAME="$(basename "$d")"
-            break
-        fi
-    done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
-fi
+# Determine the active game. Priority: $RUN_DIR/.active-game (written by the
+# USB updater for live switches), then SINGLE_GAME_NAME, then ControllerTest
+# (the "does this thing work" sanity game), then the first valid directory
+# in games/. Re-resolved each loop so a USB swap takes effect on the next
+# launch without a reboot.
+ACTIVE_FILE="$RUN_DIR/.active-game"
 
+resolve_game() {
+    local name=""
+    if [ -f "$ACTIVE_FILE" ]; then
+        name="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
+    fi
+    [ -n "$name" ] || name="${SINGLE_GAME_NAME:-}"
+    if [ -z "$name" ] || [ ! -x "$GAMES_DIR/$name/Game" ] || [ ! -f "$GAMES_DIR/$name/libpxt.so" ]; then
+        name="ControllerTest"
+    fi
+    if [ ! -x "$GAMES_DIR/$name/Game" ] || [ ! -f "$GAMES_DIR/$name/libpxt.so" ]; then
+        name=""
+        while IFS= read -r -d '' d; do
+            if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
+                name="$(basename "$d")"
+                break
+            fi
+        done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+    fi
+    echo "$name"
+}
+
+GAME_NAME="$(resolve_game)"
 GAME_DIR="$GAMES_DIR/$GAME_NAME"
 if [ -z "$GAME_NAME" ] || [ ! -x "$GAME_DIR/Game" ] || [ ! -f "$GAME_DIR/libpxt.so" ]; then
     _log "ERROR: no native game found in $GAMES_DIR/<Name>/Game + libpxt.so"
-    _log "Extract a game from make-web /desktop into $GAMES_DIR/<Name>/ and re-run the installer."
+    _log "Extract a game from the PNG to Desktop compiler into $GAMES_DIR/<Name>/ and re-run the installer."
     sleep 5
     exit 1
 fi
@@ -40,7 +58,6 @@ fi
 export SINGLE_GAME_NAME="$GAME_NAME"
 export SDL_VIDEODRIVER=kmsdrm
 export SDL_AUDIODRIVER=alsa
-export LD_LIBRARY_PATH="$GAME_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # The bundled SDL renderers on ARM KMSDRM boards (vc4/lima/panfrost) work
 # best with the OpenGL ES 2.0 driver.  Allow users to override if needed.
@@ -79,10 +96,26 @@ else
     _log "GPIO reset helper skipped (no GPIO library installed)"
 fi
 
-# Main loop: keep the native game running.
+# Main loop: keep the native game running. The game name is re-resolved
+# every iteration so a USB install can switch the active game by updating
+# .active-game and killing the running Game — no reboot needed.
 MAX_RETRIES="${ARCADE_MAX_RETRIES:-5}"
 RETRY=0
+LAST_GAME=""
 while [ "$RETRY" -lt "$MAX_RETRIES" ]; do
+    GAME_NAME="$(resolve_game)"
+    GAME_DIR="$GAMES_DIR/$GAME_NAME"
+    if [ "$GAME_NAME" != "$LAST_GAME" ]; then
+        RETRY=0
+        LAST_GAME="$GAME_NAME"
+    fi
+    if [ -z "$GAME_NAME" ] || [ ! -x "$GAME_DIR/Game" ] || [ ! -f "$GAME_DIR/libpxt.so" ]; then
+        _log "ERROR: no runnable game found; retrying in 5s"
+        sleep 5
+        continue
+    fi
+    export SINGLE_GAME_NAME="$GAME_NAME"
+    export LD_LIBRARY_PATH="$GAME_DIR"
     _log "Launching $GAME_NAME (native Game)"
     "$RUN_DIR/single-native-launch.sh" "$GAME_DIR" >> "$LOG_FILE" 2>&1
     STATUS=$?
