@@ -17,6 +17,7 @@ to the menu when it exits.
 - `games/<Name>/libpxt.so` — PXT VM library for that game (extracted with `Game` from the tar.gz).
 - `games/<Name>/cover.png` — optional cover art the menu can show via `control.programImage(name)`; decoded and quantized onto the 16-color palette (keep it small, e.g. 60x34).
 - `games/<Name>/cover.img` — optional alternative: a MakeCode image binary returned to `image.ofBuffer()` as-is.
+- `games/<Name>/info.json` — optional metadata the menu reads via `control.programInfo(name)`, e.g. `{"name": "Cool Game", "players": 2}`.
 
 ## Exit back to the menu
 

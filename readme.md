@@ -156,6 +156,7 @@ The installer sets up a udev rule + `arcade-usb-update@.service` so inserting a 
     libpxt.so    # required
     cover.png    # optional — menu cover art (small, e.g. 60x34; decoded + palette-quantized by the runtime)
     cover.img    # optional — alternative: a MakeCode image binary, passed straight to image.ofBuffer()
+    info.json    # optional — menu metadata, e.g. {"name": "Cool Game", "players": 2}
     name.txt     # optional — one line, becomes games/<Name>
     arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO buttons)
   ```
