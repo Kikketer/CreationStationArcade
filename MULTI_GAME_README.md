@@ -15,6 +15,8 @@ to the menu when it exits.
 - `games/Menu/` — the menu game itself.
 - `games/<Name>/Game` — native Game executable.
 - `games/<Name>/libpxt.so` — PXT VM library for that game (extracted with `Game` from the tar.gz).
+- `games/<Name>/cover.png` — optional cover art the menu can show via `control.programImage(name)`; decoded and quantized onto the 16-color palette (keep it small, e.g. 60x34).
+- `games/<Name>/cover.img` — optional alternative: a MakeCode image binary returned to `image.ofBuffer()` as-is.
 
 ## Exit back to the menu
 
@@ -38,7 +40,7 @@ USB gamepads and keyboards still control the game normally, but only the cabinet
 
 ## Environment variables
 
-- `ARCADE_GAMES_DIR` — exported by `launcher.sh`; the menu scans it for `*/Game` to build the game list.
+- `ARCADE_GAMES_DIR` — exported by `launcher.sh`; the menu scans it for `*/Game` to build the game list (`control.programList()` in the MakeCode game).
 - `ARCADE_LAUNCH_FILE` — path the menu writes the chosen game name to before exiting (default `/tmp/creationstation_launch_request`).
 - `ARCADE_MENU_NAME` — directory name of the menu game (default `Menu`).
 - `SDL_VIDEODRIVER=kmsdrm` — use the Linux DRM/KMS backend.

@@ -154,6 +154,8 @@ The installer sets up a udev rule + `arcade-usb-update@.service` so inserting a 
   arcade-game/
     Game         # required — native binary built for the box's architecture
     libpxt.so    # required
+    cover.png    # optional — menu cover art (small, e.g. 60x34; decoded + palette-quantized by the runtime)
+    cover.img    # optional — alternative: a MakeCode image binary, passed straight to image.ofBuffer()
     name.txt     # optional — one line, becomes games/<Name>
     arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO buttons)
   ```
