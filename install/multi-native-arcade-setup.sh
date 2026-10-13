@@ -1,18 +1,15 @@
 #!/bin/bash
-# single-native-arcade-setup.sh — one-shot installer for the single native arcade kiosk.
+# multi-native-arcade-setup.sh — one-shot installer for the multi native arcade kiosk.
 # Run from the checkout directory on the target machine (usually as root).
+# Boots into the menu game (games/Menu/); games are picked from the menu.
 set -e
 
-REQUESTED_GAME=""
 ENABLE_GPIO=0
 while [ $# -gt 0 ]; do
     case "$1" in
-        --game=*) REQUESTED_GAME="${1#*=}"; shift ;;
-        --game) REQUESTED_GAME="$2"; shift 2 ;;
         --gpio) ENABLE_GPIO=1; shift ;;
         -h|--help)
-            echo "Usage: $0 [--game=GameName] [--gpio]"
-            echo "If --game is omitted, the first available native game is selected."
+            echo "Usage: $0 [--gpio]"
             echo "--gpio installs install/arcade.cfg as /etc/arcade.cfg so the Game"
             echo "binary reads arcade buttons wired to the GPIO pins."
             exit 0
@@ -44,7 +41,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-log "=== single-native-arcade setup ==="
+log "=== multi-native-arcade setup ==="
 log "Checkout directory: $RUN_DIR"
 log "User:               $ARCADE_USER"
 
@@ -116,43 +113,27 @@ if [ -f /etc/rc.local ] && ! grep -q "chmod 0666 /dev/uinput" /etc/rc.local; the
     sed -i '/^exit 0/i chmod 0666 /dev/uinput' /etc/rc.local
 fi
 
-# 3. Determine active game
-list_valid_games() {
-    find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d | sort | while read -r d; do
-        local name
-        name="$(basename "$d")"
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
-            echo "  - $name"
-        fi
-    done
-}
-
-if [ -n "$REQUESTED_GAME" ]; then
-    if [ ! -x "$GAMES_DIR/$REQUESTED_GAME/Game" ] || [ ! -f "$GAMES_DIR/$REQUESTED_GAME/libpxt.so" ]; then
-        log "ERROR: requested game '$REQUESTED_GAME' is missing Game or libpxt.so"
-        log "Valid games:"
-        list_valid_games
-        exit 1
+# 3. Sanity-check installed games
+MENU_NAME="${ARCADE_MENU_NAME:-Menu}"
+GAME_COUNT=0
+while IFS= read -r -d '' d; do
+    if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
+        GAME_COUNT=$((GAME_COUNT + 1))
+        log "  found game: $(basename "$d")"
     fi
-    GAME_NAME="$REQUESTED_GAME"
-else
-    GAME_NAME=""
-    while IFS= read -r -d '' d; do
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
-            GAME_NAME="$(basename "$d")"
-            break
-        fi
-    done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
-fi
+done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 
-if [ -z "$GAME_NAME" ]; then
+if [ ! -x "$GAMES_DIR/$MENU_NAME/Game" ] || [ ! -f "$GAMES_DIR/$MENU_NAME/libpxt.so" ]; then
+    log "WARNING: no menu game at $GAMES_DIR/$MENU_NAME (Game + libpxt.so)."
+    log "The cabinet will fall back to ControllerTest or the first installed game."
+    log "Build the menu project with the menu-enabled compiler and extract it to games/$MENU_NAME/."
+fi
+if [ "$GAME_COUNT" -eq 0 ]; then
     log "ERROR: no native game found in $GAMES_DIR/<Name>/Game + libpxt.so"
     log "Directories under $GAMES_DIR/:"
     find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
     exit 1
 fi
-
-log "Selected game: $GAME_NAME"
 
 # 4. Autologin on tty1
 log "Configuring autologin for $ARCADE_USER on tty1..."
@@ -174,29 +155,18 @@ inject_launcher() {
         touch "$file"
         chown "$ARCADE_USER:$ARCADE_USER" "$file" 2>/dev/null || true
     fi
-    if grep -q "single-native-arcade launcher" "$file" 2>/dev/null; then
-        # Update the game name in the existing launcher block (even if toggled off).
-        local tmp
-        tmp="$(mktemp)"
-        while IFS= read -r line || [ -n "$line" ]; do
-            if [[ "$line" =~ ^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME=\"[^\"]*\"[[:space:]]*$ ]]; then
-                echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
-            else
-                echo "$line"
-            fi
-        done < "$file" > "$tmp"
-        mv "$tmp" "$file"
-    else
-        {
-            echo ""
-            echo "# single-native-arcade launcher"
-            echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
-            echo "  export SINGLE_GAME_NAME=\"$GAME_NAME\""
-            echo "  cd \"$RUN_DIR\" || exit 1"
-            echo "  exec bash \"$RUN_DIR/launcher.sh\""
-            echo "fi"
-        } >> "$file"
+    if grep -q "native-arcade launcher" "$file" 2>/dev/null; then
+        # Launcher block already exists; leave it (and its toggle state) alone.
+        return 0
     fi
+    {
+        echo ""
+        echo "# multi-native-arcade launcher"
+        echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
+        echo "  cd \"$RUN_DIR\" || exit 1"
+        echo "  exec bash \"$RUN_DIR/launcher.sh\""
+        echo "fi"
+    } >> "$file"
 }
 
 inject_launcher "$BASH_PROFILE"
@@ -225,7 +195,7 @@ fi
 
 # 5c. USB game update support
 # A udev rule starts arcade-usb-update@<dev>.service when a USB filesystem is
-# inserted; the script installs arcade-game/ from the drive and reboots.
+# inserted; the script installs the game from the drive and switches to it.
 log "Installing USB game-update support..."
 cp "$RUN_DIR/install/arcade-usb-update.sh" /usr/local/sbin/arcade-usb-update.sh
 chmod 755 /usr/local/sbin/arcade-usb-update.sh
@@ -243,7 +213,7 @@ systemctl daemon-reload 2>/dev/null || true
 
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/launch-game.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/toggle-arcade.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/gpio-reset-keyboard.py" 2>/dev/null || true
 find "$GAMES_DIR" -maxdepth 2 -type f -name "Game" -exec chmod +x {} \; 2>/dev/null || true
@@ -255,6 +225,6 @@ if [ -x "$RUN_DIR/install/hdmi-audio-fix.sh" ]; then
 fi
 
 log "=== Setup complete ==="
-log "Active game:       $GAME_NAME"
+log "Menu game:         $MENU_NAME ($GAME_COUNT game dirs installed)"
 log "Checkout directory: $RUN_DIR"
 log "Reboot to start:   sudo reboot"

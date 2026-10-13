@@ -1,5 +1,5 @@
 #!/bin/bash
-# single-native-launch.sh — launch one native MakeCode Arcade Game binary
+# launch-game.sh — launch one native MakeCode Arcade Game binary
 
 GAME_DIR="$1"
 PIDFILE="/tmp/creationstation_current_game.pid"

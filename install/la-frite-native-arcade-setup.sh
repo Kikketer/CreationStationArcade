@@ -1,6 +1,7 @@
 #!/bin/bash
-# la-frite-native-arcade-setup.sh — one-shot installer for the La Frite single native arcade kiosk.
+# la-frite-native-arcade-setup.sh — one-shot installer for the La Frite multi native arcade kiosk.
 # Run from the checkout directory on the target machine (usually as root).
+# Boots into the menu game (games/Menu/); games are picked from the menu.
 if [ -z "${BASH_VERSION:-}" ]; then
     if command -v bash >/dev/null 2>&1; then
         exec bash "$0" "$@"
@@ -11,7 +12,6 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 set -e
 
-REQUESTED_GAME=""
 REQUESTED_USER=""
 REQUESTED_RESET_PIN=""
 
@@ -19,14 +19,11 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --user=*) REQUESTED_USER="${1#*=}"; shift ;;
         --user) REQUESTED_USER="$2"; shift 2 ;;
-        --game=*) REQUESTED_GAME="${1#*=}"; shift ;;
-        --game) REQUESTED_GAME="$2"; shift 2 ;;
         --gpio-reset-pin=*) REQUESTED_RESET_PIN="${1#*=}"; shift ;;
         --gpio-reset-pin) REQUESTED_RESET_PIN="$2"; shift 2 ;;
         -h|--help)
-            echo "Usage: $0 [--user=UserName] [--game=GameName] [--gpio-reset-pin=Pin]"
+            echo "Usage: $0 [--user=UserName] [--gpio-reset-pin=Pin]"
             echo "  --user             defaults to SUDO_USER, then the user running sudo, then 'arcade'."
-            echo "  --game             selects the games/<Name>/Game + libpxt.so to boot."
             echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default 20)."
             exit 0
             ;;
@@ -109,7 +106,7 @@ is_la_frite() {
 }
 
 if is_raspberry_pi; then
-    log "WARNING: Raspberry Pi detected. This script is tuned for La Frite boards; consider using install/single-native-arcade-setup.sh for a Pi."
+    log "WARNING: Raspberry Pi detected. This script is tuned for La Frite boards; consider using install/multi-native-arcade-setup.sh for a Pi."
 fi
 
 if is_la_frite; then
@@ -190,43 +187,27 @@ if [ -e /dev/gpiochip0 ]; then
     chmod 0660 /dev/gpiochip* 2>/dev/null || true
 fi
 
-# 3. Determine active game
-list_valid_games() {
-    find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d | sort | while read -r d; do
-        local name
-        name="$(basename "$d")"
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
-            echo "  - $name"
-        fi
-    done
-}
-
-if [ -n "$REQUESTED_GAME" ]; then
-    if [ ! -x "$GAMES_DIR/$REQUESTED_GAME/Game" ] || [ ! -f "$GAMES_DIR/$REQUESTED_GAME/libpxt.so" ]; then
-        log "ERROR: requested game '$REQUESTED_GAME' is missing Game or libpxt.so"
-        log "Valid games:"
-        list_valid_games
-        exit 1
+# 3. Sanity-check installed games
+MENU_NAME="${ARCADE_MENU_NAME:-Menu}"
+GAME_COUNT=0
+while IFS= read -r -d '' d; do
+    if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
+        GAME_COUNT=$((GAME_COUNT + 1))
+        log "  found game: $(basename "$d")"
     fi
-    GAME_NAME="$REQUESTED_GAME"
-else
-    GAME_NAME=""
-    while IFS= read -r -d '' d; do
-        if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
-            GAME_NAME="$(basename "$d")"
-            break
-        fi
-    done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
-fi
+done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 
-if [ -z "$GAME_NAME" ]; then
+if [ ! -x "$GAMES_DIR/$MENU_NAME/Game" ] || [ ! -f "$GAMES_DIR/$MENU_NAME/libpxt.so" ]; then
+    log "WARNING: no menu game at $GAMES_DIR/$MENU_NAME (Game + libpxt.so)."
+    log "The cabinet will fall back to ControllerTest or the first installed game."
+    log "Build the menu project with the menu-enabled compiler and extract it to games/$MENU_NAME/."
+fi
+if [ "$GAME_COUNT" -eq 0 ]; then
     log "ERROR: no native game found in $GAMES_DIR/<Name>/Game + libpxt.so"
     log "Directories under $GAMES_DIR/:"
     find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
     exit 1
 fi
-
-log "Selected game: $GAME_NAME"
 
 # 4. Autologin on tty1
 log "Configuring autologin for $ARCADE_USER on tty1..."
@@ -248,16 +229,13 @@ inject_launcher() {
         touch "$file"
         chown "$ARCADE_USER:$ARCADE_USER" "$file" 2>/dev/null || true
     fi
-    if grep -q "single-native-arcade launcher" "$file" 2>/dev/null; then
-        # Update the game name and reset pin in the existing launcher block (even if toggled off).
+    if grep -q "native-arcade launcher" "$file" 2>/dev/null; then
+        # Update the reset pin in the existing launcher block (even if toggled off).
         local tmp
         tmp="$(mktemp)"
         while IFS= read -r line || [ -n "$line" ]; do
-            local re_game='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME="[^"]*"[[:space:]]*$'
             local re_pin='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)GPIO_RESET_PIN="[^"]*"[[:space:]]*$'
-            if [[ "$line" =~ $re_game ]]; then
-                echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
-            elif [[ "$line" =~ $re_pin ]]; then
+            if [[ "$line" =~ $re_pin ]]; then
                 echo "${BASH_REMATCH[1]}GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
             else
                 echo "$line"
@@ -267,11 +245,10 @@ inject_launcher() {
     else
         {
             echo ""
-            echo "# single-native-arcade launcher"
+            echo "# multi-native-arcade launcher"
             echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
             echo '  export ARCADE_LOG="$HOME/arcade.log"'
             echo "  export GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
-            echo "  export SINGLE_GAME_NAME=\"$GAME_NAME\""
             echo "  cd \"$RUN_DIR\" || exit 1"
             echo "  exec bash \"$RUN_DIR/launcher.sh\""
             echo "fi"
@@ -290,7 +267,7 @@ su - "$ARCADE_USER" -c "bash '$RUN_DIR/toggle-arcade.sh' enable" 2>/dev/null || 
 
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
-chmod +x "$RUN_DIR/single-native-launch.sh" 2>/dev/null || true
+chmod +x "$RUN_DIR/launch-game.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/toggle-arcade.sh" 2>/dev/null || true
 chmod +x "$RUN_DIR/gpio-reset-keyboard.py" 2>/dev/null || true
 chmod +x "$RUN_DIR/gpio-reset-keyboard-gpiod.py" 2>/dev/null || true
@@ -303,6 +280,6 @@ if [ -x "$RUN_DIR/install/hdmi-audio-fix.sh" ]; then
 fi
 
 log "=== Setup complete ==="
-log "Active game:       $GAME_NAME"
+log "Menu game:         $MENU_NAME ($GAME_COUNT game dirs installed)"
 log "Checkout directory: $RUN_DIR"
 log "Reboot to start:   sudo reboot"

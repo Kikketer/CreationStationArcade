@@ -1,6 +1,16 @@
 #!/bin/bash
-# launcher.sh — single native MakeCode Arcade kiosk
-# Run from the checkout directory. Each game lives in games/<Name>/ with Game + libpxt.so.
+# launcher.sh — multi native MakeCode Arcade kiosk
+# Run from the checkout directory. Each game lives in games/<Name>/ with
+# Game + libpxt.so. The menu is just another native game (games/Menu/ by
+# default) that picks which game to launch next.
+#
+# Menu -> game contract (the "control" hook):
+#   The menu writes the chosen games/<Name> directory name, one line, to
+#   $ARCADE_LAUNCH_FILE (default /tmp/creationstation_launch_request) and
+#   then exits. This script reads that file, launches the requested game,
+#   and when that game exits it comes back here and relaunches the menu.
+#   If the file is absent or names a game that isn't installed, the menu
+#   is relaunched instead.
 
 set -o pipefail
 
@@ -10,34 +20,38 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_DIR="$SCRIPT_DIR"
 GAMES_DIR="$RUN_DIR/games"
 
+# These two are the hooks a menu-capable native Game binary needs from the
+# compiler/runtime: where to find the sibling games, and where to write the
+# launch request before exiting.
+export ARCADE_GAMES_DIR="$GAMES_DIR"
+MENU_NAME="${ARCADE_MENU_NAME:-Menu}"
+export ARCADE_LAUNCH_FILE="${ARCADE_LAUNCH_FILE:-/tmp/creationstation_launch_request}"
+REQUEST_FILE="$ARCADE_LAUNCH_FILE"
+
 _log() {
     local msg="[$(date +'%Y-%m-%d %H:%M:%S')] $*"
     echo "$msg" >> "$LOG_FILE"
     echo "$msg"
 }
 
-_log "Launcher starting (RUN_DIR=$RUN_DIR)"
+_log "Launcher starting (RUN_DIR=$RUN_DIR, menu=$MENU_NAME)"
 
-# Determine the active game. Priority: $RUN_DIR/.active-game (written by the
-# USB updater for live switches), then SINGLE_GAME_NAME, then ControllerTest
-# (the "does this thing work" sanity game), then the first valid directory
-# in games/. Re-resolved each loop so a USB swap takes effect on the next
-# launch without a reboot.
-ACTIVE_FILE="$RUN_DIR/.active-game"
+is_game() {
+    [ -n "$1" ] && [ -x "$GAMES_DIR/$1/Game" ] && [ -f "$GAMES_DIR/$1/libpxt.so" ]
+}
 
-resolve_game() {
+# Pick what to run when there is no pending launch request: the menu game,
+# then ControllerTest (the "does this thing work" sanity game), then the
+# first valid directory in games/.
+resolve_default() {
     local name=""
-    if [ -f "$ACTIVE_FILE" ]; then
-        name="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
-    fi
-    [ -n "$name" ] || name="${SINGLE_GAME_NAME:-}"
-    if [ -z "$name" ] || [ ! -x "$GAMES_DIR/$name/Game" ] || [ ! -f "$GAMES_DIR/$name/libpxt.so" ]; then
+    if is_game "$MENU_NAME"; then
+        name="$MENU_NAME"
+    elif is_game "ControllerTest"; then
         name="ControllerTest"
-    fi
-    if [ ! -x "$GAMES_DIR/$name/Game" ] || [ ! -f "$GAMES_DIR/$name/libpxt.so" ]; then
-        name=""
+    else
         while IFS= read -r -d '' d; do
-            if [ -x "$d/Game" ] && [ -f "$d/libpxt.so" ]; then
+            if is_game "$(basename "$d")"; then
                 name="$(basename "$d")"
                 break
             fi
@@ -46,16 +60,28 @@ resolve_game() {
     echo "$name"
 }
 
-GAME_NAME="$(resolve_game)"
-GAME_DIR="$GAMES_DIR/$GAME_NAME"
-if [ -z "$GAME_NAME" ] || [ ! -x "$GAME_DIR/Game" ] || [ ! -f "$GAME_DIR/libpxt.so" ]; then
+# A launch request is a single line naming a games/<Name> directory.
+read_request() {
+    local name=""
+    if [ -s "$REQUEST_FILE" ]; then
+        name="$(head -n1 "$REQUEST_FILE" | tr -cd 'A-Za-z0-9._-')"
+        rm -f "$REQUEST_FILE"
+    fi
+    if [ -n "$name" ] && ! is_game "$name"; then
+        _log "Launch request '$name' is not an installed game; ignoring"
+        name=""
+    fi
+    echo "$name"
+}
+
+FIRST_TARGET="$(resolve_default)"
+if [ -z "$FIRST_TARGET" ] && [ ! -s "$REQUEST_FILE" ]; then
     _log "ERROR: no native game found in $GAMES_DIR/<Name>/Game + libpxt.so"
-    _log "Extract a game from the PNG to Desktop compiler into $GAMES_DIR/<Name>/ and re-run the installer."
+    _log "Extract games from the PNG to Desktop compiler into $GAMES_DIR/<Name>/ and re-run the installer."
     sleep 5
     exit 1
 fi
 
-export SINGLE_GAME_NAME="$GAME_NAME"
 export SDL_VIDEODRIVER=kmsdrm
 export SDL_AUDIODRIVER=alsa
 
@@ -65,7 +91,6 @@ if [ -z "${SDL_RENDER_DRIVER:-}" ] && [ "$(uname -m)" = "aarch64" ]; then
     export SDL_RENDER_DRIVER=opengles2
 fi
 
-_log "Active game: $GAME_NAME"
 _log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER SDL_RENDER_DRIVER=${SDL_RENDER_DRIVER:-<default>}"
 
 # GPIO reset helper: cabinet button on a ground-adjacent pin -> uinput 'r' key.
@@ -96,39 +121,42 @@ else
     _log "GPIO reset helper skipped (no GPIO library installed)"
 fi
 
-# Main loop: keep the native game running. The game name is re-resolved
-# every iteration so a USB install can switch the active game by updating
-# .active-game and killing the running Game — no reboot needed.
+# Main loop: menu -> requested game -> menu -> ...
+# The launch request file is re-read every iteration, so the menu (or the
+# USB installer) can point at a different game each time. A game that exits
+# on its own (BTN_EXIT / control.exit) simply returns to the menu.
 MAX_RETRIES="${ARCADE_MAX_RETRIES:-5}"
 RETRY=0
-LAST_GAME=""
-while [ "$RETRY" -lt "$MAX_RETRIES" ]; do
-    GAME_NAME="$(resolve_game)"
-    GAME_DIR="$GAMES_DIR/$GAME_NAME"
-    if [ "$GAME_NAME" != "$LAST_GAME" ]; then
-        RETRY=0
-        LAST_GAME="$GAME_NAME"
+LAST_TARGET=""
+while true; do
+    TARGET="$(read_request)"
+    if [ -z "$TARGET" ]; then
+        TARGET="$(resolve_default)"
     fi
-    if [ -z "$GAME_NAME" ] || [ ! -x "$GAME_DIR/Game" ] || [ ! -f "$GAME_DIR/libpxt.so" ]; then
+    if [ "$TARGET" != "$LAST_TARGET" ]; then
+        RETRY=0
+        LAST_TARGET="$TARGET"
+    fi
+    if [ -z "$TARGET" ]; then
         _log "ERROR: no runnable game found; retrying in 5s"
         sleep 5
         continue
     fi
-    # Keep .active-game in sync with what actually resolved, so a deleted
-    # game's stale name doesn't linger (e.g. fail-over to ControllerTest).
-    if [ "$(head -n1 "$ACTIVE_FILE" 2>/dev/null)" != "$GAME_NAME" ]; then
-        echo "$GAME_NAME" > "$ACTIVE_FILE"
-    fi
-    export SINGLE_GAME_NAME="$GAME_NAME"
-    export LD_LIBRARY_PATH="$GAME_DIR"
-    _log "Launching $GAME_NAME (native Game)"
-    "$RUN_DIR/single-native-launch.sh" "$GAME_DIR" >> "$LOG_FILE" 2>&1
+    export LD_LIBRARY_PATH="$GAMES_DIR/$TARGET"
+    _log "Launching $TARGET (native Game)"
+    "$RUN_DIR/launch-game.sh" "$GAMES_DIR/$TARGET" >> "$LOG_FILE" 2>&1
     STATUS=$?
     RETRY=$((RETRY + 1))
-    if [ "$RETRY" -lt "$MAX_RETRIES" ]; then
-        _log "single-native-launch.sh exited with status $STATUS; restarting in 2s (attempt $RETRY/$MAX_RETRIES)"
-        sleep 2
+    if [ "$STATUS" != "0" ]; then
+        if [ "$RETRY" -ge "$MAX_RETRIES" ] && [ "$TARGET" != "$MENU_NAME" ]; then
+            _log "WARNING: $TARGET failed $MAX_RETRIES times in a row; falling back to the menu"
+            RETRY=0
+            LAST_TARGET=""
+        else
+            _log "$TARGET exited with status $STATUS (attempt $RETRY/$MAX_RETRIES)"
+            sleep 2
+        fi
+    else
+        _log "$TARGET exited cleanly; back to the menu"
     fi
 done
-_log "ERROR: $GAME_NAME failed $MAX_RETRIES times; giving up"
-exit 1

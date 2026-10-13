@@ -3,10 +3,10 @@
 # Triggered by the arcade-usb-update@.service systemd unit via udev when a
 # USB filesystem is inserted. Runs as root; no user interaction.
 #
-# No reboot is needed: the new game is written to games/<Name>/, the active
-# game marker ($RUN_DIR/.active-game) is updated for this boot and the next,
-# and the currently running Game (if any) is killed — launcher.sh restarts
-# with the new game.
+# No reboot is needed: the new game is added to games/<Name>/ alongside the
+# others, a launch request is written for launcher.sh, and the currently
+# running Game (menu or game) is killed — launcher.sh starts the new game.
+# On the next boot the menu comes up first and the new game is in the list.
 # Triggered by the arcade-usb-update@.service systemd unit via udev when a
 # USB filesystem is inserted. Runs as root; no user interaction.
 #
@@ -188,23 +188,16 @@ if command -v file >/dev/null 2>&1; then
 fi
 
 SRC_MTIME="${SRC_MTIME:-0}"
-ACTIVE_FILE="$RUN_DIR/.active-game"
-CURRENT_ACTIVE=""
-[ -f "$ACTIVE_FILE" ] && CURRENT_ACTIVE="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
-# Machines installed before .active-game existed carry the name in the profile.
-if [ -z "$CURRENT_ACTIVE" ]; then
-    CURRENT_ACTIVE="$(grep -oE 'SINGLE_GAME_NAME="[^"]*"' "/home/$ARCADE_USER/.bash_profile" "/home/$ARCADE_USER/.profile" 2>/dev/null | head -n1 | cut -d'"' -f2)"
-fi
 DEST="$GAMES_DIR/$GAME_NAME"
 STAMP="$DEST/.usb-source-mtime"
 INSTALLED_MTIME=0
 [ -f "$STAMP" ] && INSTALLED_MTIME="$(cat "$STAMP" 2>/dev/null || echo 0)"
 
-# Skip when the stick carries the same game we already installed, it isn't
-# newer than what we have, and it's the game currently running. Stops the
-# reboot-loop when a stick is left inserted.
-if [ "$CURRENT_ACTIVE" = "$GAME_NAME" ] && [ -d "$DEST" ] && [ "$SRC_MTIME" -le "$INSTALLED_MTIME" ]; then
-    log "'$GAME_NAME' already installed and active (stick mtime $SRC_MTIME <= installed $INSTALLED_MTIME); ignoring"
+# Skip when the stick carries the same game we already installed and it
+# isn't newer than what we have. Stops the reinstall-loop when a stick is
+# left inserted.
+if [ -d "$DEST" ] && [ "$SRC_MTIME" -le "$INSTALLED_MTIME" ]; then
+    log "'$GAME_NAME' already installed (stick mtime $SRC_MTIME <= installed $INSTALLED_MTIME); ignoring"
     exit 0
 fi
 
@@ -226,10 +219,8 @@ rm -rf "$DEST.old"
 mv "$FINAL" "$DEST"
 rm -rf "$DEST.old"
 
-# Drop any other installed games so a stale folder can't become the
-# fallback pick. ControllerTest stays — it's the "does this thing work"
-# sanity game.
-find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "$GAME_NAME" ! -name ControllerTest -exec rm -rf {} +
+# Other installed games stay put — this is a multi-game cabinet and the
+# menu lists everything under games/.
 
 chown -R "$ARCADE_USER:$ARCADE_USER" "$DEST" 2>/dev/null || true
 
@@ -243,47 +234,12 @@ if [ -f "$SRC/arcade.cfg" ]; then
     log "installed arcade.cfg from USB"
 fi
 
-# Point the launcher at the new game: rewrite SINGLE_GAME_NAME in the existing
-# launcher block, or append the block if the profile was never set up.
-set_game_name() {
-    local file="$1"
-    if [ ! -f "$file" ]; then
-        touch "$file"
-        chown "$ARCADE_USER:$ARCADE_USER" "$file" 2>/dev/null || true
-    fi
-    if grep -q "single-native-arcade launcher" "$file" 2>/dev/null; then
-        local tmp
-        tmp="$(mktemp)"
-        while IFS= read -r line || [ -n "$line" ]; do
-            if [[ "$line" =~ ^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME=\"[^\"]*\"[[:space:]]*$ ]]; then
-                echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
-            else
-                echo "$line"
-            fi
-        done < "$file" > "$tmp"
-        cat "$tmp" > "$file"
-        rm -f "$tmp"
-    else
-        {
-            echo ""
-            echo "# single-native-arcade launcher"
-            echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
-            echo "  export SINGLE_GAME_NAME=\"$GAME_NAME\""
-            echo "  cd \"$RUN_DIR\" || exit 1"
-            echo "  exec bash \"$RUN_DIR/launcher.sh\""
-            echo "fi"
-        } >> "$file"
-    fi
-}
-
-set_game_name "/home/$ARCADE_USER/.bash_profile"
-set_game_name "/home/$ARCADE_USER/.profile"
-
-# Point the live launcher at the new game too. launcher.sh re-reads
-# .active-game each loop, so killing the running Game swaps us over
-# without a reboot (and the profiles above keep it across real reboots).
-echo "$GAME_NAME" > "$ACTIVE_FILE"
-chown "$ARCADE_USER:$ARCADE_USER" "$ACTIVE_FILE" 2>/dev/null || true
+# Point the launcher at the new game: write a launch request. launcher.sh
+# reads this file every loop, so killing the running Game (menu or game)
+# swaps us straight into the new game without a reboot.
+REQUEST_FILE="/tmp/creationstation_launch_request"
+echo "$GAME_NAME" > "$REQUEST_FILE"
+chown "$ARCADE_USER:$ARCADE_USER" "$REQUEST_FILE" 2>/dev/null || true
 
 sync
 

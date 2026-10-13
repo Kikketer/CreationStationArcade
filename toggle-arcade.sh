@@ -1,5 +1,5 @@
 #!/bin/bash
-# toggle-arcade.sh — enable or disable the single-native-arcade autolaunch.
+# toggle-arcade.sh — enable or disable the multi-native-arcade autolaunch.
 # Run as the arcade user (usually pi) from any tty except tty1, or from another
 # console/SSH session.  This does not touch the autologin config; it just
 # comments/uncomments the launcher block in ~/.bash_profile and ~/.profile.
@@ -18,7 +18,7 @@ toggle_file() {
     [ -f "$file" ] || return 0
 
     awk '
-        /^# single-native-arcade launcher$/ { in_block=1; print; next }
+        /^# .*native-arcade launcher$/ { in_block=1; print; next }
         in_block {
             if (/^fi$/) {
                 print "# " $0
@@ -47,7 +47,7 @@ toggle_file() {
 kill_running() {
     pkill -9 -f "games/[^/]+/Game" 2>/dev/null || true
     pkill -9 -f launcher.sh 2>/dev/null || true
-    pkill -9 -f single-native-launch.sh 2>/dev/null || true
+    pkill -9 -f launch-game.sh 2>/dev/null || true
 }
 
 case "${1:-}" in

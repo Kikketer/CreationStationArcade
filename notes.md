@@ -1,4 +1,4 @@
-# Recovery notes for single-native-arcade
+# Recovery notes for multi-native-arcade
 
 ## Temporarily disable the autologin launcher
 
@@ -21,7 +21,7 @@ cd /home/pi/CreationStationArcade
 ```bash
 sudo pkill -9 -f "games/[^/]+/Game"
 sudo pkill -9 -f launcher.sh
-sudo pkill -9 -f single-native-launch.sh
+sudo pkill -9 -f launch-game.sh
 ```
 
 Then clear the screen:
@@ -45,8 +45,16 @@ If you get permission errors on `/dev/dri`, make sure the arcade user is in the 
 
 ```bash
 cd /home/pi/CreationStationArcade
-sudo bash install/single-native-arcade-setup.sh --game=YourGame
+sudo bash install/multi-native-arcade-setup.sh --gpio
 ```
+
+## Force the next game to launch
+
+```bash
+echo "YourGame" > /tmp/creationstation_launch_request
+```
+
+The launcher reads this file every loop, so the next time the running `Game` exits (or is killed) the named `games/YourGame/` starts instead of the menu.
 
 ## Raspberry Pi notes
 
@@ -99,4 +107,4 @@ export SDL_RENDER_DRIVER=opengles2
 
 ## F11 fullscreen toggle goes black
 
-The `Game` binary supports `F11` to toggle fullscreen, but on the KMSDRM arcade setup it usually just turns the screen black. This is not a problem for the cabinet because the arcade controls do not include an `F11` key, and the game always starts in fullscreen via `single-native-launch.sh`. If you accidentally trigger it from a keyboard while testing, kill the game (`toggle-arcade.sh disable` or the `pkill` commands above) and restart it.
+The `Game` binary supports `F11` to toggle fullscreen, but on the KMSDRM arcade setup it usually just turns the screen black. This is not a problem for the cabinet because the arcade controls do not include an `F11` key, and the game always starts in fullscreen via `launch-game.sh`. If you accidentally trigger it from a keyboard while testing, kill the game (`toggle-arcade.sh disable` or the `pkill` commands above) and restart it.
