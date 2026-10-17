@@ -193,27 +193,15 @@ When the Pi comes back up, it should show the arcade logo during boot and then d
 
 ## Putting games on the arcade
 
-### Simple addition (1–2 players)
+### Building a game `.elf`
 
-If you don't need 4 players, you can export a regular raw `.elf` from MakeCode Arcade.
+Every game — 1 player or 4 player — gets built with the hosted [ELF compiler](https://www.makecode.games/compilers/elf). It's the 4-player GPIO variety, but it works fine for games that only use 1–2 players.
 
-1. Open your game in the MakeCode Arcade editor in your browser.
-2. Add this to the **end of the web address** (the URL in the address bar):
-
-    ```
-    ?nolocalhost=1&compile=rawELF&hw=rpi#editor
-    ```
-
-    !!! note "What this does"
-        Tells MakeCode to show the hidden "raw ELF" export option for the Raspberry Pi hardware.
-
-3. Click the **Download** button (bottom-left). You'll get a `.elf` file.
-4. Put that `.elf` file into the `games/` folder of the arcade project (on the `pi` or `admin` account, or by pushing it through git).
+1. In the MakeCode Arcade editor, download your game as a `.png` (the regular download — the PNG is the whole game).
+2. Open <https://www.makecode.games/compilers/elf> and upload the PNG.
+3. Download the resulting `.elf` file.
+4. Drop it into the `games/` folder of the arcade project (on the `pi` or `admin` account, or by pushing it through git).
 5. Save the change to the project and upload it (the next section explains the two-reboot flow).
-
-### 4-player games
-
-4-player games aren't officially supported by MakeCode Arcade, so you have to build the `.elf` yourself using the 4-player raw ELF fork. See the project's `readme.md` for the full pxt setup. The short version: you check out the `feat-raw-elf-four-player` branches of the `pxt` and `pxt-arcade` forks, run `npm serve`, import your game, pick **Pi0 Raw Elf** as the hardware, and download the resulting `.elf`. Drop it into `games/` and update `launcher.sh` to point at it.
 
 ### The two-reboot update flow
 

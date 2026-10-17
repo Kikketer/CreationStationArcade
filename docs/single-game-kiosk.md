@@ -155,7 +155,7 @@ Edit `~/.xinitrc` again (Step 3) and change the `SINGLE_GAME_NAME` line to a dif
 
 ## Putting a new game on the arcade
 
-1. Export your compiled MakeCode Arcade game as a `.js` file (and a matching `.png` image).
+1. Export your game as a `.png` from the MakeCode Arcade editor, then upload it to the [PNG to JavaScript compiler](https://www.makecode.games/compilers) to get a `.js` file (keep the `.png` too — you need a matching image).
 2. Drop both files into the `games/` folder.
 3. Regenerate the game list:
 

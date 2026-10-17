@@ -9,7 +9,7 @@ It's the best choice if you:
 - Have a **64-bit Raspberry Pi** (Pi 3, Pi 4, Pi 5, or Pi Zero 2 W) **or** a **64-bit PC** (x86-64).
 - Want a dedicated cabinet for **one** game.
 - Want the best performance (no browser overhead).
-- Are getting your game from the `make-web` `/desktop` tool, which builds the native `Game` binary.
+- Are getting your game from the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), which builds the native `Game` binary.
 
 !!! warning "Needs a 64-bit operating system"
     The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
@@ -25,20 +25,21 @@ It's the best choice if you:
 - A microSD card (Pi) or hard drive/SSD (PC), power supply, HDMI screen.
 - A **USB gamepad** or USB zero-delay encoder. (This flavor reads USB joysticks directly — no Python input bridge needed.)
 - **Optional:** a momentary push button and two wires for the GPIO reset button (Raspberry Pi only — see Step 7).
+- **Optional:** arcade buttons/joysticks wired to the GPIO pins instead of USB (Raspberry Pi or similar board — see Step 8).
 - A way to put the SD card into your regular computer (Pi only).
 - An internet connection.
 
 **On your regular computer**
 
-- A web browser, to use the `make-web` `/desktop` tool that builds the native `Game` binary.
+- A web browser, to use the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) that builds the native `Game` binary.
 
 ## The walkthrough
 
-### Step 1 — Get your game binary from make-web
+### Step 1 — Get your game binary from the desktop compiler
 
-This flavor runs a native `Game` binary that you build with the `make-web` `/desktop` tool, not a raw `.elf` or a `.js` file.
+This flavor runs a native `Game` binary that you build with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), not a raw `.elf` or a `.js` file.
 
-1. In your browser, open the `make-web` `/desktop` tool.
+1. In your browser, open <https://www.makecode.games/compilers/desktop>.
 2. Upload your MakeCode Arcade PNG export.
 3. Choose the architecture that matches your cabinet:
     - **arm64** for a Raspberry Pi / ARM arcade cabinet.
@@ -150,13 +151,71 @@ Because the button pulls the pin to ground, the launcher runs the reset helper i
 !!! note "What this does"
     The reset button wires to GPIO 27 and ground. The launcher's reset helper watches that pin and, when it's pressed, injects an `r` keypress into the running `Game`, which the game turns into a soft reset. No external kill script runs — the game handles the reset itself.
 
-### Step 8 — Play
+### Step 8 — (Optional) Wire real arcade buttons to the GPIO pins
 
-After the reboot, the cabinet boots straight into `./Game -f` (fullscreen) inside your `games/MyGame/` folder. Plug in your USB gamepad and play. The reset button (if you wired one) restarts the game.
+If you're building a cabinet with real buttons and joysticks wired straight to the Pi's GPIO pins, the `Game` binary can read them directly — no USB encoder board needed. It uses the kernel's edge-triggered GPIO events, so there's no polling and no input lag to speak of.
+
+1. Re-run the installer with `--gpio`:
+
+    ```bash
+    sudo bash install/single-native-arcade-setup.sh --game=MyGame --gpio
+    ```
+
+    !!! note "What this does"
+        Copies `install/arcade.cfg` to `/etc/arcade.cfg` — the file the `Game` binary reads at startup to learn which GPIO pin is which button. Any existing `/etc/arcade.cfg` is backed up first.
+
+2. Wire your buttons to the pins listed in `/etc/arcade.cfg` — one wire of each button to the GPIO pin, the other to GND. The default map covers Player 1 plus menu/reset/exit, and matches the pin layout used by the ELF arcade flavors (so the same cabinet wiring works on both).
+
+3. For players 2–4, uncomment the `BTN_UP2`-style lines in `/etc/arcade.cfg` and wire those pins too.
+
+!!! note "What this does"
+    The `Game` binary checks for `/etc/arcade.cfg` when it starts. If the file exists, each `BTN_*` pin becomes that button for that player — pressed edges go straight into the game's input, same as a keyboard press. If the file doesn't exist (on a regular PC, for example), GPIO input is simply off and keyboard/joystick work as normal. To keep the config somewhere else, set `ARCADE_GPIO_CFG` to a different path.
+
+!!! warning "Needs a current build"
+    GPIO input requires a `Game` binary built by the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) after this feature landed. If your `Game` was compiled earlier, re-upload the PNG and rebuild it — older binaries just ignore `/etc/arcade.cfg`.
+
+### Step 9 — Play
+
+After the reboot, the cabinet boots straight into `./Game -f` (fullscreen) inside your `games/MyGame/` folder. Plug in your USB gamepad — or use your GPIO buttons — and play. The reset button (if you wired one) restarts the game.
 
 ## Changing the game later
 
-This flavor has no menu. To switch games:
+This flavor has no menu. There are two ways to switch games:
+
+**Option A — USB stick (no keyboard, no SSH, no internet needed)**
+
+Once the installer has run, the cabinet watches for USB drives. To swap games:
+
+1. Put the compiler's `.tar.gz` (Step 1) at the **root** of a USB stick — the exact file you downloaded, no extraction needed (e.g. `MyGame-arm64.tar.gz`).
+
+    In Chrome or Edge you can skip the copying entirely: check **"Write to a USB cartridge"** on the [compiler page](https://www.makecode.games/compilers/desktop) and after it builds, pick the stick's root folder — the archive is written straight onto it.
+
+    !!! note "What this does"
+        The cabinet picks the most recently modified `.tar.gz` at the drive root (or `arcade-game/` if newer) and extracts it, checks it contains `Game` and `libpxt.so`, names the game after the file (a `name.txt` inside the archive overrides it), and installs it into `games/`. Other installed games are removed — only the new game and `ControllerTest` (the built-in sanity check) are kept.
+
+    Alternatively, an extracted `arcade-game/` folder at the drive root works too — handy if you want to add an `arcade.cfg` for GPIO buttons:
+
+    ```
+    arcade-game/
+      Game         # the native binary (arm64 for a Pi, x86-64 for a PC)
+      libpxt.so
+      name.txt     # optional — the name for the games/ folder on the cabinet
+      arcade.cfg   # optional — copied to /etc/arcade.cfg (GPIO button map)
+    ```
+
+2. Plug the stick into the arcade.
+3. Wait a few seconds — the cabinet checks the stick, installs the game, and swaps to it **without rebooting**. The screen may flicker as the old game exits and the new one starts (about 10–30 seconds total).
+
+!!! note "What this does"
+    A udev rule on the cabinet starts a small install service whenever a USB filesystem is plugged in. It records the game's name in the active-game file and stops the running `Game` — the launcher notices and starts the new one. Drives without a game are ignored, a `Game` built for the wrong architecture is refused, and a stick carrying the *same* game that's already installed is skipped — so a random or bad stick can't break the cabinet, and leaving the stick in during a reboot won't loop.
+
+!!! tip "Updating a game from the stick"
+    Rebuild the `.tar.gz`, put it on the stick, and plug it back in — the cabinet compares the file's modified time against what it already installed and only swaps if the stick is newer. The same file again is ignored.
+
+!!! tip "Didn't work?"
+    Check the log on the cabinet (`arcade.log`, or `journalctl -u 'arcade-usb-update@*'` if you have a shell). Common misses: the tarball nested inside a folder instead of at the drive root, or a `Game` built for the wrong architecture (Step 1).
+
+**Option B — re-run the installer**
 
 1. Add a new `games/<NewName>/` folder (Step 5) with the new `Game` and `libpxt.so`.
 2. Re-run the installer pointed at the new game:
@@ -172,9 +231,12 @@ This flavor has no menu. To switch games:
 
 ## Putting a new game on the arcade
 
-1. Build the native binary in the `make-web` `/desktop` tool (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
-2. Copy the `.tar.gz` onto the Pi and extract it into `games/<Name>/` (Step 5).
-3. Re-run the installer with `--game=<Name>` and reboot (above).
+1. Build the native binary with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop) (Step 1), choosing the right architecture (`arm64` for a Pi, `x86-64` for a PC).
+2. Either drop the `.tar.gz` onto a USB stick and plug it into the cabinet (Option A above — no reboot needed), or copy it onto the Pi and extract it into `games/<Name>/` (Step 5).
+3. If you installed manually, re-run the installer with `--game=<Name>` and reboot (above).
+
+!!! tip "Deleting a game"
+    Remove a `games/<Name>/` folder (and reboot, or let the current game exit) and the cabinet falls back to `ControllerTest` — which then becomes the recorded active game until a new one arrives.
 
 You can also save the new game folder to the project and upload it through git to keep the source of truth in the repo.
 

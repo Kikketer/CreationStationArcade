@@ -133,7 +133,7 @@ When the machine comes back up, it should auto-log in, start the graphical sessi
 
 Games in this flavor are a `.js` file plus a matching `.png` image, listed in a `games.json` file.
 
-1. Export your compiled MakeCode Arcade game as a `.js` file.
+1. Export your game as a `.png` from the MakeCode Arcade editor, then upload it to the [PNG to JavaScript compiler](https://www.makecode.games/compilers) to get a `.js` file.
 2. Drop the `.js` file **and** a matching `.png` image into the `games/` folder.
 3. Regenerate the game list:
 
