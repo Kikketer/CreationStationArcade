@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="300" viewBox="0 0 820 300" style="background:#111827;border-radius:8px;font-family:ui-monospace,Menlo,monospace">
+  <style>
+    .label { font-size: 13px; fill: #ffffff; font-weight: bold; }
+    .note  { font-size: 12px; fill: #9ca3af; }
+    .title { font-size: 15px; fill: #ffffff; font-weight: bold; }
+    .wire  { stroke: #e5e7eb; stroke-width: 2; }
+    .res   { stroke: #fbbf24; stroke-width: 2; fill: none; }
+    .gnd   { stroke: #9ca3af; stroke-width: 2; }
+  </style>
+
+  <text x="10" y="24" class="title">Wiring one button (recommended version)</text>
+  <text x="10" y="44" class="note">Two resistors per button: a 10k&#8486; &#8220;pull-up&#8221; to 3.3V and a 1k&#8486; in series with the switch.</text>
+
+  <!-- 3V3 source -->
+  <circle cx="60" cy="120" r="5" fill="#dc2626"/>
+  <text x="60" y="95" class="label" text-anchor="middle">3.3V</text>
+  <text x="60" y="110" class="note" text-anchor="middle">pin 1 or 17</text>
+  <line x1="60" y1="120" x2="60" y2="160" class="wire"/>
+  <line x1="60" y1="160" x2="200" y2="160" class="wire"/>
+
+  <!-- 10k pull-up resistor (zigzag, vertical) -->
+  <polyline points="200,160 200,140 208,132 192,120 208,108 192,96 208,84 200,80 200,70" class="res"/>
+  <line x1="200" y1="160" x2="200" y2="140" class="wire"/>
+  <line x1="200" y1="70" x2="200" y2="50" class="wire"/>
+  <line x1="200" y1="50" x2="260" y2="50" class="wire"/>
+  <line x1="260" y1="50" x2="260" y2="140" class="wire"/>
+  <text x="222" y="105" class="label">10k&#8486;</text>
+  <text x="140" y="55" class="note">pull-up</text>
+
+  <!-- GPIO pin node -->
+  <line x1="260" y1="140" x2="440" y2="140" class="wire"/>
+  <circle cx="300" cy="140" r="5" fill="#22d3ee"/>
+  <text x="300" y="115" class="label" text-anchor="middle">GPIO pin</text>
+  <text x="300" y="130" class="note" text-anchor="middle">e.g. pin 31 = GPIO 6</text>
+
+  <!-- 1k series resistor (zigzag, horizontal) -->
+  <line x1="440" y1="140" x2="470" y2="140" class="wire"/>
+  <polyline points="470,140 480,140 485,128 497,152 509,128 521,152 533,128 545,152 552,140 560,140" class="res"/>
+  <line x1="560" y1="140" x2="600" y2="140" class="wire"/>
+  <text x="515" y="118" class="label" text-anchor="middle">1k&#8486;</text>
+  <text x="515" y="170" class="note" text-anchor="middle">series</text>
+
+  <!-- button symbol (normally-open pushbutton) -->
+  <line x1="600" y1="140" x2="620" y2="140" class="wire"/>
+  <line x1="620" y1="140" x2="620" y2="130" class="wire"/>
+  <line x1="620" y1="130" x2="656" y2="118" class="wire"/>
+  <circle cx="620" cy="140" r="4" fill="#e5e7eb"/>
+  <circle cx="660" cy="140" r="4" fill="#e5e7eb"/>
+  <line x1="660" y1="140" x2="700" y2="140" class="wire"/>
+  <text x="640" y="110" class="label" text-anchor="middle">button</text>
+
+  <!-- ground -->
+  <line x1="700" y1="140" x2="700" y2="170" class="wire"/>
+  <line x1="690" y1="170" x2="710" y2="170" class="gnd"/>
+  <line x1="694" y1="176" x2="706" y2="176" class="gnd"/>
+  <line x1="697" y1="182" x2="703" y2="182" class="gnd"/>
+  <text x="700" y="205" class="label" text-anchor="middle">GND</text>
+  <text x="700" y="220" class="note" text-anchor="middle">any ground pin</text>
+
+  <!-- explanation -->
+  <text x="10" y="252" class="note">The 10k&#8486; holds the pin at 3.3V until the button yanks it to ground &#8212; without it the pin &#8220;floats&#8221; and picks up noise.</text>
+  <text x="10" y="272" class="note">The 1k&#8486; is optional protection in case the pin is ever accidentally configured as an output.</text>
+  <text x="10" y="292" class="note">No resistors on hand? Button between the pin and GND still works &#8212; the Pi has a weak built-in pull-up.</text>
+</svg>

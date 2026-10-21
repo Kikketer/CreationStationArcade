@@ -138,12 +138,12 @@ This flavor supports a dedicated cabinet reset button. When you press it, it tri
 
 **Wiring (Raspberry Pi only):**
 
-- Connect one side of a momentary normally-open push button to **GPIO 27** (physical pin **13**).
-- Connect the other side to **GND** (physical pin **14**, right next to pin 13).
+- Connect one side of a momentary normally-open push button to **GPIO 14** (physical pin **8**).
+- Connect the other side to **GND** (physical pin **6**, two pins away from pin 8).
 
 ```
-Pin 13  GPIO 27  -> one switch wire
-Pin 14  GND      -> other switch wire
+Pin 8  GPIO 14  -> one switch wire
+Pin 6  GND      -> other switch wire
 ```
 
 Because the button pulls the pin to ground, the launcher runs the reset helper in "active-low" mode by default. To use a different GPIO pin, set `GPIO_RESET_PIN` before rebooting. To use an active-high (3.3 V) button instead, set `GPIO_RESET_ACTIVE_HIGH=1`.
@@ -164,9 +164,30 @@ If you're building a cabinet with real buttons and joysticks wired straight to t
     !!! note "What this does"
         Copies `install/arcade.cfg` to `/etc/arcade.cfg` — the file the `Game` binary reads at startup to learn which GPIO pin is which button. Any existing `/etc/arcade.cfg` is backed up first.
 
-2. Wire your buttons to the pins listed in `/etc/arcade.cfg` — one wire of each button to the GPIO pin, the other to GND. The default map covers Player 1 plus menu/reset/exit, and matches the pin layout used by the ELF arcade flavors (so the same cabinet wiring works on both).
+2. Wire your buttons to the pins listed in `/etc/arcade.cfg` — one wire of each button to the GPIO pin, the other to GND. The default map covers Player 1 plus menu/reset/exit, and matches the pin layout used by the ELF arcade flavors (so the same cabinet wiring works on both). Here's the full 40-pin map — the numbers on each row are the **physical pin numbers** on the header, not GPIO numbers:
+
+    <figure markdown>
+      ![Raspberry Pi 40-pin GPIO header — arcade button wiring](gpio-pinout.svg)
+      <figcaption>The Player 1 pins are blue; players 2–4 are green, orange, and purple. Cabinet controls (menu, exit, reset) are red.</figcaption>
+    </figure>
 
 3. For players 2–4, uncomment the `BTN_UP2`-style lines in `/etc/arcade.cfg` and wire those pins too.
+
+#### Recommended wiring (keeps buttons reliable)
+
+The simplest hookup — one wire from the pin to the button, the other side of the button to ground — works, because the Pi has a weak built-in pull-up on each pin. But a bare wire running a few inches acts like an antenna, and on long runs you'll see "ghost" presses and buttons that feel sluggish or sticky. For a cabinet you'll actually play on, wire each button like this instead:
+
+<figure markdown>
+  ![Recommended button wiring: a 10k pull-up resistor to 3.3V plus a 1k series resistor](gpio-button-wiring.svg)
+  <figcaption>Each button gets a 10k&#8486; pull-up to 3.3V and a 1k&#8486; resistor in series with the switch.</figcaption>
+</figure>
+
+- The **10k&#8486; pull-up** goes from the GPIO pin to a 3.3V pin (physical pin **1** or **17** — one 3.3V pin can feed all your buttons). It holds the pin firmly at 3.3 volts until the button mashes it to ground, which kills the antenna noise.
+- The **1k&#8486; series resistor** sits inline on the signal wire between the pin and the button. It's optional insurance — it protects the pin if it's ever accidentally configured as an output.
+- Your grounds stay the same: the other side of every button goes to **any ground pin** (they're all connected inside the Pi anyway, so sharing is fine).
+
+!!! tip "No resistors on hand?"
+    Don't let it stop you — wire the buttons straight to the pins and GND and everything still works. The software filters a lot of the noise on its own. Add the pull-ups later if a button ever feels flaky; keep the signal wires short or twisted with their ground return in the meantime.
 
 !!! note "What this does"
     The `Game` binary checks for `/etc/arcade.cfg` when it starts. If the file exists, each `BTN_*` pin becomes that button for that player — pressed edges go straight into the game's input, same as a keyboard press. If the file doesn't exist (on a regular PC, for example), GPIO input is simply off and keyboard/joystick work as normal. To keep the config somewhere else, set `ARCADE_GPIO_CFG` to a different path.
