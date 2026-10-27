@@ -6,11 +6,16 @@ import time
 import struct
 import fcntl
 import argparse
+import subprocess
 
 import RPi.GPIO as GPIO
 
 LOG_FILE = "/home/pi/arcade.log"
 UINPUT_PATH = "/dev/uinput"
+# Reads a USB floppy on each reset press (installed by the setup script).
+# Set ARCADE_DISK_LOADER="" to always do a plain soft reset.
+DISK_LOADER = os.environ.get("ARCADE_DISK_LOADER", "/usr/local/sbin/arcade-disk-load.sh")
+DISK_LOAD_TIMEOUT_S = 300
 # GPIO 14 (physical pin 8) is the only 40-pin header GPIO not used by the
 # default /etc/arcade.cfg button map, so it never conflicts with player buttons.
 # Requires the UART serial console to be disabled (the Pi OS default).
@@ -78,6 +83,30 @@ def send_r(fd):
     log("Sent KEY_R (reset)")
 
 
+def try_disk_load():
+    """True when the loader found a new game on the floppy and loaded it."""
+    if not DISK_LOADER or not os.path.exists(DISK_LOADER):
+        return False
+    try:
+        result = subprocess.run(
+            ["sudo", "-n", DISK_LOADER],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=DISK_LOAD_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log(f"Disk loader failed: {e}")
+        return False
+    return result.returncode == 0
+
+
+def on_reset_pressed(fd):
+    if try_disk_load():
+        log("Loaded a new game from disk")
+    else:
+        send_r(fd)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pin", type=int, default=DEFAULT_PIN)
@@ -104,7 +133,7 @@ def main():
             if state == active and last != active:
                 time.sleep(debounce_s)
                 if GPIO.input(reset_pin) == active:
-                    send_r(fd)
+                    on_reset_pressed(fd)
             last = state
             time.sleep(0.01)
     finally:

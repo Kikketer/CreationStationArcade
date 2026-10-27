@@ -24,6 +24,8 @@ _log "Launcher starting (RUN_DIR=$RUN_DIR)"
 # in games/. Re-resolved each loop so a USB swap takes effect on the next
 # launch without a reboot.
 ACTIVE_FILE="$RUN_DIR/.active-game"
+# Written by arcade-disk-load.sh (as root) while a floppy is being read.
+LOADING_FILE="${ARCADE_LOADING_FILE:-/tmp/creationstation_disk_loading}"
 
 resolve_game() {
     local name=""
@@ -96,6 +98,22 @@ else
     _log "GPIO reset helper skipped (no GPIO library installed)"
 fi
 
+# While a floppy is being read, hold off restarting the old game and show a
+# loading screen on the console instead.
+wait_for_disk_load() {
+    [ -f "$LOADING_FILE" ] || return 0
+    local pid
+    pid="$(head -n1 "$LOADING_FILE" 2>/dev/null | tr -cd '0-9')"
+    _log "Reading disk..."
+    [ -t 1 ] && printf '\033[2J\033[H\n\n\n    READING DISK'
+    while [ -f "$LOADING_FILE" ] && [ -n "$pid" ] && [ -d "/proc/$pid" ]; do
+        [ -t 1 ] && printf '.'
+        sleep 1
+    done
+    [ -t 1 ] && printf '\n'
+    RETRY=0
+}
+
 # Main loop: keep the native game running. The game name is re-resolved
 # every iteration so a USB install can switch the active game by updating
 # .active-game and killing the running Game — no reboot needed.
@@ -103,6 +121,7 @@ MAX_RETRIES="${ARCADE_MAX_RETRIES:-5}"
 RETRY=0
 LAST_GAME=""
 while [ "$RETRY" -lt "$MAX_RETRIES" ]; do
+    wait_for_disk_load
     GAME_NAME="$(resolve_game)"
     GAME_DIR="$GAMES_DIR/$GAME_NAME"
     if [ "$GAME_NAME" != "$LAST_GAME" ]; then
@@ -125,6 +144,9 @@ while [ "$RETRY" -lt "$MAX_RETRIES" ]; do
     "$RUN_DIR/single-native-launch.sh" "$GAME_DIR" >> "$LOG_FILE" 2>&1
     STATUS=$?
     RETRY=$((RETRY + 1))
+    if [ -f "$LOADING_FILE" ]; then
+        continue
+    fi
     if [ "$RETRY" -lt "$MAX_RETRIES" ]; then
         _log "single-native-launch.sh exited with status $STATUS; restarting in 2s (attempt $RETRY/$MAX_RETRIES)"
         sleep 2
