@@ -7,8 +7,12 @@
 # game marker ($RUN_DIR/.active-game) is updated for this boot and the next,
 # and the currently running Game (if any) is killed — launcher.sh restarts
 # with the new game.
-# Triggered by the arcade-usb-update@.service systemd unit via udev when a
-# USB filesystem is inserted. Runs as root; no user interaction.
+#
+# Also used by arcade-disk-load.sh for USB floppy disks (read on reset):
+#   arcade-usb-update.sh --check <dev>   only reads the drive's file list and
+#                                        exits 0 if it holds a game that isn't
+#                                        the one running, 1 otherwise
+# <dev> may also be an already-mounted directory (handy for testing).
 #
 # USB format — either of these at the drive root:
 #   *.tar.gz        — the archive straight from the PNG to Desktop compiler
@@ -21,23 +25,34 @@
 # /etc/arcade-usb-update.conf (written by the installer) provides:
 #   RUN_DIR      — checkout directory containing games/
 #   ARCADE_USER  — user that owns the games and runs the launcher
+#   ARCADE_USER_HOME — optional, defaults to /home/$ARCADE_USER
 #
 # Freshness: each installed game gets a .usb-source-mtime stamp recording the
-# newest mtime seen on the stick. If the same game is already installed AND
-# is the active game AND the stick isn't newer, the stick is ignored — that
-# also stops the boot-loop where a stick left inserted kept triggering
-# reinstalls and reboots.
+# newest mtime seen on the stick, and a .usb-source-id with the source's
+# name:size:mtime. If the same game is already installed AND is the active
+# game AND the stick isn't newer, the stick is ignored — that also stops the
+# boot-loop where a stick left inserted kept triggering reinstalls and reboots.
 
 set -u
 
+CHECK_ONLY=0
+if [ "${1:-}" = "--check" ]; then
+    CHECK_ONLY=1
+    shift
+fi
 DEV="${1:-}"
-CONF=/etc/arcade-usb-update.conf
+CONF="${ARCADE_USB_CONF:-/etc/arcade-usb-update.conf}"
 RUN_DIR=""
 ARCADE_USER="pi"
+ARCADE_USER_HOME=""
 [ -f "$CONF" ] && . "$CONF"
+ARCADE_USER_HOME="${ARCADE_USER_HOME:-/home/$ARCADE_USER}"
 
 LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
 MNT=/mnt/arcade-usb
+MOUNT_TRIES="${ARCADE_MOUNT_TRIES:-5}"
+LOCK_FILE="${ARCADE_LOCK_FILE:-/run/arcade-game-update.lock}"
+PIDFILE="${ARCADE_GAME_PIDFILE:-/tmp/creationstation_current_game.pid}"
 STAGE="$(mktemp -d)"
 
 log() {
@@ -51,37 +66,88 @@ fail() {
 }
 
 if [ -z "$DEV" ]; then
-    echo "Usage: $0 <block-device>" >&2
+    echo "Usage: $0 [--check] <block-device|directory>" >&2
     exit 2
 fi
 
 [ -n "$RUN_DIR" ] && [ -d "$RUN_DIR/games" ] || fail "RUN_DIR not configured (missing $CONF); re-run the installer"
 GAMES_DIR="$RUN_DIR/games"
 
+# One update at a time: a USB stick plug-in and a floppy reset press share
+# the mount point and the games/ directory.
+if touch "$LOCK_FILE" 2>/dev/null; then
+    exec 9>>"$LOCK_FILE"
+    flock -w 300 9 || log "WARNING: timed out waiting for $LOCK_FILE; continuing"
+fi
+
+# In --check mode "nothing to do" exits 1; a normal run just ignores it.
+nothing_to_do() {
+    log "$*"
+    [ "$CHECK_ONLY" = "1" ] && exit 1
+    exit 0
+}
+
 log "checking $DEV for an arcade game"
 
-mkdir -p "$MNT"
-
-# The filesystem may need a moment to settle after the udev add event.
 MOUNTED=0
-for _ in 1 2 3 4 5; do
-    if mount -o ro "$DEV" "$MNT" 2>/dev/null; then
-        MOUNTED=1
-        break
-    fi
-    sleep 1
-done
+if [ -d "$DEV" ]; then
+    MNT="$DEV"
+else
+    mkdir -p "$MNT"
+    # The filesystem may need a moment to settle after the udev add event.
+    for _ in $(seq "$MOUNT_TRIES"); do
+        if mount -o ro "$DEV" "$MNT" 2>/dev/null; then
+            MOUNTED=1
+            break
+        fi
+        sleep 1
+    done
+fi
 
 cleanup() {
-    umount "$MNT" 2>/dev/null || true
+    [ "$MOUNTED" = "1" ] && umount "$MNT" 2>/dev/null
     rm -rf "$STAGE"
 }
 trap cleanup EXIT
 
-if [ "$MOUNTED" != "1" ]; then
-    log "could not mount $DEV; ignoring"
-    exit 0
+if [ "$MOUNTED" != "1" ] && [ ! -d "$DEV" ]; then
+    nothing_to_do "could not mount $DEV; ignoring"
 fi
+
+ACTIVE_FILE="$RUN_DIR/.active-game"
+CURRENT_ACTIVE=""
+[ -f "$ACTIVE_FILE" ] && CURRENT_ACTIVE="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
+# Machines installed before .active-game existed carry the name in the profile.
+if [ -z "$CURRENT_ACTIVE" ]; then
+    CURRENT_ACTIVE="$(grep -oE 'SINGLE_GAME_NAME="[^"]*"' "$ARCADE_USER_HOME/.bash_profile" "$ARCADE_USER_HOME/.profile" 2>/dev/null | head -n1 | cut -d'"' -f2)"
+fi
+
+# Identifies a source on the stick without reading its contents, so a slow
+# floppy only has to read its directory to tell whether the game changed.
+source_id() {
+    if [ -d "$1" ]; then
+        echo "arcade-game/:$DIR_MTIME"
+    else
+        echo "$(basename "$1"):$(stat -c %s "$1"):$(stat -c %Y "$1")"
+    fi
+}
+
+# Name from the filename: strip .tar.gz and any -arch suffix.
+tarball_game_name() {
+    basename "$1" .tar.gz | sed -E 's/-(arm64|x86-64|win64|amd64)$//' | tr -cd 'A-Za-z0-9._-'
+}
+
+# game_is_current <source-id> <game-name> <source-mtime>: true when the
+# active game was installed from this exact source, or has the same name and
+# the source isn't newer.
+game_is_current() {
+    local active_dir="$GAMES_DIR/$CURRENT_ACTIVE"
+    [ -n "$CURRENT_ACTIVE" ] && [ -d "$active_dir" ] || return 1
+    [ "$(cat "$active_dir/.usb-source-id" 2>/dev/null)" = "$1" ] && return 0
+    local installed=0
+    [ -f "$active_dir/.usb-source-mtime" ] && installed="$(cat "$active_dir/.usb-source-mtime" 2>/dev/null || echo 0)"
+    [ "$CURRENT_ACTIVE" = "$2" ] && [ "$3" -le "${installed:-0}" ]
+}
 
 # --- Stage the game from the stick ---
 # Newest candidate wins: compare the newest file inside arcade-game/ with the
@@ -105,12 +171,33 @@ if [ -n "$NEWEST_TAR" ]; then
     TARBALL="${NEWEST_TAR#* }"
 fi
 
+if [ "$CHECK_ONLY" = "1" ]; then
+    if [ -d "$MNT/arcade-game" ] && [ "$DIR_MTIME" -ge "$TAR_MTIME" ]; then
+        CAND="$MNT/arcade-game"
+        CAND_MTIME="$DIR_MTIME"
+        CAND_NAME=""
+        [ -f "$CAND/name.txt" ] && CAND_NAME="$(head -n1 "$CAND/name.txt" | tr -cd 'A-Za-z0-9._-')"
+    elif [ -n "$TARBALL" ]; then
+        CAND="$TARBALL"
+        CAND_MTIME="$TAR_MTIME"
+        CAND_NAME="$(tarball_game_name "$TARBALL")"
+    else
+        nothing_to_do "no arcade-game/ folder or .tar.gz on $DEV"
+    fi
+    if game_is_current "$(source_id "$CAND")" "${CAND_NAME:-USBGame}" "$CAND_MTIME"; then
+        nothing_to_do "$(basename "$CAND") on $DEV is already the active game '$CURRENT_ACTIVE'"
+    fi
+    log "$DEV has a new game: $(basename "$CAND")"
+    exit 0
+fi
+
 if [ -d "$MNT/arcade-game" ] && [ "$DIR_MTIME" -ge "$TAR_MTIME" ]; then
     mkdir -p "$STAGE/game"
     cp -a "$MNT/arcade-game/." "$STAGE/game/"
     SRC="$STAGE/game"
     SRC_LABEL="arcade-game/"
     SRC_MTIME="$DIR_MTIME"
+    SRC_ID="$(source_id "$MNT/arcade-game")"
 elif [ -n "$TARBALL" ]; then
     # Try tarballs newest-first; a bad one falls through to the next.
     while IFS= read -r cand && [ -z "$SRC" ]; do
@@ -144,14 +231,13 @@ elif [ -n "$TARBALL" ]; then
         # Locate the dir holding Game + libpxt.so (archive may nest them).
         SRC="$(dirname "$(find "$STAGE/tar" -name Game -type f | head -n1)" 2>/dev/null)"
         [ -f "$SRC/Game" ] && [ -f "$SRC/libpxt.so" ] || SRC=""
-        # Name from the filename: strip .tar.gz and any -arch suffix.
-        GAME_NAME="$(basename "$TARBALL" .tar.gz | sed -E 's/-(arm64|x86-64|win64|amd64)$//' | tr -cd 'A-Za-z0-9._-')"
+        GAME_NAME="$(tarball_game_name "$TARBALL")"
+        SRC_ID="$(source_id "$TARBALL")"
     done < <(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr)
 fi
 
 if [ -z "$SRC" ]; then
-    log "no arcade-game/ folder or .tar.gz with Game + libpxt.so on $DEV; ignoring"
-    exit 0
+    nothing_to_do "no arcade-game/ folder or .tar.gz with Game + libpxt.so on $DEV; ignoring"
 fi
 
 log "found game source: $SRC_LABEL"
@@ -188,23 +274,13 @@ if command -v file >/dev/null 2>&1; then
 fi
 
 SRC_MTIME="${SRC_MTIME:-0}"
-ACTIVE_FILE="$RUN_DIR/.active-game"
-CURRENT_ACTIVE=""
-[ -f "$ACTIVE_FILE" ] && CURRENT_ACTIVE="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
-# Machines installed before .active-game existed carry the name in the profile.
-if [ -z "$CURRENT_ACTIVE" ]; then
-    CURRENT_ACTIVE="$(grep -oE 'SINGLE_GAME_NAME="[^"]*"' "/home/$ARCADE_USER/.bash_profile" "/home/$ARCADE_USER/.profile" 2>/dev/null | head -n1 | cut -d'"' -f2)"
-fi
 DEST="$GAMES_DIR/$GAME_NAME"
-STAMP="$DEST/.usb-source-mtime"
-INSTALLED_MTIME=0
-[ -f "$STAMP" ] && INSTALLED_MTIME="$(cat "$STAMP" 2>/dev/null || echo 0)"
 
 # Skip when the stick carries the same game we already installed, it isn't
 # newer than what we have, and it's the game currently running. Stops the
 # reboot-loop when a stick is left inserted.
-if [ "$CURRENT_ACTIVE" = "$GAME_NAME" ] && [ -d "$DEST" ] && [ "$SRC_MTIME" -le "$INSTALLED_MTIME" ]; then
-    log "'$GAME_NAME' already installed and active (stick mtime $SRC_MTIME <= installed $INSTALLED_MTIME); ignoring"
+if game_is_current "$SRC_ID" "$GAME_NAME" "$SRC_MTIME"; then
+    log "'$GAME_NAME' from $SRC_LABEL is already installed and active; ignoring"
     exit 0
 fi
 
@@ -220,6 +296,7 @@ chmod +x "$FINAL/Game"
 find "$SRC" -mindepth 1 -maxdepth 1 ! -name Game ! -name libpxt.so ! -name name.txt ! -name arcade.cfg \
     ! -name '.*' -exec cp -a {} "$FINAL/" \; 2>/dev/null || true
 echo "$SRC_MTIME" > "$FINAL/.usb-source-mtime"
+echo "$SRC_ID" > "$FINAL/.usb-source-id"
 
 rm -rf "$DEST.old"
 [ -d "$DEST" ] && mv "$DEST" "$DEST.old"
@@ -276,8 +353,8 @@ set_game_name() {
     fi
 }
 
-set_game_name "/home/$ARCADE_USER/.bash_profile"
-set_game_name "/home/$ARCADE_USER/.profile"
+set_game_name "$ARCADE_USER_HOME/.bash_profile"
+set_game_name "$ARCADE_USER_HOME/.profile"
 
 # Point the live launcher at the new game too. launcher.sh re-reads
 # .active-game each loop, so killing the running Game swaps us over
@@ -288,7 +365,7 @@ chown "$ARCADE_USER:$ARCADE_USER" "$ACTIVE_FILE" 2>/dev/null || true
 sync
 
 GAME_PID=""
-[ -f /tmp/creationstation_current_game.pid ] && GAME_PID="$(cat /tmp/creationstation_current_game.pid 2>/dev/null || true)"
+[ -f "$PIDFILE" ] && GAME_PID="$(cat "$PIDFILE" 2>/dev/null || true)"
 if [ -n "$GAME_PID" ] && kill -0 "$GAME_PID" 2>/dev/null; then
     log "switching live: killing running Game (pid $GAME_PID); launcher will restart '$GAME_NAME'"
     kill "$GAME_PID" 2>/dev/null || true

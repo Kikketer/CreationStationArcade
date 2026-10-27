@@ -87,6 +87,8 @@ Pin 6   GND      -> other switch wire
 
 GPIO 14 is the only header pin left unassigned by the default `/etc/arcade.cfg` button map, so it can never conflict with a player button. It doubles as UART TX, so the serial console must be disabled (the Raspberry Pi OS default).
 
+The same button also reads a USB floppy drive if one is plugged in — see [Floppy disks](#floppy-disks-insert-disk-press-reset).
+
 Because the switch pulls the pin to ground, `launcher.sh` runs `gpio-reset-keyboard.py` with `--active-low`. To use a different ground-adjacent GPIO, set `GPIO_RESET_PIN` in the launcher or before reboot. To use an active-high (3.3 V) button instead, set `GPIO_RESET_ACTIVE_HIGH=1`.
 
 To disable autolaunch for debugging, see `notes.md` or run `./toggle-arcade.sh disable`.
@@ -155,7 +157,25 @@ This branch has no menu. There are two ways to switch games:
 
 The box extracts the archive, checks for `Game` + `libpxt.so`, names the game from the filename (a `name.txt` inside overrides it), installs it into `games/`, and reboots. Any drive without a game is ignored, and a binary built for the wrong architecture is refused, so a bad stick can't break the box. Progress is logged to `arcade.log` and the journal (`journalctl -u 'arcade-usb-update@*'`).
 
+**Floppy disk:** see [Floppy disks](#floppy-disks-insert-disk-press-reset) — insert the disk, press reset.
+
 **Manual:** add a new `games/<Name>/` folder and re-run the installer with the new `--game` value, then reboot.
+
+## Floppy disks (insert disk, press reset)
+
+A USB floppy drive works like a cartridge slot: put a disk in and press the cabinet reset button.
+
+- **New game on the disk:** the screen goes black with `READING DISK...` while the drive reads, then the new game starts.
+- **Same game, no disk, or no drive:** a normal soft reset of the current game.
+
+The disk uses the same layout as a USB stick: the compiler's `.tar.gz` at the root of a regular 1.44 MB FAT disk (or an `arcade-game/` folder). A compiled game is usually far smaller than the disk (ControllerTest is ~144 KB). The "Write to a USB cartridge" option on the compiler page works for a floppy too: just pick the floppy drive.
+
+USB floppy drives don't tell the system when a disk is inserted, so a disk is only read when you press reset. On each press, the reset helper runs `/usr/local/sbin/arcade-disk-load.sh` (as root through a `sudoers.d` rule the installer writes). The script finds the drive (udev `ID_TYPE=floppy`), reads only the disk's file list to see whether the game changed, and if so installs it with `arcade-usb-update.sh`, with the same checks as a USB stick. With a drive plugged in, a reset takes about a second longer while the drive spins up.
+
+- To use a specific drive instead of auto-detecting, set `FLOPPY_DEV="/dev/sda"` in `/etc/arcade-usb-update.conf`.
+- To turn floppy loading off, set `ARCADE_DISK_LOADER=""` for the launcher.
+- USB sticks still load as soon as they're plugged in.
+- USB floppy drives pull a lot of current when the disk spins up. A Pi 4/5 is fine; on a Pi 3 or Zero 2 W, use a powered USB hub if the drive won't spin.
 
 ## Kill or restart the game
 

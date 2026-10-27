@@ -51,7 +51,7 @@ log "User:               $ARCADE_USER"
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2 python3-rpi.gpio
+apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2 python3-rpi.gpio sudo
 
 # 1a. Architecture check
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
@@ -225,7 +225,7 @@ fi
 
 # 5c. USB game update support
 # A udev rule starts arcade-usb-update@<dev>.service when a USB filesystem is
-# inserted; the script installs arcade-game/ from the drive and reboots.
+# inserted; the script installs the game from the drive and switches to it.
 log "Installing USB game-update support..."
 cp "$RUN_DIR/install/arcade-usb-update.sh" /usr/local/sbin/arcade-usb-update.sh
 chmod 755 /usr/local/sbin/arcade-usb-update.sh
@@ -236,10 +236,27 @@ chmod 644 /etc/udev/rules.d/99-arcade-usb.rules
 cat > /etc/arcade-usb-update.conf <<EOF
 RUN_DIR="$RUN_DIR"
 ARCADE_USER="$ARCADE_USER"
+# Floppy drive read by the reset button; auto-detected when unset.
+#FLOPPY_DEV="/dev/sda"
 EOF
 chmod 644 /etc/arcade-usb-update.conf
 udevadm control --reload-rules 2>/dev/null || true
 systemctl daemon-reload 2>/dev/null || true
+
+# 5d. Floppy disk loading on reset
+# The GPIO reset helper runs (via sudo) arcade-disk-load.sh on every press:
+# a new game on the USB floppy gets loaded, otherwise it's a normal reset.
+log "Installing floppy disk loading on reset..."
+cp "$RUN_DIR/install/arcade-disk-load.sh" /usr/local/sbin/arcade-disk-load.sh
+chmod 755 /usr/local/sbin/arcade-disk-load.sh
+SUDOERS_TMP="$(mktemp)"
+echo "$ARCADE_USER ALL=(root) NOPASSWD: /usr/local/sbin/arcade-disk-load.sh" > "$SUDOERS_TMP"
+if visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
+    install -m 440 "$SUDOERS_TMP" /etc/sudoers.d/arcade-disk-load
+else
+    log "WARNING: could not validate sudoers rule; floppy loading disabled"
+fi
+rm -f "$SUDOERS_TMP"
 
 # 6. Set executable bits
 chmod +x "$RUN_DIR/launcher.sh" 2>/dev/null || true
