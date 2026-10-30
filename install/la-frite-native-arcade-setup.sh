@@ -45,8 +45,9 @@ else
 fi
 
 if ! id -u "$ARCADE_USER" >/dev/null 2>&1; then
-    echo "ERROR: user '$ARCADE_USER' does not exist. Create the user first or pass --user=." >&2
-    exit 1
+    echo "User '$ARCADE_USER' does not exist; creating it..."
+    useradd -m -s /bin/bash "$ARCADE_USER" || { echo "ERROR: could not create user '$ARCADE_USER'" >&2; exit 1; }
+    echo "NOTE: '$ARCADE_USER' has no password yet. Set one with 'passwd $ARCADE_USER' if you need SSH/password login; autologin on tty1 works without it."
 fi
 
 ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" | cut -d: -f6)"
