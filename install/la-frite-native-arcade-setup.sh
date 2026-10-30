@@ -292,12 +292,18 @@ inject_launcher() {
             local re_game='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME="[^"]*"[[:space:]]*$'
             local re_pin='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)GPIO_RESET_PIN="[^"]*"[[:space:]]*$'
             local re_chip='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)GPIO_RESET_CHIP="[^"]*"[[:space:]]*$'
+            local re_cd='^([[:space:]]*#?[[:space:]]*cd[[:space:]]+)"[^"]*"[[:space:]]*'
+            local re_exec='^([[:space:]]*#?[[:space:]]*exec[[:space:]]+bash[[:space:]]+)"[^"]*launcher\.sh"[[:space:]]*$'
             if [[ "$line" =~ $re_game ]]; then
                 echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
             elif [[ "$line" =~ $re_pin ]]; then
                 echo "${BASH_REMATCH[1]}GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
             elif [[ "$line" =~ $re_chip ]]; then
                 echo "${BASH_REMATCH[1]}GPIO_RESET_CHIP=\"$GPIO_RESET_CHIP\""
+            elif [[ "$line" =~ $re_cd ]]; then
+                echo "${BASH_REMATCH[1]}\"$RUN_DIR\" || exit 1"
+            elif [[ "$line" =~ $re_exec ]]; then
+                echo "${BASH_REMATCH[1]}\"$RUN_DIR/launcher.sh\""
             else
                 echo "$line"
             fi
