@@ -48,6 +48,7 @@ kill_running() {
     pkill -9 -f "games/[^/]+/Game" 2>/dev/null || true
     pkill -9 -f launcher.sh 2>/dev/null || true
     pkill -9 -f single-native-launch.sh 2>/dev/null || true
+    pkill -9 -f "gpio-reset-keyboard" 2>/dev/null || true
 }
 
 case "${1:-}" in
@@ -55,11 +56,11 @@ case "${1:-}" in
         if is_enabled_in_file "$BASH_PROFILE" || is_enabled_in_file "$PROFILE"; then
             toggle_file "$BASH_PROFILE"
             toggle_file "$PROFILE"
-            kill_running
-            echo "Autolaunch disabled.  Re-login on tty1 to get a normal shell."
         else
-            echo "Autolaunch is already disabled."
+            echo "Autolaunch was already disabled; killing anything still running."
         fi
+        kill_running
+        echo "Autolaunch disabled.  Re-login on tty1 to get a normal shell."
         ;;
     enable|on)
         if ! is_enabled_in_file "$BASH_PROFILE" && ! is_enabled_in_file "$PROFILE"; then

@@ -36,7 +36,10 @@ RUN_DIR=""
 ARCADE_USER="pi"
 [ -f "$CONF" ] && . "$CONF"
 
-LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
+ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" 2>/dev/null | cut -d: -f6)"
+[ -n "$ARCADE_USER_HOME" ] || ARCADE_USER_HOME="/home/$ARCADE_USER"
+
+LOG_FILE="${ARCADE_LOG:-$ARCADE_USER_HOME/arcade.log}"
 MNT=/mnt/arcade-usb
 STAGE="$(mktemp -d)"
 
@@ -193,7 +196,7 @@ CURRENT_ACTIVE=""
 [ -f "$ACTIVE_FILE" ] && CURRENT_ACTIVE="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
 # Machines installed before .active-game existed carry the name in the profile.
 if [ -z "$CURRENT_ACTIVE" ]; then
-    CURRENT_ACTIVE="$(grep -oE 'SINGLE_GAME_NAME="[^"]*"' "/home/$ARCADE_USER/.bash_profile" "/home/$ARCADE_USER/.profile" 2>/dev/null | head -n1 | cut -d'"' -f2)"
+    CURRENT_ACTIVE="$(grep -oE 'SINGLE_GAME_NAME="[^"]*"' "$ARCADE_USER_HOME/.bash_profile" "$ARCADE_USER_HOME/.profile" 2>/dev/null | head -n1 | cut -d'"' -f2)"
 fi
 DEST="$GAMES_DIR/$GAME_NAME"
 STAMP="$DEST/.usb-source-mtime"
@@ -276,8 +279,8 @@ set_game_name() {
     fi
 }
 
-set_game_name "/home/$ARCADE_USER/.bash_profile"
-set_game_name "/home/$ARCADE_USER/.profile"
+set_game_name "$ARCADE_USER_HOME/.bash_profile"
+set_game_name "$ARCADE_USER_HOME/.profile"
 
 # Point the live launcher at the new game too. launcher.sh re-reads
 # .active-game each loop, so killing the running Game swaps us over
