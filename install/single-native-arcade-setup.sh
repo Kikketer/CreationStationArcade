@@ -30,6 +30,18 @@ else
     ARCADE_USER="$(logname 2>/dev/null || id -un || echo pi)"
 fi
 
+# A root-login console resolves to root; the kiosk shouldn't run as root.
+if [ "$ARCADE_USER" = "root" ]; then
+    echo "Resolved user is root; installing for 'pi' instead (run via sudo from the real user, or create one, to pick another name)."
+    ARCADE_USER="pi"
+fi
+
+if ! id -u "$ARCADE_USER" >/dev/null 2>&1; then
+    echo "User '$ARCADE_USER' does not exist; creating it..."
+    useradd -m -s /bin/bash "$ARCADE_USER" || { echo "ERROR: could not create user '$ARCADE_USER'" >&2; exit 1; }
+    echo "NOTE: '$ARCADE_USER' has no password yet. Set one with 'passwd $ARCADE_USER' if you need SSH/password login; autologin on tty1 works without it."
+fi
+
 ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" | cut -d: -f6)"
 if [ -z "$ARCADE_USER_HOME" ]; then
     ARCADE_USER_HOME="/home/$ARCADE_USER"
