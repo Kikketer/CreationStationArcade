@@ -77,6 +77,22 @@ fi
 
 RUN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 GAMES_DIR="$RUN_DIR/games"
+
+# If the checkout isn't inside the arcade user's home (e.g. cloned to /root
+# on a root-login board), copy it there — the autologin user can't read
+# /root, so the launcher would die on `cd $RUN_DIR`.
+case "$RUN_DIR" in
+    "$ARCADE_USER_HOME/"*) ;;
+    *)
+        TARGET_DIR="$ARCADE_USER_HOME/$(basename "$RUN_DIR")"
+        echo "Checkout is outside $ARCADE_USER's home; copying to $TARGET_DIR"
+        mkdir -p "$TARGET_DIR"
+        cp -a "$RUN_DIR/." "$TARGET_DIR/"
+        chown -R "$ARCADE_USER:$ARCADE_USER" "$TARGET_DIR" 2>/dev/null || true
+        RUN_DIR="$TARGET_DIR"
+        GAMES_DIR="$RUN_DIR/games"
+        ;;
+esac
 LOG_FILE="$ARCADE_USER_HOME/arcade.log"
 
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
