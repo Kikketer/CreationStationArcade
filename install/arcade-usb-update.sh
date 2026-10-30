@@ -36,7 +36,10 @@ RUN_DIR=""
 ARCADE_USER="pi"
 [ -f "$CONF" ] && . "$CONF"
 
-LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
+ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" 2>/dev/null | cut -d: -f6)"
+[ -n "$ARCADE_USER_HOME" ] || ARCADE_USER_HOME="/home/$ARCADE_USER"
+
+LOG_FILE="${ARCADE_LOG:-$ARCADE_USER_HOME/arcade.log}"
 MNT=/mnt/arcade-usb
 STAGE="$(mktemp -d)"
 

@@ -27,7 +27,13 @@ else
     ARCADE_USER="$(logname 2>/dev/null || id -un || echo pi)"
 fi
 
-LOG_FILE="/home/pi/arcade.log"
+ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" | cut -d: -f6)"
+if [ -z "$ARCADE_USER_HOME" ]; then
+    ARCADE_USER_HOME="/home/$ARCADE_USER"
+    echo "WARNING: could not look up home directory for $ARCADE_USER; using $ARCADE_USER_HOME" >&2
+fi
+
+LOG_FILE="$ARCADE_USER_HOME/arcade.log"
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 touch "$LOG_FILE" 2>/dev/null || true
 chown "$ARCADE_USER:$ARCADE_USER" "$LOG_FILE" 2>/dev/null || true
@@ -146,8 +152,8 @@ EOF
 chmod 644 /etc/systemd/system/getty@tty1.service.d/autologin.conf
 
 # 5. Auto-launch on login
-BASH_PROFILE="/home/$ARCADE_USER/.bash_profile"
-PROFILE="/home/$ARCADE_USER/.profile"
+BASH_PROFILE="$ARCADE_USER_HOME/.bash_profile"
+PROFILE="$ARCADE_USER_HOME/.profile"
 
 inject_launcher() {
     local file="$1"
