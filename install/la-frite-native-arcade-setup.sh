@@ -50,6 +50,14 @@ else
     ARCADE_USER="$(logname 2>/dev/null || echo arcade)"
 fi
 
+# On root-default boards (La Frite), logname resolves to root and the whole
+# kiosk would run as root. Default to the dedicated 'arcade' user instead;
+# pass --user=root to override.
+if [ "$ARCADE_USER" = "root" ] && [ -z "$REQUESTED_USER" ]; then
+    echo "No --user given and resolved user is root; installing for 'arcade' instead (use --user=root to keep root)."
+    ARCADE_USER="arcade"
+fi
+
 if ! id -u "$ARCADE_USER" >/dev/null 2>&1; then
     echo "User '$ARCADE_USER' does not exist; creating it..."
     useradd -m -s /bin/bash "$ARCADE_USER" || { echo "ERROR: could not create user '$ARCADE_USER'" >&2; exit 1; }
