@@ -47,6 +47,8 @@ fi
 if ! id -u "$ARCADE_USER" >/dev/null 2>&1; then
     echo "User '$ARCADE_USER' does not exist; creating it..."
     useradd -m -s /bin/bash "$ARCADE_USER" || { echo "ERROR: could not create user '$ARCADE_USER'" >&2; exit 1; }
+    # sudo group for debugging/re-installs; the kiosk itself doesn't need it.
+    getent group sudo >/dev/null 2>&1 && usermod -aG sudo "$ARCADE_USER" || true
     echo "NOTE: '$ARCADE_USER' has no password yet. Set one with 'passwd $ARCADE_USER' if you need SSH/password login; autologin on tty1 works without it."
 fi
 
