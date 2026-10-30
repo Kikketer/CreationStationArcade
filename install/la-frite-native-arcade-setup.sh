@@ -14,6 +14,8 @@ set -e
 REQUESTED_GAME=""
 REQUESTED_USER=""
 REQUESTED_RESET_PIN=""
+REQUESTED_RESET_CHIP=""
+ENABLE_GPIO=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -21,20 +23,27 @@ while [ $# -gt 0 ]; do
         --user) REQUESTED_USER="$2"; shift 2 ;;
         --game=*) REQUESTED_GAME="${1#*=}"; shift ;;
         --game) REQUESTED_GAME="$2"; shift 2 ;;
+        --gpio) ENABLE_GPIO=1; shift ;;
         --gpio-reset-pin=*) REQUESTED_RESET_PIN="${1#*=}"; shift ;;
         --gpio-reset-pin) REQUESTED_RESET_PIN="$2"; shift 2 ;;
+        --gpio-reset-chip=*) REQUESTED_RESET_CHIP="${1#*=}"; shift ;;
+        --gpio-reset-chip) REQUESTED_RESET_CHIP="$2"; shift 2 ;;
         -h|--help)
-            echo "Usage: $0 [--user=UserName] [--game=GameName] [--gpio-reset-pin=Pin]"
+            echo "Usage: $0 [--user=UserName] [--game=GameName] [--gpio] [--gpio-reset-pin=Pin] [--gpio-reset-chip=Chip]"
             echo "  --user             defaults to SUDO_USER, then the user running sudo, then 'arcade'."
             echo "  --game             selects the games/<Name>/Game + libpxt.so to boot."
-            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default 20)."
+            echo "  --gpio             installs install/arcade-lafite.cfg as /etc/arcade.cfg so the Game"
+            echo "                   binary reads arcade buttons wired to the GPIO pins."
+            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default GPIOX_12, header pin 8)."
+            echo "  --gpio-reset-chip  gpiochip path or number for the reset button (default gpiochip1)."
             exit 0
             ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
 
-GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-20}"
+GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-GPIOX_12}"
+GPIO_RESET_CHIP="${REQUESTED_RESET_CHIP:-gpiochip1}"
 
 if [ -n "$REQUESTED_USER" ]; then
     ARCADE_USER="$REQUESTED_USER"
@@ -79,7 +88,7 @@ log "=== la-frite-native-arcade setup ==="
 log "Checkout directory: $RUN_DIR"
 log "User:               $ARCADE_USER"
 log "Log file:           $LOG_FILE"
-log "Reset pin:          $GPIO_RESET_PIN"
+log "Reset pin:          $GPIO_RESET_CHIP:$GPIO_RESET_PIN"
 
 # 1. System packages
 log "Installing system packages..."
@@ -258,10 +267,13 @@ inject_launcher() {
         while IFS= read -r line || [ -n "$line" ]; do
             local re_game='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)SINGLE_GAME_NAME="[^"]*"[[:space:]]*$'
             local re_pin='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)GPIO_RESET_PIN="[^"]*"[[:space:]]*$'
+            local re_chip='^([[:space:]]*#?[[:space:]]*export[[:space:]]+)GPIO_RESET_CHIP="[^"]*"[[:space:]]*$'
             if [[ "$line" =~ $re_game ]]; then
                 echo "${BASH_REMATCH[1]}SINGLE_GAME_NAME=\"$GAME_NAME\""
             elif [[ "$line" =~ $re_pin ]]; then
                 echo "${BASH_REMATCH[1]}GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
+            elif [[ "$line" =~ $re_chip ]]; then
+                echo "${BASH_REMATCH[1]}GPIO_RESET_CHIP=\"$GPIO_RESET_CHIP\""
             else
                 echo "$line"
             fi
@@ -274,6 +286,7 @@ inject_launcher() {
             echo "if [ \"\$(tty)\" = \"/dev/tty1\" ]; then"
             echo '  export ARCADE_LOG="$HOME/arcade.log"'
             echo "  export GPIO_RESET_PIN=\"$GPIO_RESET_PIN\""
+            echo "  export GPIO_RESET_CHIP=\"$GPIO_RESET_CHIP\""
             echo "  export SINGLE_GAME_NAME=\"$GAME_NAME\""
             echo "  cd \"$RUN_DIR\" || exit 1"
             echo "  exec bash \"$RUN_DIR/launcher.sh\""
@@ -290,6 +303,21 @@ chown "$ARCADE_USER:$ARCADE_USER" "$BASH_PROFILE" "$PROFILE" 2>/dev/null || true
 log "Ensuring autolaunch is enabled for $ARCADE_USER..."
 su - "$ARCADE_USER" -c "bash '$RUN_DIR/toggle-arcade.sh' enable" 2>/dev/null || \
     log "WARNING: could not enable autolaunch as $ARCADE_USER"
+
+# 5b. GPIO button config (optional)
+# The Game binary reads /etc/arcade.cfg at startup; when present, GPIO pins
+# listed there become player buttons (edge-triggered, no polling).
+if [ "$ENABLE_GPIO" = "1" ]; then
+    if [ -f /etc/arcade.cfg ] && ! cmp -s "$RUN_DIR/install/arcade-lafite.cfg" /etc/arcade.cfg; then
+        cp /etc/arcade.cfg "/etc/arcade.cfg.bak.$(date +%s)"
+        log "Backed up existing /etc/arcade.cfg"
+    fi
+    cp "$RUN_DIR/install/arcade-lafite.cfg" /etc/arcade.cfg
+    chmod 644 /etc/arcade.cfg
+    log "Installed La Frite GPIO button config to /etc/arcade.cfg"
+else
+    log "GPIO buttons not enabled (pass --gpio to install /etc/arcade.cfg)"
+fi
 
 # 5c. USB game update support
 # A udev rule starts arcade-usb-update@<dev>.service when a USB filesystem is

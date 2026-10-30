@@ -81,6 +81,9 @@ fi
 
 if [ -n "$GPIO_RESET_HELPER" ]; then
     GPIO_RESET_ARGS=()
+    if [ -n "${GPIO_RESET_CHIP:-}" ]; then
+        GPIO_RESET_ARGS+=(--chip "$GPIO_RESET_CHIP")
+    fi
     if [ -n "${GPIO_RESET_PIN:-}" ]; then
         GPIO_RESET_ARGS+=(--pin "$GPIO_RESET_PIN")
     fi
