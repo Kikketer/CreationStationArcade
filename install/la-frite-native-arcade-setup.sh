@@ -354,4 +354,5 @@ fi
 log "=== Setup complete ==="
 log "Active game:       $GAME_NAME"
 log "Checkout directory: $RUN_DIR"
+log "SSH/sudo password: passwd $ARCADE_USER   (required once, for remote login)"
 log "Reboot to start:   sudo reboot"
