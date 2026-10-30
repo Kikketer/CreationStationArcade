@@ -62,11 +62,43 @@ if [ "$ARCADE_USER" = "root" ] && [ -z "$REQUESTED_USER" ]; then
 fi
 
 if ! id -u "$ARCADE_USER" >/dev/null 2>&1; then
-    echo "User '$ARCADE_USER' does not exist; creating it..."
+    # Phase 1: run once as root to create the kiosk user and point tty1
+    # autologin at it. Everything else is installed on the second run, as
+    # the new user via sudo, so the checkout lands in the right home.
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "ERROR: user '$ARCADE_USER' does not exist. Run this installer as root first to create it." >&2
+        exit 1
+    fi
+    echo "=== First-time setup: creating the '$ARCADE_USER' user ==="
     useradd -m -s /bin/bash "$ARCADE_USER" || { echo "ERROR: could not create user '$ARCADE_USER'" >&2; exit 1; }
-    # sudo group for debugging/re-installs; the kiosk itself doesn't need it.
+    # sudo is needed for phase 2, which runs as the new user via sudo.
+    apt-get update && apt-get install -y sudo || echo "WARNING: could not install sudo; install it before running the phase-2 install."
     getent group sudo >/dev/null 2>&1 && usermod -aG sudo "$ARCADE_USER" || true
-    echo "NOTE: '$ARCADE_USER' has no password yet. Set one with 'passwd $ARCADE_USER' if you need SSH/password login; autologin on tty1 works without it."
+    echo "Set a password for '$ARCADE_USER' (needed for SSH and sudo):"
+    passwd "$ARCADE_USER" || echo "WARNING: no password set; run 'passwd $ARCADE_USER' before rebooting."
+    mkdir -p /etc/systemd/system/getty@tty1.service.d
+    cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $ARCADE_USER --noclear %I linux
+EOF
+    chmod 644 /etc/systemd/system/getty@tty1.service.d/autologin.conf
+    cat <<MSG
+
+===============================================================
+User '$ARCADE_USER' is ready and tty1 will autologin as that user.
+Next steps:
+
+  1. reboot
+     (you'll land on an $ARCADE_USER shell)
+  2. git clone <this repo> && cd CreationStationArcade
+  3. sudo bash install/la-frite-native-arcade-setup.sh --gpio
+
+That second run installs everything else: packages, GPIO config,
+USB updates, and the game autolaunch.
+===============================================================
+MSG
+    exit 0
 fi
 
 ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" | cut -d: -f6)"
