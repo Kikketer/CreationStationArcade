@@ -81,7 +81,7 @@ log "Reset pin:          $GPIO_RESET_PIN"
 # 1. System packages
 log "Installing system packages..."
 apt-get update
-apt-get install -y git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2 python3-libgpiod
+apt-get install -y sudo git libsdl2-2.0-0 libdrm2 libgbm1 libudev1 libasound2 libgl1-mesa-dri libegl1 libgles2 python3-libgpiod
 
 # 1a. Architecture check
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
@@ -150,7 +150,7 @@ fi
 log "Adding $ARCADE_USER to video, input, audio, and gpio groups..."
 # Ensure the gpio group exists for /dev/gpiochip* access.
 getent group gpio >/dev/null 2>&1 || groupadd gpio 2>/dev/null || true
-for group in video input audio gpio; do
+for group in video input audio gpio sudo; do
     if getent group "$group" >/dev/null 2>&1; then
         usermod -aG "$group" "$ARCADE_USER" 2>/dev/null || \
             log "WARNING: could not add $ARCADE_USER to $group group"
