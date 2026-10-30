@@ -31,7 +31,7 @@ while [ $# -gt 0 ]; do
             echo "  --user             defaults to SUDO_USER, then the user running sudo, then 'arcade'."
             echo "  --gpio             installs install/arcade-lafite.cfg as /etc/arcade.cfg so the Game"
             echo "                   binary reads arcade buttons wired to the GPIO pins."
-            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default GPIOX_12, header pin 8)."
+            echo "  --gpio-reset-pin   gpiod line name or offset for the cabinet reset button (default 91, header pin 8)."
             echo "  --gpio-reset-chip  gpiochip path or number for the reset button (default gpiochip1)."
             exit 0
             ;;
@@ -39,7 +39,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-GPIOX_12}"
+GPIO_RESET_PIN="${REQUESTED_RESET_PIN:-91}"
 GPIO_RESET_CHIP="${REQUESTED_RESET_CHIP:-gpiochip1}"
 
 if [ -n "$REQUESTED_USER" ]; then
