@@ -122,6 +122,12 @@ if [ -n "$GPIO_RESET_HELPER" ]; then
     if [ "${GPIO_RESET_ACTIVE_HIGH:-0}" != "1" ]; then
         GPIO_RESET_ARGS+=(--active-low)
     fi
+    # Multi-game default: the cabinet button externally kills the running
+    # Game (works even when hung) and the loop returns to the menu.
+    # GPIO_RESET_MODE=key restores the uinput 'r' reset injection.
+    if [ "${GPIO_RESET_MODE:-kill}" = "kill" ]; then
+        GPIO_RESET_ARGS+=(--pidfile "${GPIO_RESET_PIDFILE:-/tmp/creationstation_current_game.pid}")
+    fi
     pkill -f "gpio-reset-keyboard" 2>/dev/null || true
     python3 "$GPIO_RESET_HELPER" "${GPIO_RESET_ARGS[@]}" &
     RESET_PID=$!

@@ -6,6 +6,7 @@ import time
 import struct
 import fcntl
 import argparse
+import signal
 
 import RPi.GPIO as GPIO
 
@@ -78,18 +79,32 @@ def send_r(fd):
     log("Sent KEY_R (reset)")
 
 
+def kill_pidfile(path):
+    try:
+        with open(path) as f:
+            pid = int(f.read().strip())
+        os.kill(pid, signal.SIGKILL)
+        log(f"Sent SIGKILL to pid {pid} from {path}")
+    except FileNotFoundError:
+        log(f"No pidfile at {path}; nothing to kill")
+    except Exception as e:
+        log(f"Kill failed for {path}: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pin", type=int, default=DEFAULT_PIN)
     parser.add_argument("--active-low", action="store_true")
+    parser.add_argument("--pidfile", default=os.environ.get("GPIO_RESET_PIDFILE", ""),
+                        help="kill the pid in this file instead of injecting an 'r' key")
     args = parser.parse_args()
 
     reset_pin = args.pin
     active_low = args.active_low
     debounce_s = 0.05
 
-    log(f"Starting: pin={reset_pin} active_low={active_low}")
-    fd = create_vkbd()
+    log(f"Starting: pin={reset_pin} active_low={active_low} pidfile={args.pidfile or '<none>'}")
+    fd = None if args.pidfile else create_vkbd()
 
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -104,16 +119,20 @@ def main():
             if state == active and last != active:
                 time.sleep(debounce_s)
                 if GPIO.input(reset_pin) == active:
-                    send_r(fd)
+                    if args.pidfile:
+                        kill_pidfile(args.pidfile)
+                    else:
+                        send_r(fd)
             last = state
             time.sleep(0.01)
     finally:
         GPIO.cleanup()
-        try:
-            fcntl.ioctl(fd, UI_DEV_DESTROY)
-            fd.close()
-        except Exception:
-            pass
+        if fd is not None:
+            try:
+                fcntl.ioctl(fd, UI_DEV_DESTROY)
+                fd.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

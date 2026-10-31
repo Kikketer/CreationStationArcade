@@ -7,6 +7,7 @@ import time
 import struct
 import fcntl
 import argparse
+import signal
 
 import gpiod
 
@@ -76,6 +77,18 @@ def send_r(fd):
     log("Sent KEY_R (reset)")
 
 
+def kill_pidfile(path):
+    try:
+        with open(path) as f:
+            pid = int(f.read().strip())
+        os.kill(pid, signal.SIGKILL)
+        log(f"Sent SIGKILL to pid {pid} from {path}")
+    except FileNotFoundError:
+        log(f"No pidfile at {path}; nothing to kill")
+    except Exception as e:
+        log(f"Kill failed for {path}: {e}")
+
+
 def get_line(chip, spec):
     try:
         offset = int(spec)
@@ -92,6 +105,8 @@ def main():
     parser.add_argument("--chip", default=DEFAULT_CHIP)
     parser.add_argument("--pin", default=DEFAULT_PIN)
     parser.add_argument("--active-low", action="store_true")
+    parser.add_argument("--pidfile", default=os.environ.get("GPIO_RESET_PIDFILE", ""),
+                        help="kill the pid in this file instead of injecting an 'r' key")
     args = parser.parse_args()
 
     chip_path = args.chip
@@ -99,8 +114,8 @@ def main():
     active_low = args.active_low
     debounce_s = 0.05
 
-    log(f"Starting: chip={chip_path} pin={pin_spec} active_low={active_low}")
-    fd = create_vkbd()
+    log(f"Starting: chip={chip_path} pin={pin_spec} active_low={active_low} pidfile={args.pidfile or '<none>'}")
+    fd = None if args.pidfile else create_vkbd()
 
     try:
         chip = gpiod.Chip(chip_path)
@@ -137,7 +152,13 @@ def main():
                 if state == active and last != active:
                     time.sleep(debounce_s)
                     if line.get_value() == active:
-                        send_r(fd)
+                        if args.pidfile:
+
+                            kill_pidfile(args.pidfile)
+
+                        else:
+
+                            send_r(fd)
                 last = state
                 time.sleep(0.01)
         finally:
