@@ -41,21 +41,24 @@ is_game() {
 }
 
 # Pick what to run when there is no pending launch request: the menu game,
-# then ControllerTest (the "does this thing work" sanity game), then the
-# first valid directory in games/.
+# then the first valid directory in games/ that isn't ControllerTest, then
+# ControllerTest itself (the "does this thing work" sanity game of last
+# resort — a cabinet full of real games should not boot into it).
 resolve_default() {
     local name=""
     if is_game "$MENU_NAME"; then
         name="$MENU_NAME"
-    elif is_game "ControllerTest"; then
-        name="ControllerTest"
     else
         while IFS= read -r -d '' d; do
-            if is_game "$(basename "$d")"; then
-                name="$(basename "$d")"
+            local base="$(basename "$d")"
+            if [ "$base" != "ControllerTest" ] && is_game "$base"; then
+                name="$base"
                 break
             fi
         done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+        if [ -z "$name" ] && is_game "ControllerTest"; then
+            name="ControllerTest"
+        fi
     fi
     echo "$name"
 }
