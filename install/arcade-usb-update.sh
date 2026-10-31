@@ -227,7 +227,7 @@ if [ -d "$MNT/arcade-game" ] && [ "$DIR_MTIME" -ge "$TAR_MTIME" ]; then
     mkdir -p "$STAGE/game"
     cp -a "$MNT/arcade-game/." "$STAGE/game/"
     install_game "$STAGE/game" "" "$DIR_MTIME" "" "arcade-game/"
-    case $? in 0|2) NEWEST_LAUNCH="$RESULT_NAME"; NEWEST_LAUNCH_MTIME="$DIR_MTIME" ;; esac
+    case $? in 0) NEWEST_LAUNCH="$RESULT_NAME"; NEWEST_LAUNCH_MTIME="$DIR_MTIME" ;; esac
 elif [ -n "$TARBALL" ]; then
     # Every tarball on the stick gets installed, newest-first. A bad one is
     # skipped and we move to the next. The newest usable one gets launched.
@@ -272,7 +272,9 @@ elif [ -n "$TARBALL" ]; then
 
         install_game "$CAND_SRC" "$CAND_NAME" "$CAND_MTIME" "$CAND_TAR" "$CAND_LABEL"
         rc=$?
-        if { [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; } && [ "$CAND_MTIME" -gt "$NEWEST_LAUNCH_MTIME" ]; then
+        # Only a real install (rc 0) launches; a skipped-already-installed
+        # game (rc 2) doesn't get to preempt the menu.
+        if [ "$rc" -eq 0 ] && [ "$CAND_MTIME" -gt "$NEWEST_LAUNCH_MTIME" ]; then
             NEWEST_LAUNCH="$RESULT_NAME"
             NEWEST_LAUNCH_MTIME="$CAND_MTIME"
         fi
