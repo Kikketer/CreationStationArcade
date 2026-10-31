@@ -147,7 +147,8 @@ class LineWatcher:
 
     def value(self):
         if GPIOD_V2:
-            return int(self._req.get_value(self._offset))
+            from gpiod.line import Value
+            return 1 if self._req.get_value(self._offset) == Value.ACTIVE else 0
         return self._line.get_value()
 
     def release(self):
