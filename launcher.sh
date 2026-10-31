@@ -96,7 +96,14 @@ _log "SDL_VIDEODRIVER=$SDL_VIDEODRIVER SDL_AUDIODRIVER=$SDL_AUDIODRIVER SDL_REND
 # GPIO reset helper: cabinet button on a ground-adjacent pin -> uinput 'r' key.
 # Use the RPi.GPIO helper on Pi, the gpiod helper on boards like La Frite,
 # or skip it entirely if neither GPIO library is installed.
-if python3 -c "import RPi.GPIO" >/dev/null 2>&1; then
+# When /etc/arcade.cfg maps BTN_EXIT, the Game owns the exit button itself —
+# don't start the reset helper (it would fight the Game for the same line
+# on single-button cabinets where reset == exit-to-menu).
+ARCADE_CFG="${ARCADE_GPIO_CFG:-/etc/arcade.cfg}"
+if grep -q '^BTN_EXIT=' "$ARCADE_CFG" 2>/dev/null; then
+    GPIO_RESET_SKIP="BTN_EXIT configured"
+    GPIO_RESET_HELPER=""
+elif python3 -c "import RPi.GPIO" >/dev/null 2>&1; then
     GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard.py"
 elif python3 -c "import gpiod" >/dev/null 2>&1; then
     GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard-gpiod.py"
@@ -121,7 +128,7 @@ if [ -n "$GPIO_RESET_HELPER" ]; then
     trap 'kill "$RESET_PID" 2>/dev/null || true' EXIT
     _log "GPIO reset helper started ($GPIO_RESET_HELPER pin=${GPIO_RESET_PIN:-<default>} args=${GPIO_RESET_ARGS[*]})"
 else
-    _log "GPIO reset helper skipped (no GPIO library installed)"
+    _log "GPIO reset helper skipped (${GPIO_RESET_SKIP:-no GPIO library installed})"
 fi
 
 # Main loop: menu -> requested game -> menu -> ...
