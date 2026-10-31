@@ -115,9 +115,11 @@ function redraw() {
             const x = COL_X[i % 2]
             const y = ROW_Y[Math.idiv(i, 2)]
             if (idx == sel) {
-                // selection box pulses through the palette with the banner
+                // selection box pulses through the palette with the banner;
+                // solid red while the delete combo is armed
                 bg.drawRect(x - 3, y - 3, COVER_W + 6, COVER_H + 6, 1)
-                bg.drawRect(x - 2, y - 2, COVER_W + 4, COVER_H + 4, tick % COLORS + 1)
+                bg.drawRect(x - 2, y - 2, COVER_W + 4, COVER_H + 4,
+                    armed ? 2 : tick % COLORS + 1)
             }
         }
     }
@@ -141,6 +143,8 @@ function redraw() {
 }
 
 function move(dcol: number, drow: number) {
+    // any navigation cancels an in-progress delete combo
+    resetCombo()
     if (!entries.length) return
     const page = Math.idiv(sel, PER_PAGE)
     let col = sel % 2
@@ -168,24 +172,77 @@ function move(dcol: number, drow: number) {
 
 function launch() {
     if (!entries.length) return
+    resetCombo()   // never leave an armed archive behind on exit
     music.powerUp.play()
     control.runProgram(entries[sel])
     // never reached — runProgram exits this Game and the launcher
     // starts the requested one
 }
 
+// --- hidden delete gesture ---
+// B B B B B — the 5th B held for 5s arms the selected game for archive
+// (writes the archive request file), then holding B while pressing the
+// cabinet reset button makes the external helper move the game to
+// games/.archived/ before it kills the menu. Releasing B disarms.
+const COMBO_LEN = 5
+const COMBO_GAP_MS = 1500
+const HOLD_MS = 5000
+
+let combo: number = 0
+let lastB = 0
+let holdStart = 0
+let armed = false
+let bWasDown = false
+
+function resetCombo() {
+    combo = 0
+    if (armed) {
+        control.clearArchive()
+        armed = false
+        redraw()
+    }
+}
+
+function onB() {
+    const now = control.millis()
+    if (now - lastB > COMBO_GAP_MS) combo = 0
+    lastB = now
+    combo++
+    if (combo >= COMBO_LEN) {
+        combo = COMBO_LEN
+        holdStart = now
+    }
+}
+
+controller.B.onEvent(ControllerButtonEvent.Pressed, onB)
+controller.player2.B.onEvent(ControllerButtonEvent.Pressed, onB)
+
+game.onUpdateInterval(50, function () {
+    const bDown = controller.B.isPressed() || controller.player2.B.isPressed()
+    if (!bDown && bWasDown) {
+        // B released: ends the gesture, disarm if armed
+        resetCombo()
+    }
+    if (bDown && combo >= COMBO_LEN && !armed && entries.length) {
+        if (control.millis() - holdStart >= HOLD_MS) {
+            armed = true
+            control.armArchive(entries[sel])
+            redraw()
+        }
+    }
+    bWasDown = bDown
+})
+
 controller.left.onEvent(ControllerButtonEvent.Pressed, function () { move(-1, 0) })
 controller.right.onEvent(ControllerButtonEvent.Pressed, function () { move(1, 0) })
 controller.up.onEvent(ControllerButtonEvent.Pressed, function () { move(0, -1) })
 controller.down.onEvent(ControllerButtonEvent.Pressed, function () { move(0, 1) })
 controller.A.onEvent(ControllerButtonEvent.Pressed, launch)
-controller.B.onEvent(ControllerButtonEvent.Pressed, launch)
 controller.player2.left.onEvent(ControllerButtonEvent.Pressed, function () { move(-1, 0) })
 controller.player2.right.onEvent(ControllerButtonEvent.Pressed, function () { move(1, 0) })
 controller.player2.up.onEvent(ControllerButtonEvent.Pressed, function () { move(0, -1) })
 controller.player2.down.onEvent(ControllerButtonEvent.Pressed, function () { move(0, 1) })
 controller.player2.A.onEvent(ControllerButtonEvent.Pressed, launch)
-controller.player2.B.onEvent(ControllerButtonEvent.Pressed, launch)
 
 // banner/selection animation
 game.onUpdateInterval(200, function () {

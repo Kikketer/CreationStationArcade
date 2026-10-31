@@ -79,6 +79,45 @@ def send_r(fd):
     log("Sent KEY_R (reset)")
 
 
+def archive_request():
+    # If the menu armed an archive (delete-combo held), move the named
+    # game out of games/ into games/.archived/ before the kill. The
+    # relaunched menu then shows the list without it.
+    req = os.environ.get("ARCADE_ARCHIVE_FILE", "/tmp/creationstation_archive_request")
+    games = os.environ.get("ARCADE_GAMES_DIR", "")
+    if not games:
+        return
+    try:
+        with open(req) as f:
+            name = f.read().strip()
+    except FileNotFoundError:
+        return
+    except Exception as e:
+        log(f"Archive request unreadable: {e}")
+        return
+    try:
+        os.unlink(req)
+    except Exception:
+        pass
+    if not name or name.startswith(".") or "/" in name:
+        log(f"Ignoring bogus archive request '{name}'")
+        return
+    src = os.path.join(games, name)
+    if not os.path.isdir(src):
+        log(f"Archive request for '{name}' but {src} is missing")
+        return
+    dst_dir = os.path.join(games, ".archived")
+    dst = os.path.join(dst_dir, name)
+    try:
+        os.makedirs(dst_dir, exist_ok=True)
+        if os.path.exists(dst):
+            dst = os.path.join(dst_dir, f"{name}.{int(time.time())}")
+        os.rename(src, dst)
+        log(f"Archived '{name}' -> {dst}")
+    except Exception as e:
+        log(f"Archive move failed for '{name}': {e}")
+
+
 def kill_pidfile(path):
     try:
         with open(path) as f:
@@ -120,6 +159,7 @@ def main():
                 time.sleep(debounce_s)
                 if GPIO.input(reset_pin) == active:
                     if args.pidfile:
+                        archive_request()
                         kill_pidfile(args.pidfile)
                     else:
                         send_r(fd)

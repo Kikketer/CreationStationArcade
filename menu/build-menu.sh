@@ -18,5 +18,8 @@ if [ ! -d "$INGEST" ]; then
 fi
 
 cd "$INGEST"
+# Re-inject the vm-gamesel control.* hooks into pxt/target.js — cheap and
+# idempotent, and required whenever gamesel.cpp / device.d.ts change.
+node scripts/apply-vm-gamesel-patch.mjs
 pnpm exec tsx scripts/build-project.ts "$HERE" "$REPO/games/Menu" --arch "$ARCH"
 echo "Menu built -> $REPO/games/Menu"

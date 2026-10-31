@@ -27,6 +27,9 @@ export ARCADE_GAMES_DIR="$GAMES_DIR"
 MENU_NAME="${ARCADE_MENU_NAME:-Menu}"
 export ARCADE_LAUNCH_FILE="${ARCADE_LAUNCH_FILE:-/tmp/creationstation_launch_request}"
 REQUEST_FILE="$ARCADE_LAUNCH_FILE"
+# When the menu "arms" a game for deletion it writes the name here; the
+# reset-button helper archives games/<Name> on the next button press.
+export ARCADE_ARCHIVE_FILE="${ARCADE_ARCHIVE_FILE:-/tmp/creationstation_archive_request}"
 
 _log() {
     local msg="[$(date +'%Y-%m-%d %H:%M:%S')] $*"
