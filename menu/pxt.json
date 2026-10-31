@@ -1,0 +1,11 @@
+{
+    "name": "Menu",
+    "description": "Creation Station Arcade kiosk menu",
+    "dependencies": {
+        "device": "*"
+    },
+    "files": [
+        "main.ts"
+    ],
+    "preferredEditor": "tsprj"
+}

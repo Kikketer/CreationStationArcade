@@ -40,25 +40,34 @@ is_game() {
     [ -n "$1" ] && [ -x "$GAMES_DIR/$1/Game" ] && [ -f "$GAMES_DIR/$1/libpxt.so" ]
 }
 
-# Pick what to run when there is no pending launch request: the menu game,
-# then the first valid directory in games/ that isn't ControllerTest, then
-# ControllerTest itself (the "does this thing work" sanity game of last
-# resort — a cabinet full of real games should not boot into it).
+# Pick what to run when there is no pending launch request.
+# Order of preference:
+#   1. The menu — but only when there's more than one real game to choose
+#      from (one game cabinets just run their game).
+#   2. The first real game (anything that isn't the menu or ControllerTest).
+#   3. The menu again — with zero games it's a nicer "insert USB" screen
+#      than a boot error.
+#   4. ControllerTest, the "does this thing work" sanity game of last resort.
 resolve_default() {
-    local name=""
-    if is_game "$MENU_NAME"; then
-        name="$MENU_NAME"
-    else
-        while IFS= read -r -d '' d; do
-            local base="$(basename "$d")"
-            if [ "$base" != "ControllerTest" ] && is_game "$base"; then
-                name="$base"
-                break
-            fi
-        done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
-        if [ -z "$name" ] && is_game "ControllerTest"; then
-            name="ControllerTest"
+    local name="" menu_ok="" base
+    local games=()
+    while IFS= read -r -d '' d; do
+        base="$(basename "$d")"
+        if [ "$base" = "$MENU_NAME" ]; then
+            is_game "$base" && menu_ok=1
+        elif [ "$base" != "ControllerTest" ] && is_game "$base"; then
+            games+=("$base")
         fi
+    done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+
+    if [ -n "$menu_ok" ] && [ "${#games[@]}" -gt 1 ]; then
+        name="$MENU_NAME"
+    elif [ "${#games[@]}" -gt 0 ]; then
+        name="${games[0]}"
+    elif [ -n "$menu_ok" ]; then
+        name="$MENU_NAME"
+    elif is_game "ControllerTest"; then
+        name="ControllerTest"
     fi
     echo "$name"
 }
