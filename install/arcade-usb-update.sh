@@ -279,9 +279,54 @@ elif [ -n "$TARBALL" ]; then
     done < <(find "$MNT" -mindepth 1 -maxdepth 1 -type f -name '*.tar.gz' ! -name '.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr)
 fi
 
-if [ -z "$NEWEST_LAUNCH" ]; then
+# --- Asset-only updates ---
+# A <Name>.png / <Name>.img / <Name>.json at the drive root with no matching
+# tarball updates the installed game's cover/info — but only when the stick
+# copy is newer than what's installed, so re-docking a stick is a no-op.
+ASSETS_CHANGED=0
+while IFS= read -r cand; do
+    [ -n "$cand" ] || continue
+    ASSET_MTIME="${cand%% *}"; ASSET_MTIME="${ASSET_MTIME%%.*}"
+    ASSET_FILE="${cand#* }"
+    ASSET_BASE="$(basename "$ASSET_FILE")"
+    ASSET_EXT="${ASSET_BASE##*.}"
+    ASSET_NAME="${ASSET_BASE%.*}"
+    ASSET_GAME="${ASSET_NAME%%-arm64}"; ASSET_GAME="${ASSET_GAME%%-x86-64}"; ASSET_GAME="${ASSET_GAME%%-win64}"; ASSET_GAME="${ASSET_GAME%%-amd64}"
+    ASSET_GAME="$(echo "$ASSET_GAME" | tr -cd 'A-Za-z0-9._-')"
+    [ -n "$ASSET_GAME" ] || continue
+
+    case "$ASSET_EXT" in
+        png)  ASSET_DEST_NAME="cover.png" ;;
+        img)  ASSET_DEST_NAME="cover.img" ;;
+        json) ASSET_DEST_NAME="info.json" ;;
+        *)    continue ;;
+    esac
+
+    ASSET_DEST="$GAMES_DIR/$ASSET_GAME/$ASSET_DEST_NAME"
+    if [ ! -d "$GAMES_DIR/$ASSET_GAME" ]; then
+        continue  # quiet: likely a sibling for a tarball handled above
+    fi
+    DEST_MTIME=0
+    [ -f "$ASSET_DEST" ] && DEST_MTIME="$(stat -c %Y "$ASSET_DEST" 2>/dev/null || echo 0)"
+    if [ "$ASSET_MTIME" -le "$DEST_MTIME" ]; then
+        log "'$ASSET_BASE' not newer than installed $ASSET_DEST_NAME for '$ASSET_GAME'; skipping"
+        continue
+    fi
+    cp -a "$ASSET_FILE" "$ASSET_DEST"
+    chown "$ARCADE_USER:$ARCADE_USER" "$ASSET_DEST" 2>/dev/null || true
+    log "updated $ASSET_DEST_NAME for '$ASSET_GAME' from $ASSET_BASE"
+    ASSETS_CHANGED=1
+done < <(find "$MNT" -mindepth 1 -maxdepth 1 -type f \( -name '*.png' -o -name '*.img' -o -name '*.json' \) ! -name '.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr)
+
+if [ -z "$NEWEST_LAUNCH" ] && [ "$ASSETS_CHANGED" != "1" ]; then
     log "nothing usable on $DEV; ignoring"
     exit 0
+fi
+
+if [ -z "$NEWEST_LAUNCH" ]; then
+    # art/info-only update: bounce whatever is running so the menu
+    # repaints with the new assets.
+    NEWEST_LAUNCH="${ARCADE_MENU_NAME:-Menu}"
 fi
 
 # Point the launcher at the newest game: write a launch request. launcher.sh
