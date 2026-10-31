@@ -14,7 +14,10 @@
 #   *.tar.gz        — the archive straight from the PNG to Desktop compiler
 #                     (must contain Game + libpxt.so at any depth; an optional
 #                     name.txt inside sets the games/<Name>, otherwise the
-#                     name comes from the filename)
+#                     name comes from the filename). Neighboring files with
+#                     the same basename become menu assets:
+#                     <Name>.png -> cover.png, <Name>.img -> cover.img,
+#                     <Name>.json -> info.json
 #   arcade-game/    — an already-extracted folder with Game + libpxt.so
 #                     (optional name.txt, arcade.cfg for GPIO buttons)
 #
@@ -215,6 +218,19 @@ chmod +x "$FINAL/Game"
 # Copy any extra assets the game ships (data files, etc.) alongside the binary.
 find "$SRC" -mindepth 1 -maxdepth 1 ! -name Game ! -name libpxt.so ! -name name.txt ! -name arcade.cfg \
     ! -name '.*' -exec cp -a {} "$FINAL/" \; 2>/dev/null || true
+
+# Neighboring assets on the stick: a <Game>.png / <Game>-<arch>.png next to
+# the .tar.gz becomes cover.png, <Game>.img becomes cover.img, and
+# <Game>.json becomes info.json for the menu.
+if [ -n "$TARBALL" ]; then
+    TAR_BASE="$(basename "$TARBALL" .tar.gz)"
+    TAR_GAME="${TAR_BASE%%-arm64}"; TAR_GAME="${TAR_GAME%%-x86-64}"; TAR_GAME="${TAR_GAME%%-win64}"; TAR_GAME="${TAR_GAME%%-amd64}"
+    for base in "$TAR_BASE" "$TAR_GAME"; do
+        [ -f "$MNT/$base.png" ]  && cp -a "$MNT/$base.png"  "$FINAL/cover.png"  && log "installed cover.png from $base.png"
+        [ -f "$MNT/$base.img" ]  && cp -a "$MNT/$base.img"  "$FINAL/cover.img"  && log "installed cover.img from $base.img"
+        [ -f "$MNT/$base.json" ] && cp -a "$MNT/$base.json" "$FINAL/info.json"  && log "installed info.json from $base.json"
+    done
+fi
 echo "$SRC_MTIME" > "$FINAL/.usb-source-mtime"
 
 rm -rf "$DEST.old"
