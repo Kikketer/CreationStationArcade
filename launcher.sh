@@ -174,6 +174,14 @@ while true; do
         continue
     fi
     export LD_LIBRARY_PATH="$GAMES_DIR/$TARGET"
+    # Idle exit: a game untouched for ARCADE_GAME_IDLE_SECONDS exits cleanly
+    # and we land back here (menu). The menu itself manages idle via its
+    # own attract-mode flip, so it's exempt.
+    if [ "$TARGET" = "$MENU_NAME" ]; then
+        export ARCADE_IDLE_SECONDS=0
+    else
+        export ARCADE_IDLE_SECONDS="${ARCADE_GAME_IDLE_SECONDS:-60}"
+    fi
     _log "Launching $TARGET (native Game)"
     "$RUN_DIR/launch-game.sh" "$GAMES_DIR/$TARGET" >> "$LOG_FILE" 2>&1
     STATUS=$?
