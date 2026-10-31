@@ -103,10 +103,10 @@ ARCADE_CFG="${ARCADE_GPIO_CFG:-/etc/arcade.cfg}"
 if grep -q '^BTN_EXIT=' "$ARCADE_CFG" 2>/dev/null; then
     GPIO_RESET_SKIP="BTN_EXIT configured"
     GPIO_RESET_HELPER=""
-elif python3 -c "import RPi.GPIO" >/dev/null 2>&1; then
-    GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard.py"
 elif python3 -c "import gpiod" >/dev/null 2>&1; then
     GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard-gpiod.py"
+elif python3 -c "import RPi.GPIO" >/dev/null 2>&1; then
+    GPIO_RESET_HELPER="$RUN_DIR/gpio-reset-keyboard.py"
 else
     GPIO_RESET_HELPER=""
 fi
