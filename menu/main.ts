@@ -48,12 +48,12 @@ function drawBanner(bg: Image) {
     for (let i = 0; i < 16; i++) {
         bg.fillRect(i * 10, 0, 10, 4, (i + tick) % COLORS + 1)
     }
-    // title, one color per letter, marching the other way
+    // title: the whole word pulses through the bright palette entries
+    // (skipping 8/11/12/14 — the dark blues/browns/purples that vanish
+    // against the black background)
     const title = "MadeArcade"
-    const x0 = 50  // ~10 chars * 6px centered-ish
-    for (let i = 0; i < title.length; i++) {
-        bg.print(title.charAt(i), x0 + i * 6, 10, (tick + title.length - i) % COLORS + 1)
-    }
+    const BRIGHT = [1, 2, 3, 4, 5, 6, 7, 9, 10, 13]
+    bg.print(title, 50, 10, BRIGHT[tick % BRIGHT.length])
     // second palette strip under the title, same drift as the top
     for (let i = 0; i < 16; i++) {
         bg.fillRect(i * 10, 24, 10, 4, (i + tick) % COLORS + 1)
