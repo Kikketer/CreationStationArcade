@@ -219,8 +219,10 @@ controller.player2.B.onEvent(ControllerButtonEvent.Pressed, onB)
 
 game.onUpdateInterval(50, function () {
     const bDown = controller.B.isPressed() || controller.player2.B.isPressed()
-    if (!bDown && bWasDown) {
-        // B released: ends the gesture, disarm if armed
+    if (!bDown && bWasDown && (armed || combo >= COMBO_LEN)) {
+        // Releasing the 5th B ends the gesture (and disarms if armed);
+        // releases during the 4 quick taps must NOT reset — the gap
+        // timeout in onB handles abandoning a partial combo.
         resetCombo()
     }
     if (bDown && combo >= COMBO_LEN && !armed && entries.length) {
