@@ -54,9 +54,9 @@ function drawBanner(bg: Image) {
     for (let i = 0; i < title.length; i++) {
         bg.print(title.charAt(i), x0 + i * 6, 10, (tick + title.length - i) % COLORS + 1)
     }
-    // second palette strip under the title, drifting opposite to the top
+    // second palette strip under the title, same drift as the top
     for (let i = 0; i < 16; i++) {
-        bg.fillRect(i * 10, 24, 10, 4, (i - tick + 64) % COLORS + 1)
+        bg.fillRect(i * 10, 24, 10, 4, (i + tick) % COLORS + 1)
     }
 }
 
