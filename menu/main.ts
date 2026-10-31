@@ -38,6 +38,8 @@ const pageCount = Math.max(1, Math.ceil(entries.length / PER_PAGE))
 
 let sel = 0
 let tick = 0
+let attract = false
+let lastInput = control.millis()
 let coverSprites: Sprite[] = []
 // per-game placeholder tile colors, picked once so they don't flicker
 let tileBg: number[] = []
@@ -58,6 +60,33 @@ function drawBanner(bg: Image) {
     for (let i = 0; i < 16; i++) {
         bg.fillRect(i * 10, 24, 10, 4, (i + tick) % COLORS + 1)
     }
+}
+
+function drawAttract() {
+    const bg = image.create(160, 120)
+    bg.fill(BLACK)
+    // MadeArcade logo block, centered in the upper half
+    for (let i = 0; i < 16; i++) {
+        bg.fillRect(i * 10, 18, 10, 4, (i + tick) % COLORS + 1)
+        bg.fillRect(i * 10, 36, 10, 4, (i + tick) % COLORS + 1)
+    }
+    const BRIGHT = [1, 2, 3, 4, 5, 6, 7, 9, 10, 13]
+    bg.print("MadeArcade", 50, 26, BRIGHT[tick % BRIGHT.length])
+    // class blurb, white on black
+    const lines = [
+        "These games were made by",
+        "students of \"Make Video",
+        "Games\" class offered in",
+        "Oregon Ed and Rec.",
+        "",
+        "Sign up today!"
+    ]
+    for (let i = 0; i < lines.length; i++) {
+        bg.print(lines[i], 8, 62 + i * 9, 1)
+    }
+    scene.setBackgroundImage(bg)
+    for (const s of coverSprites) s.destroy()
+    coverSprites = []
 }
 
 function tileColor(idx: number): number[] {
@@ -93,6 +122,10 @@ function placeholder(idx: number, dir: string): Image {
 }
 
 function redraw() {
+    if (attract) {
+        drawAttract()
+        return
+    }
     const bg = image.create(160, 120)
     bg.fill(BLACK)
     drawBanner(bg)
@@ -142,7 +175,20 @@ function redraw() {
     }
 }
 
+// Returns true when the input was "spent" waking from attract mode —
+// the tap that dismisses the attract screen shouldn't also act on the list.
+function poke(): boolean {
+    lastInput = control.millis()
+    if (attract) {
+        attract = false
+        redraw()
+        return true
+    }
+    return false
+}
+
 function move(dcol: number, drow: number) {
+    if (poke()) return
     // any navigation cancels an in-progress delete combo
     resetCombo()
     if (!entries.length) return
@@ -171,6 +217,7 @@ function move(dcol: number, drow: number) {
 }
 
 function launch() {
+    if (poke()) return
     if (!entries.length) return
     resetCombo()   // never leave an armed archive behind on exit
     music.powerUp.play()
@@ -204,6 +251,7 @@ function resetCombo() {
 }
 
 function onB() {
+    if (poke()) return
     const now = control.millis()
     if (now - lastB > COMBO_GAP_MS) combo = 0
     lastB = now
@@ -219,6 +267,7 @@ controller.player2.B.onEvent(ControllerButtonEvent.Pressed, onB)
 
 game.onUpdateInterval(50, function () {
     const bDown = controller.B.isPressed() || controller.player2.B.isPressed()
+    if (bDown) lastInput = control.millis()  // a held B keeps the screen awake
     if (!bDown && bWasDown && (armed || combo >= COMBO_LEN)) {
         // Releasing the 5th B ends the gesture (and disarms if armed);
         // releases during the 4 quick taps must NOT reset — the gap
@@ -246,9 +295,13 @@ controller.player2.up.onEvent(ControllerButtonEvent.Pressed, function () { move(
 controller.player2.down.onEvent(ControllerButtonEvent.Pressed, function () { move(0, 1) })
 controller.player2.A.onEvent(ControllerButtonEvent.Pressed, launch)
 
-// banner/selection animation
+// banner/selection animation + attract-mode flip every 30s idle
 game.onUpdateInterval(200, function () {
     tick = (tick + 1) % 900
+    if (control.millis() - lastInput >= 30000) {
+        attract = !attract
+        lastInput = control.millis()
+    }
     redraw()
 })
 
