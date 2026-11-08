@@ -1,5 +1,35 @@
 [
   {
+    "name": "Pumpkin Ball",
+    "author": "Tommy",
+    "playerCount": 1,
+    "file": "TommyPumpkinBall.js"
+  },
+  {
+    "name": "The Hardest Boss Battle",
+    "author": "Galen",
+    "playerCount": 1,
+    "file": "GalenBossBattle.js"
+  },
+  {
+    "name": "Ghosties Mansion Mysteries",
+    "author": "Connor",
+    "playerCount": 1,
+    "file": "ConnorGhosteesMansionMysteries.js"
+  },
+  {
+    "name": "Paddle The River Spooky",
+    "author": "Andy",
+    "playerCount": 1,
+    "file": "AndyPaddleTheRiverSpooky.js"
+  },
+  {
+    "name": "Zombie Apocolypse Spooky",
+    "author": "Andy",
+    "playerCount": 1,
+    "file": "AndyZombieApocolypseSpooky.js"
+  },
+  {
     "name": "Unpixel Tournament",
     "author": "William",
     "playerCount": 4,
