@@ -12,7 +12,8 @@ boot-time `git reset --hard` + `rsync --delete` in `launcher.sh` /
   files via `/games/<file>` (falls back to a directory scan when games.json
   is missing). `menu.js` polls `/api/games` every 5s and rebuilds on change.
 - `stock-games/` in the repo seeds `~/arcade-games/` at setup (only utility
-  titles like Controller Test — never machine-specific content).
+  titles like Controller Test — never machine-specific content). `example-usb/`
+  shows a copy-ready USB stick layout, including a full example library.
 - `install/arcade-usb-update.sh` + `arcade-usb-update@.service` +
   `99-arcade-usb.rules` install games from a USB stick: loose `*.js` at the
   drive root (with same-basename `.png`/`.gif`/`.json` siblings) or an

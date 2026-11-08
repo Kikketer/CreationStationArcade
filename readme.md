@@ -56,6 +56,8 @@ All games live in `/home/pi/arcade-games/` on the machine — outside the repo a
 2. Copy files onto a USB stick, either:
    - Loose at the drive root: `MyGame.js` plus an optional `MyGame.png` cover image
    - Or inside an `arcade-games/` folder — everything in the folder is installed, so you can dump a whole games library (including `games.json` to keep `name`/`author`/`playerCount`) in one shot
+
+   See `example-usb/` for a ready-to-copy stick layout (copy its contents to the drive root).
 3. Plug the stick into the arcade. The game appears in the menu within seconds and stays installed after reboots.
 
 Optional metadata: put `MyGame.json` next to `MyGame.js` to set `name`, `author`, and `playerCount`:
