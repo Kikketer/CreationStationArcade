@@ -15,8 +15,13 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_DIR="${REPO_DIR}-run"
-LOG="$HOME/arcade-setup.log"
-USER_NAME=$(whoami)
+# The kiosk user is whoever invoked the script — via sudo too ($SUDO_USER).
+# Running as root must never make root the kiosk user: autologin and all
+# user files resolve to the real account instead.
+USER_NAME="${SUDO_USER:-$(whoami)}"
+USER_HOME="$(getent passwd "$USER_NAME" 2>/dev/null | cut -d: -f6)"
+[ -n "$USER_HOME" ] || USER_HOME="$(eval echo "~$USER_NAME")"
+LOG="$USER_HOME/arcade-setup.log"
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
@@ -73,7 +78,7 @@ log "Auto-login configured for user: $USER_NAME"
 
 # ── 4. Auto-start Xorg on TTY1 ───────────────────────────────────────────────
 log "Configuring Xorg to start on TTY1..."
-PROFILE="$HOME/.bash_profile"
+PROFILE="$USER_HOME/.bash_profile"
 
 # Use 'startx' without 'exec' to avoid login loop issues
 STARTX_BLOCK='# Auto-start X on TTY1 (Debian x86 kiosk)
@@ -91,7 +96,7 @@ if ! grep -qF "startx -- -nocursor" "$PROFILE" 2>/dev/null; then
 fi
 
 # ── 5. Xorg config (.xinitrc runs menu-launcher from runtime folder) ──────────
-XINITRC="$HOME/.xinitrc"
+XINITRC="$USER_HOME/.xinitrc"
 cat > "$XINITRC" <<XEOF
 #!/bin/bash
 # Start audio system
@@ -117,6 +122,7 @@ else
 fi
 XEOF
 chmod +x "$XINITRC"
+chown "$USER_NAME:$USER_NAME" "$XINITRC" "$PROFILE" 2>/dev/null || true
 log ".xinitrc configured for dual-chromium mode."
 
 # ── 6. Create runtime folder (sync from repo) ────────────────────────────────
@@ -172,7 +178,7 @@ log "Git update service configured."
 # machine-agnostic. stock-games/ seeds it; a udev rule starts
 # arcade-usb-update@<dev>.service when a USB filesystem is inserted to
 # install more games off the drive.
-GAMES_DIR="$HOME/arcade-games"
+GAMES_DIR="$USER_HOME/arcade-games"
 
 log "Creating games folder at $GAMES_DIR and seeding stock games..."
 mkdir -p "$GAMES_DIR"
@@ -181,6 +187,7 @@ if [ -d "$REPO_DIR/stock-games" ]; then
     # (an edited config.json, USB-installed games, archived stuff).
     cp -an "$REPO_DIR/stock-games/." "$GAMES_DIR/"
 fi
+chown -R "$USER_NAME:$USER_NAME" "$GAMES_DIR" 2>/dev/null || true
 python3 "$REPO_DIR/install/arcade-regen-games.py" "$GAMES_DIR" >> "$LOG" 2>&1 || true
 
 log "Installing USB game-update support..."

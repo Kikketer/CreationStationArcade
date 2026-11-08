@@ -15,7 +15,10 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_DIR="${REPO_DIR}-run"
-LOG="$HOME/arcade-setup.log"
+USER_NAME="${SUDO_USER:-$(whoami)}"
+USER_HOME="$(getent passwd "$USER_NAME" 2>/dev/null | cut -d: -f6)"
+[ -n "$USER_HOME" ] || USER_HOME="$(eval echo "~$USER_NAME")"
+LOG="$USER_HOME/arcade-setup.log"
 
 # Parse arguments
 GPIO_CONTROLLERS=false
@@ -109,7 +112,7 @@ log "Pi 5 X11 config created."
 
 # ── 5. Auto-start Xorg on TTY1 ───────────────────────────────────────────────
 log "Configuring Xorg to start on TTY1..."
-PROFILE="$HOME/.bash_profile"
+PROFILE="$USER_HOME/.bash_profile"
 
 # Use 'startx' without 'exec' to avoid login loop issues
 STARTX_BLOCK='# Auto-start X on TTY1 (Pi 5 kiosk)
@@ -128,7 +131,7 @@ fi
 log ".bash_profile configured."
 
 # ── 6. Xorg config (.xinitrc runs launcher from runtime folder) ─────────────
-XINITRC="$HOME/.xinitrc"
+XINITRC="$USER_HOME/.xinitrc"
 cat > "$XINITRC" <<XEOF
 #!/bin/bash
 # Disable screen blanking and power management
@@ -151,6 +154,7 @@ else
 fi
 XEOF
 chmod +x "$XINITRC"
+chown "$USER_NAME:$USER_NAME" "$XINITRC" "$PROFILE" 2>/dev/null || true
 log ".xinitrc configured."
 
 # ── 7. Create runtime folder (sync from repo) ────────────────────────────────
@@ -245,7 +249,7 @@ fi
 # machine-agnostic. stock-games/ seeds it; a udev rule starts
 # arcade-usb-update@<dev>.service when a USB filesystem is inserted to
 # install more games off the drive — no reboot or git push needed.
-GAMES_DIR="$HOME/arcade-games"
+GAMES_DIR="$USER_HOME/arcade-games"
 
 log "Creating games folder at $GAMES_DIR and seeding stock games..."
 mkdir -p "$GAMES_DIR"
@@ -254,6 +258,7 @@ if [ -d "$REPO_DIR/stock-games" ]; then
     # (an edited config.json, USB-installed games, archived stuff).
     cp -an "$REPO_DIR/stock-games/." "$GAMES_DIR/"
 fi
+chown -R "$USER_NAME:$USER_NAME" "$GAMES_DIR" 2>/dev/null || true
 python3 "$REPO_DIR/install/arcade-regen-games.py" "$GAMES_DIR" >> "$LOG" 2>&1 || true
 
 log "Installing USB game-update support..."
@@ -267,7 +272,7 @@ sudo cp "$REPO_DIR/install/99-arcade-usb.rules" /etc/udev/rules.d/99-arcade-usb.
 sudo chmod 644 /etc/udev/rules.d/99-arcade-usb.rules
 sudo tee /etc/arcade-usb-update.conf > /dev/null <<EOF
 GAMES_DIR="$GAMES_DIR"
-ARCADE_USER="$USER"
+ARCADE_USER="$USER_NAME"
 EOF
 sudo chmod 644 /etc/arcade-usb-update.conf
 sudo udevadm control --reload-rules 2>/dev/null || true
