@@ -62,8 +62,18 @@ for i in {1..30}; do
 done
 
 # Size the window to the actual display — kiosk alone doesn't stretch on
-# some X setups. Fall back to 1080p if xrandr can't tell.
-RES="$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')"
+# some X setups. "display.resolution" in config.jsonc beats xrandr.
+CFG_RES="$(python3 -c "
+import json, re, sys
+try:
+    s = open(sys.argv[1]).read()
+    s = re.sub(r'//[^\\n]*', '', s)
+    s = re.sub(r'/\\*.*?\\*/', '', s, flags=re.S)
+    print(json.loads(s).get('display', {}).get('resolution', ''))
+except Exception:
+    print('')
+" "$HOME/arcade-games/config.jsonc" 2>/dev/null)"
+RES="${CFG_RES:-$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')}"
 [ -n "$RES" ] || RES="1920x1080"
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
 "$CHROMIUM_BIN" \

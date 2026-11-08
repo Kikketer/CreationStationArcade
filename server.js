@@ -221,6 +221,13 @@ function isGameRunning() {
 // Real display resolution for the game window (kiosk doesn't stretch on
 // some X setups). Falls back to 1080p.
 function displayRes() {
+  // config.jsonc "display.resolution" beats autodetect.
+  try {
+    const cfg = JSON.parse(stripJsonComments(
+      fs.readFileSync(path.join(GAMES_DIR, "config.jsonc"), "utf8")));
+    const r = cfg.display && cfg.display.resolution;
+    if (r && /^\d+x\d+$/.test(r)) return r;
+  } catch (e) {}
   try {
     const line = require("child_process").execSync("xrandr 2>/dev/null")
       .toString().split("\n").find((l) => l.includes("*"));
