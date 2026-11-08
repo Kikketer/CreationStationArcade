@@ -126,6 +126,7 @@
     // IDLE_MS with no input the game is killed back to the menu.
     const IDLE_MS = 60 * 1000;
     let lastInput = performance.now();
+    const prevBtnStates = {};
 
     // Gamepad: exitButtons (default 8/9) → kill to menu
     // Gamepad: Button 7 or 6 → reset game
@@ -144,6 +145,11 @@
           resetGame();
           return;
         }
+        pad.buttons.forEach((b, i) => {
+          const key = `${pad.index}:${i}`;
+          if (b.pressed && !prevBtnStates[key]) fetch(`/api/track-button?btn=${i}`).catch(() => {});
+          prevBtnStates[key] = b.pressed;
+        });
         if (pad.buttons.some(b => b.pressed)) lastInput = now;
       }
       if (now - lastInput > IDLE_MS) {

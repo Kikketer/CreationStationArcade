@@ -220,6 +220,26 @@ function handleReorder(req, res) {
   });
 }
 
+// GET /api/track-button?btn=N — increments stats.buttons[N]. Fire-and-forget
+// from menu.js/play.html gamepad edge-detection (replaces the Pi-only GPIO
+// monitor's job on x86).
+function handleTrackButton(res, btn) {
+  let stats = { buttons: {}, games: {}, first_seen: {}, last_updated: null };
+  try {
+    stats = JSON.parse(fs.readFileSync(STATS_FILE, "utf8"));
+    stats.buttons = stats.buttons || {};
+  } catch (e) {}
+  const key = String(btn);
+  stats.buttons[key] = (stats.buttons[key] || 0) + 1;
+  stats.last_updated = new Date().toISOString().replace("T", " ").slice(0, 19);
+  try {
+    fs.writeFileSync(STATS_FILE + ".tmp", JSON.stringify(stats, null, 2));
+    fs.renameSync(STATS_FILE + ".tmp", STATS_FILE);
+  } catch (e) {}
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end('{"ok":true}');
+}
+
 function handleKillGame(res) {
   if (isGameRunning()) {
     try {
@@ -475,6 +495,10 @@ const server = http.createServer((req, res) => {
 
   if (pathname === "/api/reorder") {
     return handleReorder(req, res);
+  }
+
+  if (pathname === "/api/track-button") {
+    return handleTrackButton(res, url.searchParams.get("btn"));
   }
 
   if (pathname === "/api/kill-game") {

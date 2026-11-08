@@ -434,9 +434,24 @@ window.addEventListener('keyup', (e) => {
 }, true);
 
 // Gamepad input
+const prevBtnStates = {};
+function trackButtonStats(pads) {
+  for (const pad of pads) {
+    if (!pad) continue;
+    pad.buttons.forEach((btn, i) => {
+      const key = `${pad.index}:${i}`;
+      if (btn.pressed && !prevBtnStates[key]) {
+        fetch(`/api/track-button?btn=${i}`).catch(() => {});
+      }
+      prevBtnStates[key] = btn.pressed;
+    });
+  }
+}
+
 function pollGamepads() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   const now = performance.now();
+  trackButtonStats(pads);
 
   // B-button tracking runs every frame, before the input repeat throttle —
   // the archive combo needs to see quick taps.
