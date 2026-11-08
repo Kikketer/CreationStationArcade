@@ -521,4 +521,7 @@ async function loadConfig() {
 window.addEventListener('gamepadconnected', () => {});
 pollGamepads();
 loadConfig();
+// Re-poll so config edits (incl. USB-synced config.jsonc) apply live:
+// display offsets/scale re-measure, attract text updates.
+setInterval(loadConfig, 15000);
 loadGames().then(() => { startHeartbeat(); startGamesPolling(); });
