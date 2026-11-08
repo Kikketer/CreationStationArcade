@@ -231,16 +231,29 @@ def load_config(path):
 
 def setup_gpio(pin_config):
     """Setup GPIO pins as inputs with pull-ups"""
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-    
+    try:
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+    except RuntimeError as e:
+        # Classic RPi.GPIO can't address the Pi 5 RP1 peripheral. Fail with
+        # the actual fix instead of the cryptic SOC error.
+        model = ""
+        try:
+            model = open("/proc/device-tree/model").read().strip("\x00")
+        except Exception:
+            pass
+        log(f"FATAL: GPIO init failed on {model or 'unknown model'}: {e}")
+        log("Pi 5 requires: sudo apt install python3-rpi-lgpio")
+        log("Pi 4 and older require: sudo apt install python3-rpi.gpio")
+        sys.exit(1)
+
     all_pins = []
     for player, pins in pin_config.items():
         for name, pin in pins.items():
             if pin is not None:
                 all_pins.append(pin)
                 GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    
+
     log(f"GPIO setup complete: {len(set(all_pins))} pins configured")
     return list(set(all_pins))
 
