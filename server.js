@@ -169,6 +169,18 @@ function isGameRunning() {
   }
 }
 
+// Actual display resolution for the game window — hardcoding 1920x1080
+// overflows non-widescreen monitors. Fall back to 1080p.
+function displayRes() {
+  try {
+    const out = require("child_process").execSync("xrandr 2>/dev/null").toString();
+    const line = out.split("\n").find((l) => l.includes("*"));
+    const m = line && line.match(/(\d+x\d+)/);
+    if (m) return m[1];
+  } catch (e) {}
+  return "1920x1080";
+}
+
 function spawnGameChromium(gameName, gameFile) {
   // Clear previous game user data to prevent "restore session" prompts
   const gameUserDir = "/tmp/chromium-arcade-game";
@@ -192,7 +204,7 @@ function spawnGameChromium(gameName, gameFile) {
     "--user-data-dir=/tmp/chromium-arcade-game",
     "--kiosk",  // Kiosk mode - no exit UI
     "--window-position=0,0",
-    "--window-size=1920,1080",
+    `--window-size=${displayRes()}`,
     "--start-fullscreen",
     "--noerrdialogs",
     "--disable-infobars",

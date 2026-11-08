@@ -18,6 +18,12 @@ fi
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Using Chromium: $CHROMIUM_BIN" >> $LOG_FILE
 
+# Size the window to the actual display — hardcoding 1920x1080 overflows
+# non-widescreen monitors. Fall back to 1080p if xrandr can't tell.
+RES="$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')"
+[ -n "$RES" ] || RES="1920x1080"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Display resolution: $RES" >> $LOG_FILE
+
 # Sync from source to runtime folder (source may have been updated in background)
 if [ -d "$SOURCE_DIR/.git" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] Syncing from $SOURCE_DIR to $RUN_DIR" >> "$LOG_FILE"
@@ -65,7 +71,7 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --user-data-dir=/tmp/chromium-arcade \
     --kiosk \
     --window-position=0,0 \
-    --window-size=1920,1080 \
+    --window-size=$RES \
     --start-fullscreen \
     --noerrdialogs \
     --disable-infobars \
