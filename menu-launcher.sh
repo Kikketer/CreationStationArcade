@@ -90,11 +90,18 @@ CHROMIUM_FLAGS=(
     --remote-debugging-port=9222
 )
 
+# Size windows to the actual display — kiosk alone doesn't stretch the
+# window on some X setups; give it the real resolution.
+RES="$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')"
+[ -n "$RES" ] || RES="1920x1080"
+log "Display resolution: $RES"
+
 # Launch MENU Chromium (always running, kiosk mode, bottom layer)
 log "Launching MENU Chromium (kiosk, always-on)..."
 "$CHROMIUM_BIN" \
     --user-data-dir=/tmp/chromium-arcade-menu \
     --kiosk \
+    --window-size=$RES \
     --start-fullscreen \
     "${CHROMIUM_FLAGS[@]}" \
     http://localhost:3000/ >> "$LOG_FILE" 2>&1 &
@@ -127,6 +134,7 @@ while true; do
         "$CHROMIUM_BIN" \
             --user-data-dir=/tmp/chromium-arcade-menu \
             --kiosk \
+    --window-size=$RES \
             --start-fullscreen \
             "${CHROMIUM_FLAGS[@]}" \
             http://localhost:3000/ >> "$LOG_FILE" 2>&1 &

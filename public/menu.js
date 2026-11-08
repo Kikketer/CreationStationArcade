@@ -49,9 +49,13 @@ function updateScale() {
   pixelScreen.style.marginTop = `${displayCfg.offsetY || 0}px`;
 }
 
-// Initial scale and resize handler
+// Initial scale and resize handler. Chromium may resize the window after
+// load (xrandr-sized kiosk launches), so recompute a few times post-load.
 updateScale();
 window.addEventListener('resize', updateScale);
+setTimeout(updateScale, 300);
+setTimeout(updateScale, 1500);
+setTimeout(updateScale, 4000);
 
 // Generate placeholder image (60x32 for 160x120 virtual resolution)
 function generatePlaceholderImage(name) {

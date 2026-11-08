@@ -218,6 +218,18 @@ function isGameRunning() {
   }
 }
 
+// Real display resolution for the game window (kiosk doesn't stretch on
+// some X setups). Falls back to 1080p.
+function displayRes() {
+  try {
+    const line = require("child_process").execSync("xrandr 2>/dev/null")
+      .toString().split("\n").find((l) => l.includes("*"));
+    const m = line && line.match(/\d+x\d+/);
+    if (m) return m[0];
+  } catch (e) {}
+  return "1920x1080";
+}
+
 function spawnGameChromium(gameName, gameFile) {
   // Clear previous game user data to prevent "restore session" prompts
   const gameUserDir = "/tmp/chromium-arcade-game";
@@ -241,6 +253,7 @@ function spawnGameChromium(gameName, gameFile) {
     "--user-data-dir=/tmp/chromium-arcade-game",
     "--kiosk",  // Kiosk mode - no exit UI
     "--start-fullscreen",
+    `--window-size=${displayRes()}`,
     "--noerrdialogs",
     "--disable-infobars",
     "--no-first-run",

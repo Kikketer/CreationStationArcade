@@ -61,10 +61,15 @@ for i in {1..30}; do
     sleep 1
 done
 
+# Size the window to the actual display — kiosk alone doesn't stretch on
+# some X setups. Fall back to 1080p if xrandr can't tell.
+RES="$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')"
+[ -n "$RES" ] || RES="1920x1080"
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
 "$CHROMIUM_BIN" \
     --user-data-dir=/tmp/chromium-arcade \
     --kiosk \
+    --window-size=$RES \
     --start-fullscreen \
     --noerrdialogs \
     --disable-infobars \
