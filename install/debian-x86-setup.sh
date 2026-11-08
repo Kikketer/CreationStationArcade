@@ -47,6 +47,7 @@ sudo apt-get install -y \
     xserver-xorg \
     xinit \
     unclutter \
+    openbox \
     xdotool \
     git \
     rsync \
@@ -109,6 +110,10 @@ xset -dpms
 
 # Hide cursor
 unclutter -idle 0.1 -root &
+
+# Minimal window manager: without one, Chromium can't honor
+# fullscreen/kiosk state and window geometry gets ignored.
+openbox &
 
 # Launch arcade from runtime folder (dual-chromium mode)
 RUN_DIR="$RUN_DIR"

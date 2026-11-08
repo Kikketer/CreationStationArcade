@@ -65,6 +65,7 @@ sudo apt-get install -y \
     python3 \
     xorg \
     unclutter \
+    openbox \
     xdotool \
     >> "$LOG" 2>&1
 log "Packages installed."
@@ -141,6 +142,10 @@ xset -dpms
 
 # Hide cursor
 unclutter -idle 0.1 -root &
+
+# Minimal window manager: without one, Chromium can't honor
+# fullscreen/kiosk state and window geometry gets ignored.
+openbox &
 
 # Launch arcade from runtime folder
 RUN_DIR="$RUN_DIR"
