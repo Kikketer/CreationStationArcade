@@ -41,7 +41,11 @@ let displayCfg = { offsetX: 0, offsetY: 0, scale: 1 };
 function updateScale() {
   const scaleX = window.innerWidth / VIRTUAL_W;
   const scaleY = window.innerHeight / VIRTUAL_H;
-  const scale = Math.min(scaleX, scaleY) * SCALE_TRIM * (displayCfg.scale || 1);
+  let scale = Math.min(scaleX, scaleY) * SCALE_TRIM * (displayCfg.scale || 1);
+  // Pixel art demands whole-pixel scale: non-integer factors blur the whole
+  // raster. Snap to the nearest integer (min 1) — e.g. 8.18x -> 8x = exact
+  // 1280px on a 1280x1024 panel.
+  scale = Math.max(1, Math.round(scale));
   pixelScreen.style.setProperty('--scale', scale);
   // Margins shift the flex-centered element in real screen pixels — offset
   // stays constant regardless of scale.
