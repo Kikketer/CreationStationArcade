@@ -1,16 +1,23 @@
 {
+  // Title/idle screen text — one array item per line.
+  // Wrap a word in *asterisks* to render it in the accent color.
   "attractLines": [
     "These games were made by students of the",
     "*\"Make Video Games\"* class.",
     "Sign up today!"
   ],
+
+  // Per-box screen adjustment (for bezels / off-center displays).
+  // offsetX/offsetY: shift the whole menu in real pixels (+ = right/down).
+  // scale: extra zoom on top of auto-fit (1.0 normal, 0.9 = 10% smaller).
   "display": {
     "offsetX": 0,
     "offsetY": 0,
     "scale": 1.0
   },
-  "exitButtons": [
-    8,
-    9
-  ]
+
+  // Gamepad button indices that kill the running game back to the menu.
+  // Wire a cabinet reset button to a USB encoder input and put its index
+  // here. Default [8, 9] = Start/Select. Check indices with evtest.
+  "exitButtons": [8, 9]
 }

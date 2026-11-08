@@ -139,6 +139,29 @@ function handleArchiveGame(res, gameFile) {
 // Per-machine config (title screen text, etc.) lives in GAMES_DIR/config.json
 // — outside the repo so each box can differ. Missing/invalid just means
 // "use the defaults baked into the page".
+// Strip // line comments and /* block comments */ from JSONC-style text,
+// skipping anything inside string literals (URLs etc. stay intact).
+function stripJsonComments(text) {
+  let out = "";
+  let inStr = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (inStr) {
+      out += c;
+      if (c === "\\") out += next || "";
+      else if (c === '"') inStr = false;
+      if (c === "\\") i++;
+      continue;
+    }
+    if (c === '"') { inStr = true; out += c; continue; }
+    if (c === "/" && next === "/") { while (i < text.length && text[i] !== "\n") i++; continue; }
+    if (c === "/" && next === "*") { while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) i++; i++; continue; }
+    out += c;
+  }
+  return out;
+}
+
 function handleConfig(res) {
   fs.readFile(path.join(GAMES_DIR, "config.json"), (err, data) => {
     res.writeHead(200, {
@@ -147,8 +170,8 @@ function handleConfig(res) {
     });
     if (err) return res.end("{}");
     try {
-      JSON.parse(data);
-      res.end(data);
+      const stripped = stripJsonComments(data.toString());
+      res.end(JSON.stringify(JSON.parse(stripped)));
     } catch (e) {
       res.end("{}");
     }
