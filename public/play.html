@@ -158,6 +158,18 @@
     // ── Load game and run in simulator ────────────────────────────────────────
     const frame = document.getElementById("sim-frame");
 
+    // The iframe grabs keyboard focus, so keydown on `document` never fires
+    // while playing. Same-origin frame: forward its key events to our
+    // handlers so Escape/R work regardless of focus.
+    frame.addEventListener("load", () => {
+      try {
+        frame.contentWindow.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") { e.preventDefault(); killToMenu(); }
+          if (e.key === "r" || e.key === "R") { e.preventDefault(); resetGame(); }
+        });
+      } catch (err) {}
+    });
+
     async function loadGame() {
       const res = await fetch(`/games/${encodeURIComponent(gameFile)}`);
       if (!res.ok) throw new Error(`Game file not found (${res.status})`);
