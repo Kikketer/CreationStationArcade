@@ -2,7 +2,7 @@
 # setup-usb-controllers.sh - Configure stable USB gamepad mapping by physical port
 # Run this to identify USB ports and set up persistent controller ordering
 
-LOG="/home/pi/arcade.log"
+LOG="$HOME/arcade.log"
 UDEV_DIR="/etc/udev/rules.d"
 RULE_FILE="$UDEV_DIR/99-arcade-controllers.rules"
 

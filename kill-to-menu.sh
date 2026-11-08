@@ -2,7 +2,7 @@
 # kill-to-menu.sh - GPIO reset button handler for Chromium kiosk mode
 # Kills Chromium and Node server, lets xinitrc restart everything
 
-LOG_FILE="/home/pi/arcade.log"
+LOG_FILE="$HOME/arcade.log"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # If already in -run folder, use it directly, otherwise append -run
 if [[ "$SCRIPT_DIR" == *"-run" ]]; then

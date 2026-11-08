@@ -2,7 +2,7 @@
 # menu-launcher.sh - Launches menu Chromium (game Chromium spawned by server.js)
 # This is the NEW dual-Chromium architecture where server spawns games directly
 
-LOG_FILE="/home/pi/arcade.log"
+LOG_FILE="$HOME/arcade.log"
 PID_FILE="/tmp/arcade-server.pid"
 MENU_CHROMIUM_PID_FILE="/tmp/arcade-menu-chromium.pid"
 

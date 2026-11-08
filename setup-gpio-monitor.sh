@@ -29,7 +29,7 @@ echo "Commands:"
 echo "  sudo systemctl start $SERVICE_NAME   # Start now"
 echo "  sudo systemctl stop $SERVICE_NAME    # Stop"
 echo "  sudo systemctl status $SERVICE_NAME  # Check status"
-echo "  tail -f /home/pi/arcade.log          # View logs"
+echo "  tail -f $HOME/arcade.log          # View logs"
 echo ""
 echo "Starting service now..."
 sudo systemctl start $SERVICE_NAME

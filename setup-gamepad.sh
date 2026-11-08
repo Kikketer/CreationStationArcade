@@ -1,7 +1,7 @@
 #!/bin/bash
 # setup-gamepad.sh - Install dependencies for GPIO virtual gamepad
 
-LOG_FILE="/home/pi/arcade.log"
+LOG_FILE="$HOME/arcade.log"
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Setting up GPIO Virtual Gamepad..." | tee -a "$LOG_FILE"
 

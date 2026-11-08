@@ -14,7 +14,7 @@ if [ ! -d "$SOURCE_DIR/.git" ]; then
     exit 2
 fi
 
-LOG_FILE="/home/pi/arcade.log"
+LOG_FILE="$HOME/arcade.log"
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Setup: source=$SOURCE_DIR run=$RUN_DIR" >> "$LOG_FILE"
 

@@ -2,7 +2,7 @@
 # Pull from git and sync to runtime folder
 # Can be called from source repo or runtime folder
 
-LOG_FILE="/home/pi/arcade.log"
+LOG_FILE="$HOME/arcade.log"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # launcher.sh - Chromium kiosk launcher for Creation Station Arcade
-LOG_FILE="/home/pi/arcade.log"
+LOG_FILE="$HOME/arcade.log"
 PID_FILE="/tmp/arcade-server.pid"
 CHROMIUM_PID_FILE="/tmp/arcade-chromium.pid"
 
