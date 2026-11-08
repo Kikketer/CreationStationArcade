@@ -33,12 +33,20 @@ const VIRTUAL_H = 120;
 // 8/9 ≈ 0.8889 gives exact 8x integer scale on 1920x1080, eliminating sub-pixel wiggle
 const SCALE_TRIM = 8 / 9;
 
+// Per-machine display tuning from config.json "display": offset in screen
+// pixels (for bezels/CRT masks) and an extra scale multiplier.
+let displayCfg = { offsetX: 0, offsetY: 0, scale: 1 };
+
 // Calculate scale to fill width or height while maintaining aspect ratio
 function updateScale() {
   const scaleX = window.innerWidth / VIRTUAL_W;
   const scaleY = window.innerHeight / VIRTUAL_H;
-  const scale = Math.min(scaleX, scaleY) * SCALE_TRIM;
+  const scale = Math.min(scaleX, scaleY) * SCALE_TRIM * (displayCfg.scale || 1);
   pixelScreen.style.setProperty('--scale', scale);
+  // Margins shift the flex-centered element in real screen pixels — offset
+  // stays constant regardless of scale.
+  pixelScreen.style.marginLeft = `${displayCfg.offsetX || 0}px`;
+  pixelScreen.style.marginTop = `${displayCfg.offsetY || 0}px`;
 }
 
 // Initial scale and resize handler
@@ -476,7 +484,12 @@ async function loadConfig() {
   try {
     const res = await fetch('/api/config');
     const cfg = await res.json();
-    if (!cfg || !Array.isArray(cfg.attractLines) || !cfg.attractLines.length) return;
+    if (!cfg || typeof cfg !== 'object') return;
+    if (cfg.display && typeof cfg.display === 'object') {
+      displayCfg = { offsetX: 0, offsetY: 0, scale: 1, ...cfg.display };
+      updateScale();
+    }
+    if (!Array.isArray(cfg.attractLines) || !cfg.attractLines.length) return;
     const el = document.getElementById('attract-text');
     el.innerHTML = '';
     for (const line of cfg.attractLines) {

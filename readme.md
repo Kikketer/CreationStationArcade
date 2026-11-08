@@ -84,9 +84,16 @@ By default the menu splits the filename on camelCase (`LouisaMushrooms.js` → a
     "These games were made by students of the",
     "*\"Make Video Games\"* class.",
     "Sign up today!"
-  ]
+  ],
+  "display": {
+    "offsetX": 0,
+    "offsetY": 0,
+    "scale": 1.0
+  }
 }
 ```
 
 - `attractLines` — the title/idle screen text, one array item per line. Wrap a word in `*asterisks*` for the accent color.
-- Missing or invalid `config.json` falls back to the built-in default text. The page picks up changes on its next idle cycle.
+- `display.offsetX` / `offsetY` — shift the whole menu screen in real pixels, for bezels or off-center displays.
+- `display.scale` — extra zoom multiplier on top of the auto-fit (`1.0` = normal, `0.9` shrinks 10%).
+- Missing or invalid `config.json` falls back to the built-in defaults. The page picks up changes on its next idle cycle.

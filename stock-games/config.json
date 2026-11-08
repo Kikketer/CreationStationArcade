@@ -3,5 +3,10 @@
     "These games were made by students of the",
     "*\"Make Video Games\"* class.",
     "Sign up today!"
-  ]
+  ],
+  "display": {
+    "offsetX": 0,
+    "offsetY": 0,
+    "scale": 1.0
+  }
 }
