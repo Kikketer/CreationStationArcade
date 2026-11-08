@@ -122,9 +122,15 @@
       fetch("/api/kill-game").catch(() => goBack());
     }
 
+    // Idle timeout: any gamepad button press keeps the game alive; after
+    // IDLE_MS with no input the game is killed back to the menu.
+    const IDLE_MS = 60 * 1000;
+    let lastInput = performance.now();
+
     // Gamepad: exitButtons (default 8/9) → kill to menu
     // Gamepad: Button 7 or 6 → reset game
     function pollGamepad() {
+      const now = performance.now();
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (const pad of pads) {
         if (!pad) continue;
@@ -134,13 +140,20 @@
         }
         // Button 6 or 7 = L2/R2 or Back buttons → reset game
         if (pad.buttons[6]?.pressed || pad.buttons[7]?.pressed) {
+          lastInput = now;
           resetGame();
           return;
         }
+        if (pad.buttons.some(b => b.pressed)) lastInput = now;
+      }
+      if (now - lastInput > IDLE_MS) {
+        killToMenu();
+        return;
       }
       requestAnimationFrame(pollGamepad);
     }
     pollGamepad();
+    document.addEventListener("keydown", () => { lastInput = performance.now(); });
 
     // ── Load game and run in simulator ────────────────────────────────────────
     const frame = document.getElementById("sim-frame");
