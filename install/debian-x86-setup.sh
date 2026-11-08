@@ -214,7 +214,7 @@ sudo cp -f "$REPO_DIR/install/usb-controllers.udev" /etc/udev/rules.d/99-arcade-
     # Create minimal template if file doesn't exist
     sudo tee /etc/udev/rules.d/99-arcade-controllers.rules > /dev/null <<'UDEV_EOF'
 # USB Arcade Controller Persistent Naming
-# Run /home/pi/CreationStationArcade-run/setup-usb-controllers.sh 
+# Run setup-usb-controllers.sh (in the runtime folder)
 # after plugging in controllers to configure stable player assignments
 #
 # Each USB port will always map to the same player number:
@@ -228,7 +228,7 @@ UDEV_EOF
 sudo udevadm control --reload-rules 2>/dev/null || true
 
 log "USB controller tools installed."
-log "After plugging in controllers, run: sudo bash ~/CreationStationArcade-run/setup-usb-controllers.sh"
+log "After plugging in controllers, run: sudo bash $RUN_DIR/setup-usb-controllers.sh"
 
 # ── 11. Suppress boot messages (Debian x86 paths) ───────────────────────────
 log "Suppressing boot messages..."
@@ -257,7 +257,7 @@ echo "  - Game Chromium: spawned by server.js when game selected"
 echo "  - Kill button: returns to menu instantly"
 echo ""
 echo "USB Controller Setup (after plugging in controllers):"
-echo "  sudo bash ~/CreationStationArcade-run/setup-usb-controllers.sh"
+echo "  sudo bash $RUN_DIR/setup-usb-controllers.sh"
 echo ""
 echo "To manually test first:"
 echo "  cd $RUN_DIR && bash menu-launcher.sh"

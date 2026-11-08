@@ -222,7 +222,7 @@ if [ "$GPIO_CONTROLLERS" = false ]; then
         # Create minimal template if file doesn't exist
         sudo tee /etc/udev/rules.d/99-arcade-controllers.rules > /dev/null <<'UDEV_EOF'
 # USB Arcade Controller Persistent Naming
-# Run /home/pi/CreationStationArcade-run/setup-usb-controllers.sh 
+# Run setup-usb-controllers.sh (in the runtime folder)
 # after plugging in controllers to configure stable player assignments
 #
 # Each USB port will always map to the same player number:
@@ -236,7 +236,7 @@ UDEV_EOF
     sudo udevadm control --reload-rules 2>/dev/null || true
     
     log "USB controller tools installed."
-    log "After plugging in controllers, run: sudo bash /home/pi/CreationStationArcade-run/setup-usb-controllers.sh"
+    log "After plugging in controllers, run: sudo bash $RUN_DIR/setup-usb-controllers.sh"
 fi
 
 # ── 10. Games folder + USB game update support ────────────────────────────────
@@ -326,5 +326,5 @@ if [ "$GPIO_CONTROLLERS" = true ]; then
 else
     echo ""
     echo "USB Controller Setup (after plugging in controllers):"
-    echo "  sudo bash /home/pi/CreationStationArcade-run/setup-usb-controllers.sh"
+    echo "  sudo bash $RUN_DIR/setup-usb-controllers.sh"
 fi
