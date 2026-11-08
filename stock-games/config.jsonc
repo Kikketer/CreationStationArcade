@@ -9,7 +9,9 @@
 
   // Per-box screen adjustment (for bezels / off-center displays).
   // offsetX/offsetY: shift the whole menu in real pixels (+ = right/down).
-  // scale: extra zoom on top of auto-fit (1.0 normal, 0.9 = 10% smaller).
+  // scale: nudges auto-fit toward a size; the result SNAPS TO A WHOLE
+  // NUMBER (pixel art needs integer scale or it blurs). Small changes
+  // often round to the same size - 1.0 and 1.1 may look identical.
   // resolution: force the Chromium window size ("1280x1024").
   // Omit or "" to autodetect via xrandr.
   "display": {
