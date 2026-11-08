@@ -74,9 +74,9 @@ By default the menu splits the filename on camelCase (`LouisaMushrooms.js` → a
 
 **Regenerating the list by hand:** `python3 /usr/local/sbin/arcade-regen-games.py /home/pi/arcade-games` rebuilds `games.json` from the `.js` files present.
 
-## Per-Machine Config (`config.json`)
+## Per-Machine Config (`config.jsonc`)
 
-`/home/pi/arcade-games/config.json` holds machine-specific settings — seeded from `stock-games/` at setup (seed never overwrites, so edits are safe). It can also be installed from a USB stick inside `arcade-games/`.
+`/home/pi/arcade-games/config.jsonc` holds machine-specific settings — seeded from `stock-games/` at setup (seed never overwrites, so edits are safe). It can also be installed from a USB stick inside `arcade-games/`.
 
 ```json
 {
@@ -97,4 +97,4 @@ By default the menu splits the filename on camelCase (`LouisaMushrooms.js` → a
 - `display.offsetX` / `offsetY` — shift the whole menu screen in real pixels, for bezels or off-center displays.
 - `display.scale` — extra zoom multiplier on top of the auto-fit (`1.0` = normal, `0.9` shrinks 10%).
 - `exitButtons` — gamepad button indices that kill the running game back to the menu (default `[8, 9]` = Start/Select). Wire a dedicated cabinet reset button into a USB encoder input and set its index here.
-- Missing or invalid `config.json` falls back to the built-in defaults. The page picks up changes on its next idle cycle.
+- Missing or invalid `config.jsonc` falls back to the built-in defaults. The page picks up changes on its next idle cycle.

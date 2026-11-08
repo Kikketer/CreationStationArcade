@@ -163,7 +163,7 @@ function stripJsonComments(text) {
 }
 
 function handleConfig(res) {
-  fs.readFile(path.join(GAMES_DIR, "config.json"), (err, data) => {
+  const respond = (err, data) => {
     res.writeHead(200, {
       "Content-Type": "application/json",
       "Cache-Control": "no-cache",
@@ -174,6 +174,14 @@ function handleConfig(res) {
       res.end(JSON.stringify(JSON.parse(stripped)));
     } catch (e) {
       res.end("{}");
+    }
+  };
+  // config.jsonc preferred (IDEs flag comments in .json); config.json still works.
+  fs.readFile(path.join(GAMES_DIR, "config.jsonc"), (err, data) => {
+    if (err) {
+      fs.readFile(path.join(GAMES_DIR, "config.json"), respond);
+    } else {
+      respond(null, data);
     }
   });
 }

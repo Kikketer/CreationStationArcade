@@ -13,7 +13,7 @@ USB drive root
     ├── MyGame.gif       animated cover (optional)
     ├── MyGame.json      metadata overrides: {"name":..,"author":..,"playerCount":..} (optional)
     ├── games.json       the game list (optional — regenerated if absent)
-    └── config.json      per-machine settings, e.g. title screen text (optional)
+    └── config.jsonc     per-machine settings, e.g. title screen text (optional)
 ```
 
 The `arcade-games/` folder here is a real library as an example — delete the
