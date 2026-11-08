@@ -1,5 +1,34 @@
 # CreationStationArcade project notes
 
+## Where games live
+
+The repo carries **no games list** — it's machine-agnostic. On the box, all
+games live in `~/arcade-games/` (overridable via `CSA_GAMES_DIR`), which sits
+outside both the git checkout and the runtime folder so it survives the
+boot-time `git reset --hard` + `rsync --delete` in `launcher.sh` /
+`pullFromGit.sh`.
+
+- `server.js` serves `~/arcade-games/games.json` via `/api/games` and its
+  files via `/games/<file>` (falls back to a directory scan when games.json
+  is missing). `menu.js` polls `/api/games` every 5s and rebuilds on change.
+- `stock-games/` in the repo seeds `~/arcade-games/` at setup (only utility
+  titles like Controller Test — never machine-specific content).
+- `install/arcade-usb-update.sh` + `arcade-usb-update@.service` +
+  `99-arcade-usb.rules` install games from a USB stick: loose `*.js` at the
+  drive root (with same-basename `.png`/`.gif`/`.json` siblings) or an
+  `arcade-games/` folder copied wholesale. Freshness is tracked per-file in
+  `.usb-source-mtimes`; metadata overrides accumulate in `usb-meta.json`.
+- `install/arcade-regen-games.py <dir>` rebuilds `games.json`: preserves
+  existing entries and hand-edits, applies `usb-meta.json` overrides, drops
+  entries for deleted files. Entries with `file: ""` are decorative tiles
+  (per-machine "Your Game Here"/QR cards) and are kept at the end.
+- Archiving: hidden menu gesture (B×5, hold the 5th 5s) arms a game, A
+  confirms. `menu.js` calls `/api/archive-game?file=` and `server.js` moves
+  the game's files to `GAMES_DIR/.archived/` then runs regen — files stay
+  on disk, restore by moving them back.
+- `kiosk-setup.sh` and `debian-x86-setup.sh` install the above to
+  `/usr/local/sbin` + `/etc` and write `/etc/arcade-usb-update.conf`.
+
 ## Updating the MakeCode Arcade simulator
 
 The arcade box runs the MakeCode Arcade JavaScript simulator from the `sim/` directory. The simulator version is pinned to match the version used by `MakeCodeGamesIngest` (which compiles the games) and `make-web`.

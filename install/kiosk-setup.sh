@@ -59,6 +59,7 @@ sudo apt-get install -y \
     chromium \
     nodejs \
     npm \
+    python3 \
     xorg \
     unclutter \
     xdotool \
@@ -238,7 +239,42 @@ UDEV_EOF
     log "After plugging in controllers, run: sudo bash /home/pi/CreationStationArcade-run/setup-usb-controllers.sh"
 fi
 
-# ── 10. Git update service ────────────────────────────────────────────────────
+# ── 10. Games folder + USB game update support ────────────────────────────────
+# All games live in ~/arcade-games — outside the repo and runtime folder, so
+# they survive the boot-time git reset + rsync wipe and the repo stays
+# machine-agnostic. stock-games/ seeds it; a udev rule starts
+# arcade-usb-update@<dev>.service when a USB filesystem is inserted to
+# install more games off the drive — no reboot or git push needed.
+GAMES_DIR="$HOME/arcade-games"
+
+log "Creating games folder at $GAMES_DIR and seeding stock games..."
+mkdir -p "$GAMES_DIR"
+if [ -d "$REPO_DIR/stock-games" ]; then
+    # -n: seed only what's missing — never clobber per-machine files
+    # (an edited config.json, USB-installed games, archived stuff).
+    cp -an "$REPO_DIR/stock-games/." "$GAMES_DIR/"
+fi
+python3 "$REPO_DIR/install/arcade-regen-games.py" "$GAMES_DIR" >> "$LOG" 2>&1 || true
+
+log "Installing USB game-update support..."
+sudo cp "$REPO_DIR/install/arcade-usb-update.sh" /usr/local/sbin/arcade-usb-update.sh
+sudo chmod 755 /usr/local/sbin/arcade-usb-update.sh
+sudo cp "$REPO_DIR/install/arcade-regen-games.py" /usr/local/sbin/arcade-regen-games.py
+sudo chmod 755 /usr/local/sbin/arcade-regen-games.py
+sudo cp "$REPO_DIR/install/arcade-usb-update@.service" /etc/systemd/system/arcade-usb-update@.service
+sudo chmod 644 /etc/systemd/system/arcade-usb-update@.service
+sudo cp "$REPO_DIR/install/99-arcade-usb.rules" /etc/udev/rules.d/99-arcade-usb.rules
+sudo chmod 644 /etc/udev/rules.d/99-arcade-usb.rules
+sudo tee /etc/arcade-usb-update.conf > /dev/null <<EOF
+GAMES_DIR="$GAMES_DIR"
+ARCADE_USER="$USER"
+EOF
+sudo chmod 644 /etc/arcade-usb-update.conf
+sudo udevadm control --reload-rules 2>/dev/null || true
+sudo systemctl daemon-reload 2>/dev/null || true
+log "USB game-update support installed (games install to $GAMES_DIR)."
+
+# ── 11. Git update service ────────────────────────────────────────────────────
 log "Configuring background git updates..."
 # Create systemd service for git pull on boot
 sudo tee /etc/systemd/system/arcade-git-update.service > /dev/null <<EOF
@@ -263,7 +299,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable arcade-git-update.service
 log "Git update service configured."
 
-# ── 11. Suppress boot messages ────────────────────────────────────────────────
+# ── 12. Suppress boot messages ────────────────────────────────────────────────
 log "Suppressing boot messages..."
 CMDLINE="/boot/cmdline.txt"
 if [ -f "$CMDLINE" ]; then

@@ -94,6 +94,13 @@ header #logo {
   animation: pulse-border 1s steps(2) infinite;
 }
 
+/* Armed-for-archive state: just a subtle red border, no text */
+.game-card.is-armed {
+  outline: 1px solid #e76e55;
+  outline-offset: 1px;
+  animation: none;
+}
+
 @keyframes pulse-border {
   0%, 100% { outline: 1px solid #e76e55; outline-offset: 0px; }
   50% { outline: 1px solid #f7d51d; outline-offset: 1px; }

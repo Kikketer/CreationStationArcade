@@ -41,11 +41,50 @@ How to setup a Raspberry PI 3:
 - `/home/pi/CreationStationArcade`
   - Runtime folder
   - On boot, `launcher.sh` syncs from `*-src` to this folder and then runs from here
+- `/home/pi/arcade-games`
+  - Persistent games folder (`.js` files, cover art, `games.json`)
+  - Seeded from `stock-games/` at setup; USB installs land here
+  - Survives the runtime sync — the repo never touches it
 
 ## Putting Games On The Arcade
 
-1. Export your compiled MakeCode Arcade game as a `.js` file.
-2. Drop the `.js` file and a matching `.png` image into `games/`.
-3. Run `bash games/refresh_games.sh` to regenerate `games.json`, or edit `games.json` manually to set `name`, `author`, and `playerCount`.
-4. Commit and push.
-5. Reboot the arcade — `launcher.sh` will pull the latest code and sync it to the runtime folder.
+All games live in `/home/pi/arcade-games/` on the machine — outside the repo and the synced runtime folder, so they survive reboots and repo updates. The repo carries no game list; `stock-games/` seeds the folder at setup (e.g. Controller Test).
+
+**Load games from a USB stick (no reboot):**
+
+1. Export your game as a `.png` from the MakeCode Arcade editor, then upload it to the [PNG to JavaScript compiler](https://www.makecode.games/compilers) to get a `.js` file.
+2. Copy files onto a USB stick, either:
+   - Loose at the drive root: `MyGame.js` plus an optional `MyGame.png` cover image
+   - Or inside an `arcade-games/` folder — everything in the folder is installed, so you can dump a whole games library (including `games.json` to keep `name`/`author`/`playerCount`) in one shot
+3. Plug the stick into the arcade. The game appears in the menu within seconds and stays installed after reboots.
+
+Optional metadata: put `MyGame.json` next to `MyGame.js` to set `name`, `author`, and `playerCount`:
+
+```json
+{"name": "My Game", "author": "Sam", "playerCount": 2}
+```
+
+By default the menu splits the filename on camelCase (`LouisaMushrooms.js` → author "Louisa", name "Mushrooms"). You can also edit `/home/pi/arcade-games/games.json` on the machine directly — hand edits survive USB updates.
+
+**Menu tiles:** any `games.json` entry with an empty `file` is a decorative tile (e.g. a "Your Game Here" card or a QR code). Its `image` names a `.png` in `arcade-games/`. Add one per machine via USB or by editing `games.json` — nothing tile-related ships in the repo.
+
+**Archiving a game (hide without deleting):** in the menu, press **B five times** (quickly) and hold the fifth press for 5 seconds — the only visible cue is a subtle red border on the selected card. Press **A** to archive, or release B to cancel. The game's files move to `/home/pi/arcade-games/.archived/` and it disappears from the menu. To restore, move the files back into `/home/pi/arcade-games/` and run the regen command below.
+
+**Regenerating the list by hand:** `python3 /usr/local/sbin/arcade-regen-games.py /home/pi/arcade-games` rebuilds `games.json` from the `.js` files present.
+
+## Per-Machine Config (`config.json`)
+
+`/home/pi/arcade-games/config.json` holds machine-specific settings — seeded from `stock-games/` at setup (seed never overwrites, so edits are safe). It can also be installed from a USB stick inside `arcade-games/`.
+
+```json
+{
+  "attractLines": [
+    "These games were made by students of the",
+    "*\"Make Video Games\"* class.",
+    "Sign up today!"
+  ]
+}
+```
+
+- `attractLines` — the title/idle screen text, one array item per line. Wrap a word in `*asterisks*` for the accent color.
+- Missing or invalid `config.json` falls back to the built-in default text. The page picks up changes on its next idle cycle.

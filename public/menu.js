@@ -158,9 +158,85 @@ function updateSelection() {
   previousSelectedIndex = selectedIndex;
 }
 
+// --- hidden archive gesture ---
+// B B B B B — the 5th B held for 5s "arms" the selected game; while armed,
+// pressing A archives it (server moves the files to .archived/) and releasing
+// B cancels. Same gesture as the native branch's menu.
+const ARCHIVE_COMBO_LEN = 5;
+const ARCHIVE_COMBO_GAP_MS = 1500;
+const ARCHIVE_HOLD_MS = 5000;
+let bCombo = 0;
+let lastBPress = 0;
+let bHoldStart = 0;
+let archiveArmed = false;
+let bWasDown = false;
+
+function resetArchiveGesture() {
+  bCombo = 0;
+  bHoldStart = 0;
+  disarmArchive();
+}
+
+function disarmArchive() {
+  if (!archiveArmed) return;
+  archiveArmed = false;
+  cardElements[selectedIndex]?.card.classList.remove('is-armed');
+}
+
+// No text or prompt — the only visible cue is a subtle red border, so the
+// gesture stays undiscoverable. A while armed archives; releasing B cancels.
+function armArchive() {
+  const game = games[selectedIndex];
+  if (!game || !game.file) { resetArchiveGesture(); return; } // tiles can't be archived
+  archiveArmed = true;
+  cardElements[selectedIndex]?.card.classList.add('is-armed');
+}
+
+function onBPress() {
+  const now = performance.now();
+  if (now - lastBPress > ARCHIVE_COMBO_GAP_MS) bCombo = 0;
+  lastBPress = now;
+  bCombo++;
+  if (bCombo >= ARCHIVE_COMBO_LEN) {
+    bCombo = ARCHIVE_COMBO_LEN;
+    bHoldStart = now;
+  }
+}
+
+// Runs every frame with the raw B state — not throttled like other input,
+// so quick taps aren't missed.
+function trackArchiveGesture(bDown, now) {
+  if (currentScene !== 'menu' || isLaunching) {
+    if (archiveArmed) disarmArchive();
+    if (!bDown) bCombo = 0;
+    bWasDown = bDown;
+    return;
+  }
+  if (bDown && !bWasDown) onBPress();
+  if (bDown && bCombo >= ARCHIVE_COMBO_LEN && !archiveArmed && bHoldStart && now - bHoldStart >= ARCHIVE_HOLD_MS) {
+    armArchive();
+  }
+  // Releasing B after the combo completes cancels the arming.
+  if (!bDown && bWasDown && (archiveArmed || bCombo >= ARCHIVE_COMBO_LEN)) resetArchiveGesture();
+  bWasDown = bDown;
+}
+
+async function confirmArchive() {
+  const game = games[selectedIndex];
+  resetArchiveGesture();
+  if (!game || !game.file) return;
+  try {
+    const res = await fetch(`/api/archive-game?file=${encodeURIComponent(game.file)}`);
+    if (res.ok) await refreshGames();
+  } catch (e) {
+    console.error('Archive error:', e);
+  }
+}
+
 // Navigation with grid layout awareness (2 columns fixed)
 function move(dir) {
   if (!games.length || isLaunching) return;
+  resetArchiveGesture();
 
   const cards = cardElements.length;
   const columns = 2; // Fixed 2-column layout
@@ -183,9 +259,10 @@ function move(dir) {
   updateSelection();
 }
 
-// Launch game
+// Launch game (or confirm an armed archive)
 async function selectGame() {
   if (!games.length || isLaunching) return;
+  if (archiveArmed) { confirmArchive(); return; }
   const game = games[selectedIndex];
   if (!game || !game.file) return;
 
@@ -290,6 +367,12 @@ function handleKey(e) {
     case 'ArrowDown':  e.preventDefault(); move('down'); break;
     case 'ArrowLeft':  e.preventDefault(); move('left'); break;
     case 'ArrowRight': e.preventDefault(); move('right'); break;
+    case 'x':
+    case 'X':
+      // 'x' is the keyboard B button — same archive gesture as the gamepad.
+      if (!e.repeat) onBPress();
+      else if (bCombo >= ARCHIVE_COMBO_LEN && !archiveArmed && performance.now() - bHoldStart >= ARCHIVE_HOLD_MS) armArchive();
+      break;
     case 'Enter':
     case ' ':
     case 'z':
@@ -297,11 +380,22 @@ function handleKey(e) {
   }
 }
 window.addEventListener('keydown', handleKey, true);
+window.addEventListener('keyup', (e) => {
+  if ((e.key === 'x' || e.key === 'X') && (archiveArmed || bCombo >= ARCHIVE_COMBO_LEN)) resetArchiveGesture();
+}, true);
 
 // Gamepad input
 function pollGamepads() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   const now = performance.now();
+
+  // B-button tracking runs every frame, before the input repeat throttle —
+  // the archive combo needs to see quick taps.
+  let bDown = false;
+  for (const pad of pads) {
+    if (pad && pad.buttons[1]?.pressed) { bDown = true; break; }
+  }
+  trackArchiveGesture(bDown, now);
 
   if (now - lastGamepadInput <= GAMEPAD_REPEAT_DELAY) {
     requestAnimationFrame(pollGamepads);
@@ -316,8 +410,9 @@ function pollGamepads() {
     const left = pad.buttons[14]?.pressed || pad.axes[0] < -0.5;
     const right = pad.buttons[15]?.pressed || pad.axes[0] > 0.5;
     const a = pad.buttons[0]?.pressed;
+    const b = pad.buttons[1]?.pressed;
 
-    const anyPressed = up || down || left || right || a;
+    const anyPressed = up || down || left || right || a || b;
     if (anyPressed) {
       const wasAttract = currentScene !== 'menu';
       onActivity();
@@ -341,7 +436,68 @@ function startHeartbeat() {
   setInterval(() => fetch('/api/heartbeat').catch(() => {}), 5000);
 }
 
+// Re-fetch the game list periodically so games installed from a USB stick
+// show up without a reboot. Rebuilds the cards only when the list changed.
+let gamesSignature = '';
+function gamesListSignature(list) {
+  return JSON.stringify(list.map(g => [g.file, g.name, g.author, g.playerCount]));
+}
+async function refreshGames() {
+  try {
+    const res = await fetch('/api/games');
+    const fresh = await res.json();
+    if (!Array.isArray(fresh)) return;
+    const sig = gamesListSignature(fresh);
+    if (sig === gamesSignature) return;
+    gamesSignature = sig;
+    games = fresh;
+    archiveArmed = false; // rebuilt cards drop the armed marker anyway
+    if (games.length === 0) {
+      selectedIndex = 0;
+      previousSelectedIndex = -1;
+      gameList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;">No games found</div>';
+      return;
+    }
+    selectedIndex = Math.min(selectedIndex, games.length - 1);
+    previousSelectedIndex = -1;
+    createGameCards();
+  } catch (e) {}
+}
+
+function startGamesPolling() {
+  gamesSignature = gamesListSignature(games);
+  setInterval(() => { if (!isLaunching) refreshGames(); }, 5000);
+}
+
+// Per-machine config (~/arcade-games/config.json -> /api/config).
+// "attractLines" replaces the title screen text; wrap a word in *asterisks*
+// to render it with the .highlight accent color.
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    if (!cfg || !Array.isArray(cfg.attractLines) || !cfg.attractLines.length) return;
+    const el = document.getElementById('attract-text');
+    el.innerHTML = '';
+    for (const line of cfg.attractLines) {
+      const p = document.createElement('p');
+      for (const part of String(line).split(/(\*[^*]+\*)/g)) {
+        if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+          const s = document.createElement('span');
+          s.className = 'highlight';
+          s.textContent = part.slice(1, -1);
+          p.appendChild(s);
+        } else if (part) {
+          p.appendChild(document.createTextNode(part));
+        }
+      }
+      el.appendChild(p);
+    }
+  } catch (e) {}
+}
+
 // Init
 window.addEventListener('gamepadconnected', () => {});
 pollGamepads();
-loadGames().then(() => startHeartbeat());
+loadConfig();
+loadGames().then(() => { startHeartbeat(); startGamesPolling(); });
