@@ -8,5 +8,9 @@
     "offsetX": 0,
     "offsetY": 0,
     "scale": 1.0
-  }
+  },
+  "exitButtons": [
+    8,
+    9
+  ]
 }

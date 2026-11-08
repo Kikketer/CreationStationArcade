@@ -149,6 +149,18 @@ function handleConfig(res) {
   });
 }
 
+function handleKillGame(res) {
+  if (isGameRunning()) {
+    try {
+      gameProcess.kill("SIGKILL");
+      console.log(`[CSA] Killed game Chromium (pid ${gameProcess.pid}) via /api/kill-game`);
+    } catch (e) {}
+    gameProcess = null;
+  }
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true }));
+}
+
 function handleHeartbeat(res) {
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: true, ts: Date.now() }));
@@ -382,6 +394,10 @@ const server = http.createServer((req, res) => {
 
   if (pathname === "/api/config") {
     return handleConfig(res);
+  }
+
+  if (pathname === "/api/kill-game") {
+    return handleKillGame(res);
   }
 
   if (pathname === "/api/heartbeat") {

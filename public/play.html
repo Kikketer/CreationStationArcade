@@ -104,15 +104,32 @@
       }
     });
 
-    // Gamepad: Start/Select (buttons 8 or 9) → back
+    // Exit button: kills this window -> menu window refocuses underneath.
+    // Button indices are per-machine (config.json "exitButtons"); default
+    // Start/Select = 8/9. Wired to a dedicated cabinet reset button on USB
+    // encoder boards.
+    let exitButtons = [8, 9];
+    fetch("/api/config").then(r => r.json()).then(cfg => {
+      if (Array.isArray(cfg.exitButtons) && cfg.exitButtons.length) {
+        exitButtons = cfg.exitButtons;
+      }
+    }).catch(() => {});
+
+    let exitSent = false;
+    function killToMenu() {
+      if (exitSent) return;
+      exitSent = true;
+      fetch("/api/kill-game").catch(() => goBack());
+    }
+
+    // Gamepad: exitButtons (default 8/9) → kill to menu
     // Gamepad: Button 7 or 6 → reset game
     function pollGamepad() {
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (const pad of pads) {
         if (!pad) continue;
-        // Button 8 or 9 = Start/Select → back to menu
-        if (pad.buttons[8]?.pressed || pad.buttons[9]?.pressed) {
-          goBack();
+        if (exitButtons.some(i => pad.buttons[i]?.pressed)) {
+          killToMenu();
           return;
         }
         // Button 6 or 7 = L2/R2 or Back buttons → reset game

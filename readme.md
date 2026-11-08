@@ -96,4 +96,5 @@ By default the menu splits the filename on camelCase (`LouisaMushrooms.js` → a
 - `attractLines` — the title/idle screen text, one array item per line. Wrap a word in `*asterisks*` for the accent color.
 - `display.offsetX` / `offsetY` — shift the whole menu screen in real pixels, for bezels or off-center displays.
 - `display.scale` — extra zoom multiplier on top of the auto-fit (`1.0` = normal, `0.9` shrinks 10%).
+- `exitButtons` — gamepad button indices that kill the running game back to the menu (default `[8, 9]` = Start/Select). Wire a dedicated cabinet reset button into a USB encoder input and set its index here.
 - Missing or invalid `config.json` falls back to the built-in defaults. The page picks up changes on its next idle cycle.
