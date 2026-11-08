@@ -1,0 +1,52 @@
+=== CreationStationArcade baseline (slowest-good machine) ===
+Sun Nov  8 04:38:09 PM CST 2026
+
+--- CPU ---
+CPU(s):                                  4
+Model name:                              Intel(R) Core(TM) i3-8100 CPU @ 3.60GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      4
+CPU(s) scaling MHz:                      28%
+CPU max MHz:                             3600.0000
+CPU min MHz:                             800.0000
+
+--- RAM ---
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       887Mi       6.3Gi       163Mi       867Mi       6.7Gi
+Swap:          7.8Gi          0B       7.8Gi
+
+--- GPU ---
+00:02.0 VGA compatible controller: Intel Corporation CoffeeLake-S GT2 [UHD Graphics 630]
+Extended renderer info (GLX_MESA_query_renderer):
+    Device: Mesa Intel(R) UHD Graphics 630 (CFL GT2) (0x3e91)
+OpenGL vendor string: Intel
+OpenGL renderer string: Mesa Intel(R) UHD Graphics 630 (CFL GT2)
+OpenGL core profile version string: 4.6 (Core Profile) Mesa 25.0.7-2+deb13u1
+OpenGL core profile shading language version string: 4.60
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+OpenGL version string: 4.6 (Compatibility Profile) Mesa 25.0.7-2+deb13u1
+OpenGL shading language version string: 4.60
+OpenGL context flags: (none)
+OpenGL profile mask: compatibility profile
+OpenGL ES profile version string: OpenGL ES 3.2 Mesa 25.0.7-2+deb13u1
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20
+
+--- OS ---
+Linux blackredarcade 6.12.115+deb13.1-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.115-2 (2026-11-01) x86_64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+
+--- Display ---
+   1280x1024     60.02*+  75.02  
+
+--- Chromium ---
+Chromium 156.0.8078.79 built on Debian GNU/Linux 13 (trixie)
+
+--- Disk ---
+/dev/sda2       908G  3.9G  858G   1% /
+NAME   SIZE MODEL
+sda  931.5G ST1000DM003-1SB102
+sr0   1024M hp HLDS DVDRW GUD1N
+
+--- Load under game ---
+0.17 0.12 0.07 1/309 2081

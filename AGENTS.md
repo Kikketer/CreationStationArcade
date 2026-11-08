@@ -1,5 +1,12 @@
 # CreationStationArcade project notes
 
+## Hardware floor
+
+`machine-specs.txt` is the slowest-good x86 box (captured Nov 2026):
+i3-8100 + UHD 630 + 8GB, Debian 13, Chromium 156, 1280x1024. It works
+but shows visual tearing at scale — treat anything at/below this as the
+performance floor. Full dump in `machine-specs.txt`.
+
 ## Where games live
 
 The repo carries **no games list** — it's machine-agnostic. On the box, all
