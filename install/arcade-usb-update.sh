@@ -58,6 +58,7 @@ mkdir -p "$GAMES_DIR"
 
 if [ -n "${CSA_USB_TEST_DIR:-}" ]; then
     MNT="$CSA_USB_TEST_DIR"
+    MNT_RW=1
     log "test mode: using $MNT as the USB drive"
     trap 'rm -rf "$STAGE"' EXIT
 else
@@ -76,9 +77,16 @@ else
     trap cleanup EXIT
 
     # The filesystem may need a moment to settle after the udev add event.
+    # Mount read-write so the config sync can write the merged config back
+    # to the stick; fall back to read-only (install still works, no write-back).
     MOUNTED=0
+    MNT_RW=0
     for _ in 1 2 3 4 5; do
-        if mount -o ro "$DEV" "$MNT" 2>/dev/null; then
+        if mount -o rw "$DEV" "$MNT" 2>/dev/null; then
+            MOUNTED=1
+            MNT_RW=1
+            break
+        elif mount -o ro "$DEV" "$MNT" 2>/dev/null; then
             MOUNTED=1
             break
         fi
@@ -123,7 +131,7 @@ if 'games.json' in root_files:
 arcade_dir = os.path.join(mnt, 'arcade-games')
 if os.path.isdir(arcade_dir):
     for f in sorted(os.listdir(arcade_dir)):
-        if f.startswith('.'):
+        if f.startswith('.') or f in ('config.json', 'config.jsonc'):
             continue
         if os.path.isfile(os.path.join(arcade_dir, f)):
             add(arcade_dir, f)
@@ -132,7 +140,12 @@ for fname in sorted(best):
     print(f"{best[fname]}|{fname}")
 PYEOF
 
-if [ ! -s "$BEST" ]; then
+HAS_CFG=0
+for c in "$MNT/arcade-games/config.jsonc" "$MNT/arcade-games/config.json" "$MNT/config.jsonc" "$MNT/config.json"; do
+    [ -f "$c" ] && HAS_CFG=1 && break
+done
+
+if [ ! -s "$BEST" ] && [ "$HAS_CFG" != "1" ]; then
     log "no game files on the drive; ignoring"
     exit 0
 fi
@@ -245,6 +258,94 @@ done < "$BEST"
 
 cp -a "$NEW_MTIMES" "$MTIMES" 2>/dev/null || true
 
+# --- Config round-trip ---
+# Merge the stick's config over the box's (per-key; stick wins where set),
+# then write the result back to the stick so the drive always shows the
+# live config — edit it on any machine and re-dock. Skip entirely when the
+# stick carried nothing config-shaped and nothing was installed.
+if [ "${MNT_RW:-0}" = "1" ] && { [ "$CHANGED" = "1" ] || [ -d "$MNT/arcade-games" ] || [ -f "$MNT/config.jsonc" ] || [ -f "$MNT/config.json" ]; }; then
+python3 - "$MNT" "$GAMES_DIR" <<'PYEOF'
+import json, os, re, sys
+
+mnt, gdir = sys.argv[1], sys.argv[2]
+
+def strip_comments(t):
+    out, i, ins = [], 0, False
+    while i < len(t):
+        c, n = t[i], t[i+1] if i+1 < len(t) else ''
+        if ins:
+            out.append(c)
+            if c == '\\' and n: out.append(n); i += 1
+            elif c == '"': ins = False
+        elif c == '"': ins = True; out.append(c)
+        elif c == '/' and n == '/':
+            while i < len(t) and t[i] != '\n': i += 1
+            continue
+        elif c == '/' and n == '*':
+            i += 2
+            while i < len(t) and not (t[i] == '*' and i+1 < len(t) and t[i+1] == '/'): i += 1
+            i += 1
+        else: out.append(c)
+        i += 1
+    return ''.join(out)
+
+def read_cfg(path):
+    try:
+        return json.loads(strip_comments(open(path).read()))
+    except Exception:
+        return None
+
+stick_cfg = None
+for cand in ('arcade-games/config.jsonc', 'arcade-games/config.json',
+             'config.jsonc', 'config.json'):
+    p = os.path.join(mnt, cand)
+    if os.path.isfile(p):
+        stick_cfg = read_cfg(p)
+        break
+
+box_cfg = None
+box_path = os.path.join(gdir, 'config.jsonc')
+for cand in (box_path, os.path.join(gdir, 'config.json')):
+    if os.path.isfile(cand):
+        box_cfg = read_cfg(cand)
+        break
+
+def merge(base, over):
+    out = dict(base or {})
+    for k, v in (over or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+dst_dir = os.path.join(mnt, 'arcade-games')
+if stick_cfg is not None:
+    merged = merge(box_cfg, stick_cfg)
+    header = '// Merged config — last synced from USB. Stick values override;\n// everything else is reflected back from the machine.\n'
+    for dst in (os.path.join(dst_dir, 'config.jsonc'), box_path):
+        try:
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(dst, 'w') as f: f.write(header + json.dumps(merged, indent=2) + '\n')
+        except Exception:
+            pass
+    print('config: merged stick over box; wrote merged config.jsonc to both', file=sys.stderr)
+elif box_cfg is not None:
+    # No config on the stick: mirror the box's current file verbatim so the
+    # drive becomes an editable snapshot for the next dock.
+    try:
+        src = box_path if os.path.isfile(box_path) else os.path.join(gdir, 'config.json')
+        os.makedirs(dst_dir, exist_ok=True)
+        with open(src) as fi, open(os.path.join(dst_dir, 'config.jsonc'), 'w') as fo:
+            fo.write(fi.read())
+        print('config: mirrored box config to stick', file=sys.stderr)
+    except Exception:
+        pass
+PYEOF
+    chown -R "$ARCADE_USER:$ARCADE_USER" "$GAMES_DIR" 2>/dev/null || true
+    log "config sync done"
+fi
+
 if [ "$CHANGED" != "1" ]; then
     log "nothing newer on the drive; ignoring"
     exit 0
@@ -261,5 +362,7 @@ else
 fi
 
 chown -R "$ARCADE_USER:$ARCADE_USER" "$GAMES_DIR" 2>/dev/null || true
+
+
 sync
 log "done; games updated in $GAMES_DIR"
