@@ -76,6 +76,12 @@ function readGameList(dir, cb) {
 
 function handleGames(res) {
   readGameList(GAMES_DIR, (games) => {
+    // ControllerTest is a fallback sanity game: show it only when it's the
+    // sole playable entry (like the native launcher's last-resort pick).
+    const playable = games.filter((g) => g.file);
+    if (playable.length > 1) {
+      games = games.filter((g) => g.file !== "ControllerTest.js");
+    }
     trackNewGames(games);
     res.writeHead(200, {
       "Content-Type": "application/json",
@@ -181,18 +187,6 @@ function isGameRunning() {
   }
 }
 
-// Actual display resolution for the game window — hardcoding 1920x1080
-// overflows non-widescreen monitors. Fall back to 1080p.
-function displayRes() {
-  try {
-    const out = require("child_process").execSync("xrandr 2>/dev/null").toString();
-    const line = out.split("\n").find((l) => l.includes("*"));
-    const m = line && line.match(/(\d+x\d+)/);
-    if (m) return m[1];
-  } catch (e) {}
-  return "1920x1080";
-}
-
 function spawnGameChromium(gameName, gameFile) {
   // Clear previous game user data to prevent "restore session" prompts
   const gameUserDir = "/tmp/chromium-arcade-game";
@@ -215,8 +209,6 @@ function spawnGameChromium(gameName, gameFile) {
   const args = [
     "--user-data-dir=/tmp/chromium-arcade-game",
     "--kiosk",  // Kiosk mode - no exit UI
-    "--window-position=0,0",
-    `--window-size=${displayRes()}`,
     "--start-fullscreen",
     "--noerrdialogs",
     "--disable-infobars",

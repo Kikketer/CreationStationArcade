@@ -24,11 +24,6 @@ log() {
 log "=== Menu Launcher Starting (Dual-Chromium Mode) ==="
 log "Menu Chromium will be launched here. Game Chromium spawned by server.js"
 
-# Size windows to the actual display — hardcoding 1920x1080 overflows
-# non-widescreen monitors. Fall back to 1080p if xrandr can't tell.
-RES="$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')"
-[ -n "$RES" ] || RES="1920x1080"
-log "Display resolution: $RES"
 
 # Kill any existing processes
 kill $(cat $PID_FILE 2>/dev/null) 2>/dev/null || true
@@ -100,8 +95,6 @@ log "Launching MENU Chromium (kiosk, always-on)..."
 "$CHROMIUM_BIN" \
     --user-data-dir=/tmp/chromium-arcade-menu \
     --kiosk \
-    --window-position=0,0 \
-    --window-size=$RES \
     --start-fullscreen \
     "${CHROMIUM_FLAGS[@]}" \
     http://localhost:3000/ >> "$LOG_FILE" 2>&1 &
@@ -134,8 +127,6 @@ while true; do
         "$CHROMIUM_BIN" \
             --user-data-dir=/tmp/chromium-arcade-menu \
             --kiosk \
-            --window-position=0,0 \
-            --window-size=$RES \
             --start-fullscreen \
             "${CHROMIUM_FLAGS[@]}" \
             http://localhost:3000/ >> "$LOG_FILE" 2>&1 &
