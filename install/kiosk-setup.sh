@@ -181,9 +181,15 @@ log "Runtime folder created."
 if [ "$GPIO_CONTROLLERS" = true ]; then
     log "Setting up GPIO virtual gamepads..."
     
-    # Install Python dependencies
+    # Install Python dependencies. Pi 5's RP1 peripheral is unsupported by
+    # classic RPi.GPIO ("Cannot determine SOC peripheral base address") —
+    # rpi-lgpio is the drop-in shim that works there.
     log "Installing Python dependencies..."
-    sudo apt-get install -y python3-pip python3-rpi.gpio >> "$LOG" 2>&1
+    if grep -qi 'Raspberry Pi 5' /proc/device-tree/model 2>/dev/null; then
+        sudo apt-get install -y python3-pip python3-rpi-lgpio >> "$LOG" 2>&1
+    else
+        sudo apt-get install -y python3-pip python3-rpi.gpio >> "$LOG" 2>&1
+    fi
     
     # Install uhid Python module
     log "Installing uhid Python module..."
