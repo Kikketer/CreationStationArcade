@@ -186,6 +186,7 @@ let lastBPress = 0;
 let bHoldStart = 0;
 let archiveArmed = false;
 let bWasDown = false;
+let orderDirty = false;
 
 function resetArchiveGesture() {
   bCombo = 0;
@@ -193,10 +194,41 @@ function resetArchiveGesture() {
   disarmArchive();
 }
 
+// Persist the reordered list once the armed card is released. Order is
+// stored as the entry order inside games.json on the box.
+async function commitOrder() {
+  if (!orderDirty) return;
+  orderDirty = false;
+  try {
+    await fetch('/api/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: games.filter((g) => g.file).map((g) => g.file) }),
+    });
+  } catch (e) {
+    console.error('Reorder save error:', e);
+  }
+}
+
 function disarmArchive() {
   if (!archiveArmed) return;
   archiveArmed = false;
   cardElements[selectedIndex]?.card.classList.remove('is-armed');
+  commitOrder();
+}
+
+// While armed and B is still held, the stick moves the card itself in
+// the list. Selection follows the card.
+function moveArmed(dir) {
+  const columns = 2;
+  const delta = dir === 'left' ? -1 : dir === 'right' ? 1 : dir === 'up' ? -columns : columns;
+  const target = selectedIndex + delta;
+  if (target < 0 || target >= games.length) return;
+  [games[selectedIndex], games[target]] = [games[target], games[selectedIndex]];
+  selectedIndex = target;
+  orderDirty = true;
+  createGameCards();
+  cardElements[selectedIndex]?.card.classList.add('is-armed');
 }
 
 // No text or prompt — the only visible cue is a subtle red border, so the
@@ -252,6 +284,7 @@ async function confirmArchive() {
 // Navigation with grid layout awareness (2 columns fixed)
 function move(dir) {
   if (!games.length || isLaunching) return;
+  if (archiveArmed) { moveArmed(dir); return; }
   resetArchiveGesture();
 
   const cards = cardElements.length;

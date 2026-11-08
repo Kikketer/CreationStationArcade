@@ -63,6 +63,19 @@ def main() -> int:
         and not f.startswith(".")
     )
 
+    # Keep the saved entry order for files that still exist — that order is
+    # user-curated (hidden-menu reorder gesture). New files append sorted.
+    js_set = set(js_files)
+    seen = set()
+    ordered = []
+    for e in existing:
+        f = e.get("file")
+        if f in js_set and f not in seen:
+            ordered.append(f)
+            seen.add(f)
+    ordered += [f for f in js_files if f not in seen]
+    js_files = ordered
+
     result = []
     for fname in js_files:
         stem = fname[:-3]

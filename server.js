@@ -186,6 +186,40 @@ function handleConfig(res) {
   });
 }
 
+// POST body: {order: ["file1.js", ...]}. Rewrites games.json so entries
+// appear in that order; unlisted entries keep their relative order and
+// are appended at the end.
+function handleReorder(req, res) {
+  let body = "";
+  req.on("data", (c) => (body += c));
+  req.on("end", () => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    let order;
+    try {
+      order = JSON.parse(body).order;
+    } catch (e) {}
+    if (!Array.isArray(order)) return res.end('{"ok":false}');
+    const file = path.join(GAMES_DIR, "games.json");
+    fs.readFile(file, (err, data) => {
+      if (err) return res.end('{"ok":false}');
+      let entries;
+      try {
+        entries = JSON.parse(data);
+      } catch (e) {
+        return res.end('{"ok":false}');
+      }
+      const used = new Set();
+      const sorted = [];
+      order.forEach((f) => {
+        const i = entries.findIndex((e, j) => !used.has(j) && e.file === f);
+        if (i !== -1) { used.add(i); sorted.push(entries[i]); }
+      });
+      entries.forEach((e, j) => { if (!used.has(j)) sorted.push(e); });
+      fs.writeFile(file, JSON.stringify(sorted, null, 2), () => res.end('{"ok":true}'));
+    });
+  });
+}
+
 function handleKillGame(res) {
   if (isGameRunning()) {
     try {
@@ -437,6 +471,10 @@ const server = http.createServer((req, res) => {
 
   if (pathname === "/api/config") {
     return handleConfig(res);
+  }
+
+  if (pathname === "/api/reorder") {
+    return handleReorder(req, res);
   }
 
   if (pathname === "/api/kill-game") {
