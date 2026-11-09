@@ -6,12 +6,12 @@ You build a game in MakeCode Arcade in your browser, export it, drop the file on
 
 ## What flavor do I build?
 
-There isn't just one arcade. There are **five** flavors, because the same MakeCode Arcade games can run several different ways, and each way fits different hardware and different goals. You pick the flavor *before* you start, because each one lives on its own branch of the project and has its own setup steps.
+There isn't just one arcade. There are **six** flavors, because the same MakeCode Arcade games can run several different ways, and each way fits different hardware and different goals. You pick the flavor *before* you start, because each one lives on its own branch of the project and has its own setup steps.
 
 !!! tip "Not sure which one?"
     Head to the [Pick Your Arcade](pick-your-arcade.md) guide. It asks a few plain questions and points you at the right page.
 
-The five flavors:
+The six flavors:
 
 | Flavor | Best hardware | Menu? | What runs the game |
 | --- | --- | --- | --- |
@@ -19,6 +19,7 @@ The five flavors:
 | [Pi 3 / Pi Zero Single-Game ELF](pi3-elf-kiosk.md) | Raspberry Pi 3 or Pi Zero | No — one game only | A single raw `.elf` file |
 | [Chromium Kiosk (Menu)](chromium-kiosk.md) | Raspberry Pi 5 or a regular PC | Yes — a menu of games | Games in a fullscreen Chromium browser |
 | [Chromium Single-Game](single-game-kiosk.md) | Raspberry Pi 5 or a regular PC | No — one game only | One game in a fullscreen Chromium browser |
+| [Multi-Native Arcade](multi-native-arcade.md) | 64-bit Raspberry Pi (3/4/5/Zero 2 W) or a 64-bit PC | Yes — a menu of games | Native `Game` programs (no browser, fastest) |
 | [Native SDL Single-Game](single-native-arcade.md) | 64-bit Raspberry Pi (3/4/5/Zero 2 W) or a 64-bit PC | No — one game only | A native `Game` program (no browser, fastest) |
 
 ## How these guides are written

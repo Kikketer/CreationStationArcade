@@ -2,16 +2,16 @@
 
 ## What this is / who it's for
 
-This is the **menu** flavor that runs games inside a fullscreen Chromium browser. A small Node server on the Pi serves a menu of games; when you pick one, it opens in a separate fullscreen Chromium window. Because it uses the real MakeCode Arcade simulator in the browser, you get the full extension support you'd see in the simulator — handy for games that use features the raw ELF path can't do.
+This is the **menu** flavor that runs games inside a fullscreen Chromium browser. A small Node server on the machine serves a menu of games; when you pick one, it opens in a separate fullscreen Chromium window. Because it uses the real MakeCode Arcade simulator in the browser, you get the full extension support you'd see in the simulator — handy for games that use features the raw ELF path can't do.
 
 It's the best choice if you:
 
 - Have a **Raspberry Pi 5** or a **regular x86 PC** (it needs more power than the ELF flavors).
-- Want a **menu of games**.
+- Want a **menu of games** you can update from a USB stick.
 - Want the full MakeCode Arcade simulator capability (extensions and all).
 
 !!! tip "Just one game?"
-    If you'd rather boot straight into a single game in Chromium, use the [Chromium Single-Game](single-game-kiosk.md) guide instead — it's the same base, just simplified for one game.
+    If you'd rather boot straight into a single game in Chromium, use the [Chromium Single-Game](single-game-kiosk.md) guide instead.
 
 !!! note "Why not a Pi 3?"
     The ELF flavors don't work on a Pi 5 (the "Hardware" line gotcha), so on a Pi 5 you use Chromium or Native instead. Chromium is heavier on the Pi than the ELF path, so it wants a Pi 5 (or a PC), not a Pi 3.
@@ -24,9 +24,10 @@ It's the best choice if you:
 - A microSD card (for a Pi) or a hard drive/SSD (for a PC).
 - A power supply.
 - An HDMI screen.
-- A **USB gamepad** or USB zero-delay encoder. (GPIO virtual gamepads are supported too — see the `--gpio-controllers` option in Step 5.)
+- A **USB gamepad** or USB zero-delay encoder. (GPIO-wired buttons are supported too — see the `--gpio-controllers` option in Step 4.)
+- A **FAT32 USB stick** for loading games and per-machine config.
 - A way to put the SD card into your regular computer (Pi only).
-- An internet connection.
+- An internet connection (for setup only — the arcade runs fine offline).
 
 **On your regular computer**
 
@@ -34,156 +35,102 @@ It's the best choice if you:
 
 ## The walkthrough
 
-### Step 1 — Flash the operating system
+### Step 1 — Install the operating system
 
-For a **Raspberry Pi 5**, use the **64-bit Lite** version of Raspberry Pi OS.
+- **Raspberry Pi 5**: flash **Raspberry Pi OS Lite (64-bit)** with the Raspberry Pi Imager. When it asks you to create a user, **name it `pi`** — the Pi scripts assume that account.
+- **x86 PC**: install **64-bit Debian or Ubuntu server** — no desktop environment needed (the setup script installs the graphical bits itself). Leave the root password blank during install so your normal user gets `sudo` automatically. The user can be named anything.
 
-1. On your regular computer, download **Raspberry Pi Imager** from <https://www.raspberrypi.com/software/>.
-2. Put the microSD card into your computer.
-3. Open Raspberry Pi Imager.
-4. Under **Choose OS**, pick **Raspberry Pi OS (Other)** → **Raspberry Pi OS Lite (64-bit)**.
-5. Under **Choose Storage**, pick your microSD card.
-6. Click **Write** and wait for it to finish.
+### Step 2 — Clone the repo
 
-!!! note "What this does"
-    Copies a fresh, minimal 64-bit operating system onto the SD card. Use 64-bit — the Pi 5 needs it.
-
-For a **regular PC**, install a 64-bit Debian or Ubuntu server (no desktop needed). The setup script will install the graphical pieces it requires.
-
-### Step 2 — Boot and get online
-
-1. Boot the machine and log in (Pi defaults: `pi` / `raspberry`).
-2. Connect to the internet. On a Pi, the easiest way is:
-
-    ```bash
-    sudo raspi-config
-    ```
-
-    !!! note "What this does"
-        Opens the Pi's settings menu. Go to **System Options → Wireless LAN**, pick your country, type your Wi-Fi name and password, then finish.
-
-3. Check the connection:
-
-    ```bash
-    ping -c 3 google.com
-    ```
-
-    !!! note "What this does"
-        Sends three test messages to the internet. Replies mean you're online.
-
-### Step 3 — Install the download tool
+Log in as your normal user, then:
 
 ```bash
-sudo apt install git
+sudo apt update && sudo apt install -y git
+git clone -b chromium-kiosk https://github.com/Kikketer/CreationStationArcade ~/CreationStationArcade-src
 ```
 
-!!! note "What this does"
-    Installs `git`, the program that copies code projects from the internet onto your machine.
+### Step 3 — Run the setup script
 
-### Step 4 — Download the arcade project
+- **x86 PC**:
+  ```bash
+  sudo bash ~/CreationStationArcade-src/install/debian-x86-setup.sh
+  ```
+- **Raspberry Pi** (USB gamepads):
+  ```bash
+  sudo bash ~/CreationStationArcade-src/install/kiosk-setup.sh
+  ```
+- **Raspberry Pi** (GPIO-wired arcade buttons):
+  ```bash
+  sudo bash ~/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
+  ```
 
-```bash
-git clone -b chromium-kiosk https://github.com/kikketer/CreationStationArcade /home/pi/CreationStationArcade-src
-```
+Running with `sudo` is safe — the script figures out the real user automatically. It's also idempotent: re-running it just rewrites configs and re-syncs the runtime.
 
-!!! note "What this does"
-    Copies the Creation Station Arcade project into a folder called `CreationStationArcade-src`. The `-b chromium-kiosk` part grabs the Chromium menu flavor specifically. (On a PC, you can clone it wherever you like; the rest of this guide assumes `/home/pi/CreationStationArcade-src`.)
+The installer handles: Xorg + Chromium + Node + `openbox` (a minimal window manager — without one, Chromium ignores fullscreen on bare X), autologin on the console, a boot-time update service, the USB game-update service, and seeds `~/arcade-games` with the stock Controller Test.
 
-### Step 5 — Run the one-shot setup script
-
-This flavor has a single setup script that does almost everything: installs Chromium, Node, and X; sets up auto-login; applies the Pi 5 graphics fix; creates the runtime folder; sets up background game updates; and hides the boot text.
-
-```bash
-bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh
-```
-
-!!! note "What this does"
-    The all-in-one installer for this flavor. It installs the packages, configures the Pi to auto-log in and start a graphical session, creates a separate "runtime" folder the arcade runs from, and turns on a background service that pulls game updates on boot.
-
-!!! tip "Using GPIO buttons instead of USB gamepads?"
-    If you're wiring real arcade buttons to the Pi's GPIO pins (instead of using USB gamepads), add the flag:
-
-    ```bash
-    bash /home/pi/CreationStationArcade-src/install/kiosk-setup.sh --gpio-controllers
-    ```
-
-    !!! note "What this does"
-        Installs the GPIO virtual-gamepad pieces (the `RPi.GPIO` and `uhid` Python modules) and turns on the GPIO gamepad service. Without this flag, the setup assumes standard USB controllers.
-
-### Step 6 — (Optional) Set up USB controller player assignments
-
-If you're using USB gamepads and you want each USB port to always map to the same player number (so player 1 is always player 1, no matter what order things boot in), plug in your controllers and run:
-
-```bash
-sudo bash /home/pi/CreationStationArcade-src-run/setup-usb-controllers.sh
-```
-
-!!! note "What this does"
-    Creates stable controller-to-player mappings based on which USB port each controller is plugged into. Run this after your controllers are plugged in. Skip it if you're using GPIO buttons.
-
-### Step 7 — Reboot and play
+### Step 4 — Reboot
 
 ```bash
 sudo reboot
 ```
 
-When the machine comes back up, it should auto-log in, start the graphical session, and show the game menu. Plug in your USB gamepad and pick a game.
+The machine comes up straight into the menu. With no games installed you'll see just **Controller Test** — the built-in sanity game that verifies controls. It automatically hides itself once real games are installed.
 
-## Putting games on the arcade
+### Step 5 — Load games from a USB stick
 
-Games in this flavor are a `.js` file plus a matching `.png` image, listed in a `games.json` file.
+Format a stick as **FAT32**, and put an `arcade-games/` folder at its root:
 
-1. Export your game as a `.png` from the MakeCode Arcade editor, then upload it to the [PNG to JavaScript compiler](https://www.makecode.games/compilers) to get a `.js` file.
-2. Drop the `.js` file **and** a matching `.png` image into the `games/` folder.
-3. Regenerate the game list:
+```
+arcade-games/
+├── MyGame.js            compiled MakeCode Arcade game
+├── MyGame.png           cover art (~60x34 px pixel art)
+├── MyGame.json          optional metadata: name/author/playerCount
+├── games.json           optional: full curated list (preserves your ordering + tiles)
+└── config.jsonc         optional: this machine's settings (see below)
+```
 
-    ```bash
-    bash games/refresh_games.sh
-    ```
+Two other layouts also work: loose `.js` + `.png` pairs at the stick root, or a `games.json` for bulk metadata. Plug it in — within a few seconds the files are copied into `~/arcade-games`, the list is rebuilt, and the menu picks them up live. No reboot.
 
-    !!! note "What this does"
-        Rebuilds `games.json` from the files in `games/`. You can also edit `games.json` by hand to set each game's `name`, `author`, and `playerCount`.
+Re-docking the same stick is a no-op (per-file timestamps). Newer files overwrite. `example-usb/` in the repo is a ready-to-copy example payload with a full library.
 
-4. Save the change to the project and upload it (push it through git).
-5. Reboot the arcade. The launcher pulls the latest code on boot and syncs it into the runtime folder, so your new game appears after the reboot.
+### Step 6 — Wire a cabinet reset button (optional)
+
+On x86, wire a reset button into the USB encoder like any other button — it shows up as a gamepad button index. Put that index in `config.jsonc` under `exitButtons` (see below). On Pi+GPIO, the GPIO reset button works via the GPIO monitor.
+
+## Per-machine settings (`config.jsonc`)
+
+`~/arcade-games/config.jsonc` holds box-specific settings — seeded at setup, never overwritten by re-running setup, and **round-tripped over USB**: dock a stick and your current config is mirrored onto it so you can edit it on any computer and re-dock.
+
+```jsonc
+{
+  "attractLines": [ "line 1", "*accented* line 2" ],   // title screen text
+  "display": {
+    "resolution": "",       // force window size e.g. "1280x1024"; "" = xrandr
+    "offsetX": 0,           // shift menu in real pixels (bezel/mask adjustment)
+    "offsetY": 0,
+    "scale": 1.0            // nudges size; result snaps to a WHOLE number
+  },
+  "exitButtons": [8, 9]     // gamepad buttons that kill a game back to menu
+}
+```
+
+Changes apply live — no reboot needed (the menu re-fetches config every 15s).
+
+## Hidden menu gestures
+
+Undiscoverable on purpose — the only visible cue is a thin red border:
+
+- **Archive a game**: press B×5 quickly, hold the 5th B for 5 seconds → the card gets a red outline → press **A** to archive (files move to `~/arcade-games/.archived/`, restorable by moving them back) or release B to cancel.
+- **Reorder games**: same gesture, but while still holding B, move the D-pad — the card moves through the list. Release B to save the order (stored in `games.json`, survives reboots and USB docks).
+
+## Stats
+
+`~/arcade-stats.json` accumulates game launch counts, per-button press counts, `first_seen` dates, and `last_updated`. It's outside the synced folders, so updates never touch it — and you can migrate an old file in and it'll keep counting.
 
 ## If something goes wrong
 
-### "Cannot run in framebuffer mode" (Pi 5 graphics error)
-
-This is the Pi 5 graphics fix, and the setup script applies it automatically (it writes an X11 config that uses the `modesetting` driver on `/dev/dri/card1`). If you still see this error, re-run the setup script from Step 5 — it rewrites the config at `/etc/X11/xorg.conf.d/99-pi-kiosk.conf`.
-
-### No HDMI audio
-
-This flavor includes the same HDMI audio fix as the others. Run it and reboot:
-
-```bash
-sudo /home/pi/CreationStationArcade-src-run/install/hdmi-audio-fix.sh
-sudo reboot
-```
-
-!!! note "What this does"
-    Copies in corrected HDMI audio settings and backs up your old ones. Reboot so they load.
-
-### USB controllers aren't detected
-
-Check what the system sees:
-
-```bash
-ls /dev/input/js*
-```
-
-!!! note "What this does"
-    Lists the joystick devices the system has found. If nothing appears, your controller isn't being recognized — try a different USB port or cable. If devices appear but player numbers are wrong, re-run the USB controller setup from Step 6.
-
-### GPIO buttons don't work
-
-GPIO buttons need the `--gpio-controllers` flag during setup (Step 5). If you set up without it, re-run the setup script with the flag. Also note: on a **Pi 5**, the old `wiringPi` library is gone, so GPIO button wiring is limited — USB controllers are more reliable on a Pi 5.
-
-### The arcade boots to a text prompt instead of the menu
-
-The auto-login or the graphical session start may have been reset. Re-run the setup script from Step 5 (it rewrites the auto-login and the `.xinitrc` that starts the menu), then reboot.
-
-### I need a normal prompt to fix something
-
-Log in as a different user (if you made an admin account), or switch to a second virtual terminal with `Ctrl+Alt+F2`. From there you can re-run the setup script or edit files. The runtime folder is at `/home/pi/CreationStationArcade-src-run` and the source folder is at `/home/pi/CreationStationArcade-src`.
+- **Black screen**: check `~/arcade.log`. If X is running but nothing else, the launcher never spawned — look for autologin or `.xinitrc` problems. `Ctrl+Alt+F2` gets a normal TTY.
+- **Squashed / offset picture**: the menu auto-fits the monitor and snaps to whole-pixel scale; use `display.resolution`/`offsetX`/`offsetY`/`scale` in `config.jsonc` for stubborn panels.
+- **USB stick ignored**: it must be FAT32 and contain `arcade-games/` or root-level `.js` files. Watch `tail -f ~/arcade.log` for `usb-update:` lines; `journalctl -u 'arcade-usb-update@*'` shows whether the service fired.
+- **GPIO buttons dead on Pi 5**: needs `python3-rpi-lgpio` (setup installs it automatically when it detects a Pi 5). Check `systemctl status gpio-gamepad.service`.
+- **Performance floor**: the slowest box this runs acceptably on is roughly an i3-8100 + UHD 630 — see `machine-specs.txt` in the repo. Below that, expect tearing.

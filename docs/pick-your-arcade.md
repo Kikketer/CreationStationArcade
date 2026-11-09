@@ -6,7 +6,7 @@ Not sure which flavor of Creation Station Arcade to build? Answer the questions 
 
 !!! question "Do you want a menu of games, or just one game?"
 
-    - **A menu of games** → you want one of the two "menu" flavors below.
+    - **A menu of games** → you want one of the three "menu" flavors below.
     - **Just one game** (a dedicated cabinet for a single game) → you want one of the three "single-game" flavors below.
 
 !!! question "Which computer are you using?"
@@ -27,8 +27,13 @@ Start here
    ├── Got a Raspberry Pi 3 or Pi Zero and want ONE game?
    │      → Pi 3 / Pi Zero Single-Game ELF  ... [pi3-elf-kiosk.md]
    │
-   ├── Got a Raspberry Pi 5 (or a PC) and want a MENU of games?
+   ├── Got a Raspberry Pi 5 (or a PC) and want a MENU of games
+   │   running the full MakeCode simulator?
    │      → Chromium Kiosk (Menu)  ........ [chromium-kiosk.md]
+   │
+   ├── Got a 64-bit Pi or PC and want a MENU of games
+   │   running as fast as possible (no browser)?
+   │      → Multi-Native Arcade  .......... [multi-native-arcade.md]
    │
    ├── Got a Raspberry Pi 5 (or a PC) and want ONE game,
    │   and you're fine running it in a browser?
