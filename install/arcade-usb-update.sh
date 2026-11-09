@@ -44,7 +44,10 @@ ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" 2>/dev/null | cut -d: -f6)"
 
 LOG_FILE="${ARCADE_LOG:-$ARCADE_USER_HOME/arcade.log}"
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
-MNT=/mnt/arcade-usb
+# Per-invocation mountpoint: each partition of a drive fires its own
+# service instance, and a shared mountpoint lets one partition's mount
+# shadow another's (scans then read the wrong filesystem).
+MNT=$(mktemp -d /mnt/arcade-usb.XXXXXX)
 STAGE="$(mktemp -d)"
 MTIMES="$GAMES_DIR/.usb-source-mtimes"
 META_FILE="$GAMES_DIR/usb-meta.json"
@@ -72,6 +75,7 @@ else
 
     cleanup() {
         umount "$MNT" 2>/dev/null || true
+        rmdir "$MNT" 2>/dev/null || true
         rm -rf "$STAGE"
     }
     trap cleanup EXIT
