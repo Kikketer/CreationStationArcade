@@ -48,5 +48,5 @@ nav:
       - Pi 3 / Pi Zero Single-Game ELF: pi3-elf-kiosk.md
       - Chromium Kiosk (Menu): chromium-kiosk.md
       - Chromium Single-Game: single-game-kiosk.md
-      - Native SDL Single-Game: single-native-arcade.md
+      - Native Application Single-Game: single-native-arcade.md
       - Multi-Native Arcade (Menu): multi-native-arcade.md

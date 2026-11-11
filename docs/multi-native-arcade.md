@@ -7,11 +7,14 @@ This is the **menu** flavor that runs games as **native compiled programs** — 
 It's the best choice if you:
 
 - Have a **64-bit Raspberry Pi (3, 4, 5, or Zero 2 W)** — the binaries are `aarch64`, so a 64-bit OS is required. Original Pi Zero / Pi 1 are *not* supported.
-- Want a **menu of games** with the fastest possible startup and runtime performance.
+- Want a **menu of games** on hardware that's too weak for Chromium (anything below a Pi 5).
 - Want GPIO-wired arcade buttons (works great on this flavor) or USB gamepads.
 
+!!! note "Native is not the fastest option"
+    It's easy to assume a compiled program beats a browser, but for MakeCode Arcade games it doesn't. Native `Game` programs run your game in an interpreter, while Chromium runs it with a JIT compiler. Our compiler testing found native games can run **10–40x slower** than the same game in Chromium. Pick a native flavor when the hardware can't run Chromium well (Pi 3, Pi Zero 2 W) or when you want GPIO buttons on a board that's weaker than a Pi 5. On a Pi 5 or an x86 PC, the [Chromium flavors](chromium-kiosk.md) are the better choice.
+
 !!! tip "Just one game?"
-    The [Native SDL Single-Game](single-native-arcade.md) flavor runs a single native game with an even simpler setup.
+    The [Native Application Single-Game](single-native-arcade.md) flavor runs a single native game with an even simpler setup.
 
 ## What you'll need
 
