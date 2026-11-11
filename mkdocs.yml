@@ -49,3 +49,4 @@ nav:
       - Chromium Kiosk (Menu): chromium-kiosk.md
       - Chromium Single-Game: single-game-kiosk.md
       - Native SDL Single-Game: single-native-arcade.md
+      - Multi-Native Arcade (Menu): multi-native-arcade.md
