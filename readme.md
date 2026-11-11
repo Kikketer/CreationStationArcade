@@ -14,7 +14,7 @@ This repo uses long-lived branches to represent different arcade machine configu
 
 - `single-game-kiosk` — the Chromium kiosk but for a single game. Boots directly into one game and the reset button restarts it. Same 1:1 simulator capability as `chromium-kiosk`, but needs a more powerful machine.
 
-- `single-native-arcade` — native SDL MakeCode Arcade `Game` binary running as a single game. No menu, no Chromium; uses direct SDL joystick input, and USB joysticks/buttons are tested. Works on 64-bit ARM (Pi 3/4/5, Pi Zero 2 W) and x86-64 Linux.
+- `single-native-arcade` — native application (SDL) MakeCode Arcade `Game` binary running as a single game. No menu, no Chromium; uses direct SDL joystick input, and USB joysticks/buttons are tested. Works on 64-bit ARM (Pi 3/4/5, Pi Zero 2 W) and x86-64 Linux.
 
 - `multi-native-arcade` — not built yet. This will be the native version with a menu system.
 

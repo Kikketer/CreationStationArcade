@@ -1,15 +1,18 @@
-# Native SDL Single-Game
+# Native Application Single-Game
 
 ## What this is / who it's for
 
-This is the **fastest** single-game flavor. Instead of running your game inside a web browser (like the Chromium flavors), it runs a real, compiled `Game` program directly using a graphics library called SDL. No browser, no menu — the cabinet boots straight into one game and runs it as fast as the hardware can.
+This single-game flavor runs your game as a native application instead of inside a web browser (like the Chromium flavors). It runs a compiled `Game` program directly using a graphics library called SDL. No browser, no menu — the cabinet boots straight into one game. It needs very little from the operating system, so it's a good fit for low-powered boards and GPIO-wired buttons.
 
 It's the best choice if you:
 
 - Have a **64-bit Raspberry Pi** (Pi 3, Pi 4, Pi 5, or Pi Zero 2 W) **or** a **64-bit PC** (x86-64).
 - Want a dedicated cabinet for **one** game.
-- Want the best performance (no browser overhead).
+- Have hardware that's too weak for Chromium (anything below a Pi 5), especially with GPIO-wired buttons.
 - Are getting your game from the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop), which builds the native `Game` binary.
+
+!!! note "Native is not the fastest option"
+    It's easy to assume a compiled program beats a browser, but for MakeCode Arcade games it doesn't. Native `Game` programs run your game in an interpreter, while Chromium runs it with a JIT compiler. Our compiler testing found native games can run **10–40x slower** than the same game in Chromium. Pick a native flavor when the hardware can't run Chromium well (Pi 3, Pi Zero 2 W) or when you want GPIO buttons on a board that's weaker than a Pi 5. On a Pi 5 or an x86 PC, the [Chromium flavors](chromium-kiosk.md) are the better choice.
 
 !!! warning "Needs a 64-bit operating system"
     The `Game` binary is a 64-bit (`aarch64`) program. The original Pi Zero and Pi 1 are **not** supported because they're 32-bit only. Use a 64-bit OS on a Pi 3/4/5/Zero 2 W, or a 64-bit PC.
