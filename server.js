@@ -16,7 +16,19 @@ const PUBLIC_DIR = path.join(ROOT, "public");
 const GAMES_DIR = path.join(ROOT, "games");
 // Disk-installed games live outside the checkout (the -run folder gets
 // rsync --delete'd on boot/reset). Searched before the checkout's games/.
-const DISK_GAMES_DIR = process.env.CSA_GAMES_DIR || path.join(os.homedir(), "arcade-games");
+// Read the dir from the same conf the disk loader uses so a custom
+// GAMES_DIR there is honored here (env CSA_GAMES_DIR overrides both).
+function confGamesDir() {
+  try {
+    const conf = process.env.ARCADE_USB_CONF || "/etc/arcade-usb-update.conf";
+    const m = fs.readFileSync(conf, "utf8")
+      .match(/^\s*GAMES_DIR\s*=\s*"?([^"\n]+)"?\s*$/m);
+    if (m) return m[1].replace(/\$HOME|^~/g, os.homedir());
+  } catch (e) { /* no conf -> default */ }
+  return null;
+}
+const DISK_GAMES_DIR = process.env.CSA_GAMES_DIR || confGamesDir()
+  || path.join(os.homedir(), "arcade-games");
 const SIM_DIR = path.join(ROOT, "sim");
 const MEDIA_DIR = path.join(ROOT, "media");
 

@@ -11,7 +11,12 @@ CHROMIUM_PID_FILE="/tmp/arcade-chromium.pid"
 # Examples: "AndyPaddleTheRiver", "ChrisGreedyPirates", "ChrisVikingsOfFour", etc.
 # A game installed from a floppy disk wins over this setting — the disk is the
 # cartridge and stays "inserted" across reboots.
-ACTIVE_FILE="${ARCADE_GAMES_DIR:-$HOME/arcade-games}/.active-game"
+# The games dir comes from the same conf the disk loader uses, so a custom
+# GAMES_DIR there is honored here (env ARCADE_GAMES_DIR overrides both).
+USB_CONF="${ARCADE_USB_CONF:-/etc/arcade-usb-update.conf}"
+[ -f "$USB_CONF" ] && . "$USB_CONF"
+GAMES_DIR="${ARCADE_GAMES_DIR:-${GAMES_DIR:-$HOME/arcade-games}}"
+ACTIVE_FILE="$GAMES_DIR/.active-game"
 if [ -f "$ACTIVE_FILE" ]; then
     GAME_NAME="$(head -n1 "$ACTIVE_FILE" | tr -cd 'A-Za-z0-9._-')"
 fi

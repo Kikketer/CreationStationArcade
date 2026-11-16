@@ -15,8 +15,11 @@ fi
 SOURCE_DIR="${CSA_SOURCE_DIR:-${RUN_DIR%-run}}"
 
 # Disk-installed games live outside the checkout: this -run folder gets
-# rsync --delete'd below and on every boot.
-GAMES_DIR="${ARCADE_GAMES_DIR:-$HOME/arcade-games}"
+# rsync --delete'd below and on every boot. Resolve the games dir from the
+# same conf the disk loader uses (env ARCADE_GAMES_DIR overrides both).
+USB_CONF="${ARCADE_USB_CONF:-/etc/arcade-usb-update.conf}"
+[ -f "$USB_CONF" ] && . "$USB_CONF"
+GAMES_DIR="${ARCADE_GAMES_DIR:-${GAMES_DIR:-$HOME/arcade-games}}"
 ACTIVE_FILE="$GAMES_DIR/.active-game"
 DISK_LOADER="${ARCADE_DISK_LOADER:-/usr/local/sbin/arcade-disk-load.sh}"
 LOADING_PID_FILE="/tmp/arcade-loading-chromium.pid"
