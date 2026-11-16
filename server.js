@@ -22,8 +22,13 @@ function confGamesDir() {
   try {
     const conf = process.env.ARCADE_USB_CONF || "/etc/arcade-usb-update.conf";
     const m = fs.readFileSync(conf, "utf8")
-      .match(/^\s*GAMES_DIR\s*=\s*"?([^"\n]+)"?\s*$/m);
-    if (m) return m[1].replace(/\$HOME|^~/g, os.homedir());
+      .match(/^\s*GAMES_DIR\s*=\s*(.+?)\s*$/m);
+    if (m) {
+      let v = m[1];
+      if (v.length > 1 && ((v.startsWith('"') && v.endsWith('"'))
+          || (v.startsWith("'") && v.endsWith("'")))) v = v.slice(1, -1);
+      return v.replace(/\$HOME|^~/g, os.homedir());
+    }
   } catch (e) { /* no conf -> default */ }
   return null;
 }
