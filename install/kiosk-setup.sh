@@ -92,6 +92,7 @@ sudo apt-get install -y \
     unclutter \
     xdotool \
     python3-pip \
+    sudo \
     >> "$LOG" 2>&1
 log "Packages installed."
 log "Installing Python websocket-client..."
@@ -364,6 +365,36 @@ if [ "$SINGLE_GAME" = true ]; then
         log "WARNING: Could not start gpio-monitor-single-game service (may need reboot)"
     }
     log "Single-game GPIO monitor installed."
+
+    # ── 9c. Floppy disk game loading on reset ────────────────────────────────
+    # On reset, arcade-disk-load.sh (via sudo) checks a USB floppy drive: a
+    # disk holding a different game installs it and the console boots that
+    # "cartridge"; no disk or the same game is a plain reset.
+    log "Installing floppy disk game loading..."
+    sudo cp -f "$REPO_DIR/install/arcade-usb-update.sh" /usr/local/sbin/arcade-usb-update.sh
+    sudo cp -f "$REPO_DIR/install/arcade-disk-load.sh" /usr/local/sbin/arcade-disk-load.sh
+    sudo chmod 755 /usr/local/sbin/arcade-usb-update.sh /usr/local/sbin/arcade-disk-load.sh
+    if [ ! -f /etc/arcade-usb-update.conf ]; then
+        sudo tee /etc/arcade-usb-update.conf > /dev/null <<EOF
+GAMES_DIR="$HOME/arcade-games"
+ARCADE_USER="$USER"
+# Floppy drive read by the reset button; auto-detected when unset.
+#FLOPPY_DEV="/dev/sda"
+EOF
+        sudo chmod 644 /etc/arcade-usb-update.conf
+    fi
+    mkdir -p "$HOME/arcade-games"
+    # Seed the active-game marker so boot and reset agree on the cartridge.
+    echo "$GAME_NAME" > "$HOME/arcade-games/.active-game"
+    SUDOERS_TMP="$(mktemp)"
+    echo "$USER ALL=(root) NOPASSWD: /usr/local/sbin/arcade-disk-load.sh" > "$SUDOERS_TMP"
+    if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
+        sudo install -m 440 "$SUDOERS_TMP" /etc/sudoers.d/arcade-disk-load
+    else
+        log "WARNING: could not validate sudoers rule; floppy loading disabled"
+    fi
+    rm -f "$SUDOERS_TMP"
+    log "Floppy disk loading installed."
 fi
 
 # ── 10. Git update service ────────────────────────────────────────────────────

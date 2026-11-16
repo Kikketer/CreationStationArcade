@@ -9,6 +9,7 @@ This branch provides a simplified arcade setup that launches directly to a singl
 - **Simplified GPIO monitoring** - only handles reset functionality
 - **Single Chromium instance** - no dual-window management
 - **Full USB controller support** - works with both GPIO buttons and USB controllers
+- **Floppy disks are the cartridges** - a USB floppy drive + reset swaps the game (see below)
 
 ## Configuration
 
@@ -66,6 +67,52 @@ export SINGLE_GAME_NAME="ChrisGreedyPirates"
 - `ScottSaveYourself` - Save Yourself (1 player)
 - `WilliamDoubleDeath` - Double Death (1 player)
 - `WilliamZombie` - Zombie (2 players)
+
+## Floppy Disk Games (Cartridges)
+
+A USB floppy drive turns the console into a cartridge machine: put a disk in,
+press reset, and the disk's game boots. USB floppy drives don't report disk
+insertion, so the disk is only read when reset is pressed — reading a disk
+takes a few seconds, during which a `READING DISK....` page shows.
+
+### Disk format
+
+One game per disk, either of:
+
+- `YourGame.js.gz` — the `.js` from the PNG-to-JS compiler, gzipped. A ~2.5 MB
+  compiled game compresses to ~350 KB, so it fits a 1.44 MB floppy with room
+  to spare. (Plain `YourGame.js` also works, useful on bigger media.)
+- `arcade-games/` — a folder of the above; the newest `.js(.gz)` inside wins.
+
+Same-name sidecars ride along: `YourGame.png`/`.gif` (cover) and
+`YourGame.json` (metadata). The newest candidate on the disk wins.
+
+Make a cartridge:
+
+```bash
+gzip -k YourGame.js          # -> YourGame.js.gz
+cp YourGame.js.gz YourGame.png /media/floppy/
+```
+
+### What reset does
+
+```
+reset press
+  no drive / no disk / same game      -> normal reset (restarts the game)
+  disk holds a different/newer game   -> READING DISK -> install -> new game
+```
+
+Installed games persist in `/home/pi/arcade-games/` (outside the checkout,
+which gets wiped and re-synced on every boot), and
+`/home/pi/arcade-games/.active-game` wins over `SINGLE_GAME_NAME` — the last
+cartridge played stays "in the slot" across reboots, disk or no disk.
+
+If your floppy drive doesn't auto-detect (it needs to report the UFI
+subclass), point the loader at it in `/etc/arcade-usb-update.conf`:
+
+```
+FLOPPY_DEV="/dev/sda"
+```
 
 ## Setup Instructions
 

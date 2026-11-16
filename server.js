@@ -4,6 +4,7 @@
 
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawn, exec } = require("child_process");
 
@@ -13,6 +14,9 @@ const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const GAMES_DIR = path.join(ROOT, "games");
+// Disk-installed games live outside the checkout (the -run folder gets
+// rsync --delete'd on boot/reset). Searched before the checkout's games/.
+const DISK_GAMES_DIR = process.env.CSA_GAMES_DIR || path.join(os.homedir(), "arcade-games");
 const SIM_DIR = path.join(ROOT, "sim");
 const MEDIA_DIR = path.join(ROOT, "media");
 
@@ -323,7 +327,8 @@ const server = http.createServer((req, res) => {
 
   if (pathname.startsWith("/games/")) {
     const gameFile = path.basename(pathname);
-    return serveFile(res, path.join(GAMES_DIR, gameFile));
+    const diskFile = path.join(DISK_GAMES_DIR, gameFile);
+    return serveFile(res, fs.existsSync(diskFile) ? diskFile : path.join(GAMES_DIR, gameFile));
   }
 
   if (pathname.startsWith("/media/")) {
