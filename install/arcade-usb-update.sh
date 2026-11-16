@@ -48,7 +48,10 @@ ARCADE_USER_HOME=""
 [ -f "$CONF" ] && . "$CONF"
 ARCADE_USER_HOME="${ARCADE_USER_HOME:-/home/$ARCADE_USER}"
 
-LOG_FILE="${ARCADE_LOG:-/home/pi/arcade.log}"
+ARCADE_USER_HOME="$(getent passwd "$ARCADE_USER" 2>/dev/null | cut -d: -f6)"
+[ -n "$ARCADE_USER_HOME" ] || ARCADE_USER_HOME="/home/$ARCADE_USER"
+
+LOG_FILE="${ARCADE_LOG:-$ARCADE_USER_HOME/arcade.log}"
 MNT=/mnt/arcade-usb
 MOUNT_TRIES="${ARCADE_MOUNT_TRIES:-5}"
 LOCK_FILE="${ARCADE_LOCK_FILE:-/run/arcade-game-update.lock}"
