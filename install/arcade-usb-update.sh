@@ -158,14 +158,16 @@ if [ -z "$CURRENT_ACTIVE" ]; then
     CURRENT_ACTIVE="$(grep -oE 'SINGLE_GAME_NAME="[^"]*"' "$ARCADE_USER_HOME/.xinitrc" 2>/dev/null | head -n1 | cut -d'"' -f2)"
 fi
 
-# game_is_current: true when the disk's game was installed from this exact
-# source, or has the same name and the disk copy isn't newer.
+# game_is_current: true only when the disk's game IS the active one and was
+# installed from this exact source, or the disk copy isn't newer. The name
+# must match first: a stale .active-source-id left over from before a
+# re-setup must not block switching back to that cartridge.
 game_is_current() {
-    [ -n "$CURRENT_ACTIVE" ] || return 1
+    [ "$CURRENT_ACTIVE" = "$GAME_NAME" ] || return 1
     [ "$(cat "$GAMES_DIR/.active-source-id" 2>/dev/null)" = "$SOURCE_ID" ] && return 0
     local installed=0
     [ -f "$GAMES_DIR/.active-source-mtime" ] && installed="$(cat "$GAMES_DIR/.active-source-mtime" 2>/dev/null || echo 0)"
-    [ "$CURRENT_ACTIVE" = "$GAME_NAME" ] && [ "$CAND_MTIME" -le "${installed:-0}" ]
+    [ "$CAND_MTIME" -le "${installed:-0}" ]
 }
 
 if game_is_current; then
@@ -204,7 +206,14 @@ find "$CAND_DIR" -mindepth 1 -maxdepth 1 -type f \
     -exec cp {} "$STAGE/game/" \; 2>/dev/null || true
 
 # Install into the persistent games dir, then point the launcher at it.
-cp -a "$STAGE/game/." "$GAMES_DIR/"
+# On a failed copy (e.g. full filesystem) drop any partial files and bail
+# BEFORE writing freshness markers — otherwise a truncated game would be
+# marked active and the source-id would suppress retries.
+if ! cp -a "$STAGE/game/." "$GAMES_DIR/"; then
+    rm -f "$GAMES_DIR/$GAME_NAME.js"
+    for ext in png gif json; do rm -f "$GAMES_DIR/$(basename "$CAND_BASE").$ext"; done
+    fail "copy into $GAMES_DIR failed; previous game kept, retry not suppressed"
+fi
 rm -f "$GAMES_DIR/$GAME_NAME.js.gz"   # never leave the packed form behind
 echo "$CAND_MTIME" > "$GAMES_DIR/.active-source-mtime"
 echo "$SOURCE_ID" > "$GAMES_DIR/.active-source-id"

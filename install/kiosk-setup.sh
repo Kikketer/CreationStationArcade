@@ -384,8 +384,11 @@ EOF
         sudo chmod 644 /etc/arcade-usb-update.conf
     fi
     mkdir -p "$HOME/arcade-games"
-    # Seed the active-game marker so boot and reset agree on the cartridge.
+    # Seed the active-game marker so boot and reset agree on the cartridge,
+    # and clear stale source markers from an earlier cartridge so a disk
+    # holding that game isn't mistaken for the active one on next reset.
     echo "$GAME_NAME" > "$HOME/arcade-games/.active-game"
+    rm -f "$HOME/arcade-games/.active-source-id" "$HOME/arcade-games/.active-source-mtime"
     SUDOERS_TMP="$(mktemp)"
     echo "$USER ALL=(root) NOPASSWD: /usr/local/sbin/arcade-disk-load.sh" > "$SUDOERS_TMP"
     if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then

@@ -125,6 +125,29 @@ class TestUsbUpdateCheck(DiskLoadTestCase):
         self.assertEqual(self.run_script(UPDATER, self.disk).returncode, 0)
         self.assertFalse((self.games_dir / "NotAGame.js").exists())
 
+    def test_stale_source_id_does_not_block_switching_back(self):
+        # Cartridge A installed, then the machine was reconfigured to game B
+        # (e.g. re-run of kiosk-setup) leaving A's source-id marker behind.
+        self.write_game_js("Floppy", mtime=1_700_000_000)
+        self.run_script(UPDATER, self.disk)
+        (self.games_dir / ".active-game").write_text("BakedGame\n")
+        self.assertEqual(self.run_script(UPDATER, "--check", self.disk).returncode, 0)
+        self.assertEqual(self.run_script(UPDATER, self.disk).returncode, 0)
+        self.assertEqual(self.active_game(), "Floppy")
+
+    def test_failed_copy_leaves_no_markers(self):
+        self.write_game_js("Floppy", mtime=1_700_000_000)
+        self.games_dir.mkdir(mode=0o755)
+        os.chmod(self.games_dir, 0o555)
+        try:
+            result = self.run_script(UPDATER, self.disk)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((self.games_dir / "Floppy.js").exists())
+            self.assertFalse((self.games_dir / ".active-game").exists())
+            self.assertFalse((self.games_dir / ".active-source-id").exists())
+        finally:
+            os.chmod(self.games_dir, 0o755)
+
 
 class TestDiskLoad(DiskLoadTestCase):
     def test_no_drive_means_normal_reset(self):
