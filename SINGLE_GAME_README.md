@@ -28,6 +28,8 @@ GPIO 14 is the only header pin not assigned in the default `/etc/arcade.cfg` but
 
 Use a momentary normally-open switch. The pin is pulled up internally, so the button is active-low.
 
+With a USB floppy drive plugged in, each reset press first reads the disk: a new game on it gets loaded (`READING DISK...`), otherwise it's a normal soft reset. See "Floppy disks" in `readme.md`.
+
 USB gamepads and keyboards still control the game normally, but only the cabinet GPIO button or a physical `r` key press will soft-reset.
 
 ## Environment variables

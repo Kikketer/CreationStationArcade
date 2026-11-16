@@ -7,11 +7,16 @@ import time
 import struct
 import fcntl
 import argparse
+import subprocess
 
 import gpiod
 
 LOG_FILE = os.environ.get("ARCADE_LOG", "/home/pi/arcade.log")
 UINPUT_PATH = "/dev/uinput"
+# Reads a USB floppy on each reset press (installed by the setup script).
+# Set ARCADE_DISK_LOADER="" to always do a plain soft reset.
+DISK_LOADER = os.environ.get("ARCADE_DISK_LOADER", "/usr/local/sbin/arcade-disk-load.sh")
+DISK_LOAD_TIMEOUT_S = 300
 DEFAULT_CHIP = "/dev/gpiochip1"
 DEFAULT_PIN = os.environ.get("GPIO_RESET_PIN", "20")
 
@@ -76,6 +81,30 @@ def send_r(fd):
     log("Sent KEY_R (reset)")
 
 
+def try_disk_load():
+    """True when the loader found a new game on the floppy and loaded it."""
+    if not DISK_LOADER or not os.path.exists(DISK_LOADER):
+        return False
+    try:
+        result = subprocess.run(
+            ["sudo", "-n", DISK_LOADER],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=DISK_LOAD_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log(f"Disk loader failed: {e}")
+        return False
+    return result.returncode == 0
+
+
+def on_reset_pressed(fd):
+    if try_disk_load():
+        log("Loaded a new game from disk")
+    else:
+        send_r(fd)
+
+
 def get_line(chip, spec):
     try:
         offset = int(spec)
@@ -137,7 +166,7 @@ def main():
                 if state == active and last != active:
                     time.sleep(debounce_s)
                     if line.get_value() == active:
-                        send_r(fd)
+                        on_reset_pressed(fd)
                 last = state
                 time.sleep(0.01)
         finally:

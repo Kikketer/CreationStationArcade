@@ -26,11 +26,13 @@ _spec.loader.exec_module(grk)
 
 class TestGpioResetKeyboard(unittest.TestCase):
     @patch("time.sleep")
-    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.fdopen")
+    @patch("os.open", return_value=99)
     @patch("fcntl.ioctl")
-    def test_create_vkbd_registers_key_r(self, mock_ioctl, mock_open, _mock_sleep):
+    def test_create_vkbd_registers_key_r(self, mock_ioctl, mock_os_open, mock_fdopen, _mock_sleep):
         grk.create_vkbd()
-        mock_open.assert_called_once_with(grk.UINPUT_PATH, "wb+")
+        mock_os_open.assert_called_once_with(grk.UINPUT_PATH, os.O_RDWR)
+        mock_fdopen.assert_called_once_with(99, "wb", buffering=0)
         calls = mock_ioctl.call_args_list
         self.assertEqual(calls[0][0][1], grk.UI_SET_EVBIT)
         self.assertEqual(calls[1][0][1], grk.UI_SET_KEYBIT)
@@ -53,6 +55,33 @@ class TestGpioResetKeyboard(unittest.TestCase):
         self.assertEqual(events[0][2:], (grk.EV_KEY, grk.KEY_R, 1))
         self.assertEqual(events[2][2:], (grk.EV_KEY, grk.KEY_R, 0))
         self.assertEqual(events[3][2:], (grk.EV_SYN, grk.SYN_REPORT, 0))
+
+    @patch.object(grk, "DISK_LOADER", "/nonexistent/arcade-disk-load.sh")
+    @patch("subprocess.run")
+    def test_no_disk_loader_installed_skips_sudo(self, mock_run):
+        self.assertFalse(grk.try_disk_load())
+        mock_run.assert_not_called()
+
+    @patch.object(grk, "DISK_LOADER", __file__)
+    @patch("subprocess.run")
+    def test_disk_loader_exit_code_decides(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0)
+        self.assertTrue(grk.try_disk_load())
+        self.assertEqual(mock_run.call_args[0][0], ["sudo", "-n", __file__])
+        mock_run.return_value = MagicMock(returncode=1)
+        self.assertFalse(grk.try_disk_load())
+
+    @patch.object(grk, "send_r")
+    @patch.object(grk, "try_disk_load", return_value=False)
+    def test_reset_without_new_disk_sends_r(self, _mock_load, mock_send_r):
+        grk.on_reset_pressed("fd")
+        mock_send_r.assert_called_once_with("fd")
+
+    @patch.object(grk, "send_r")
+    @patch.object(grk, "try_disk_load", return_value=True)
+    def test_reset_with_new_disk_skips_r(self, _mock_load, mock_send_r):
+        grk.on_reset_pressed("fd")
+        mock_send_r.assert_not_called()
 
 
 if __name__ == "__main__":
