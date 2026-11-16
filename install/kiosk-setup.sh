@@ -391,8 +391,15 @@ EOF
     GAMES_DIR="${GAMES_DIR:-$HOME/arcade-games}"
     mkdir -p "$GAMES_DIR" 2>/dev/null || sudo mkdir -p "$GAMES_DIR"
     sudo chown "$USER:$USER" "$GAMES_DIR" 2>/dev/null || true
-    echo "$GAME_NAME" > "$GAMES_DIR/.active-game" || log "WARNING: could not seed $GAMES_DIR/.active-game"
-    rm -f "$GAMES_DIR/.active-source-id" "$GAMES_DIR/.active-source-mtime"
+    # Remove the marker first — a stale root-owned one would fail the plain
+    # redirect and leave the launcher booting the previous game.
+    rm -f "$GAMES_DIR/.active-game" 2>/dev/null || sudo rm -f "$GAMES_DIR/.active-game"
+    if ! echo "$GAME_NAME" > "$GAMES_DIR/.active-game" 2>/dev/null; then
+        echo "$GAME_NAME" | sudo tee "$GAMES_DIR/.active-game" >/dev/null \
+            || log "WARNING: could not seed $GAMES_DIR/.active-game"
+    fi
+    rm -f "$GAMES_DIR/.active-source-id" "$GAMES_DIR/.active-source-mtime" 2>/dev/null \
+        || sudo rm -f "$GAMES_DIR/.active-source-id" "$GAMES_DIR/.active-source-mtime"
     SUDOERS_TMP="$(mktemp)"
     echo "$USER ALL=(root) NOPASSWD: /usr/local/sbin/arcade-disk-load.sh" > "$SUDOERS_TMP"
     if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
