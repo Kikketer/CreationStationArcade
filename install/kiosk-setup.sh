@@ -92,6 +92,7 @@ sudo apt-get install -y \
     unclutter \
     xdotool \
     python3-pip \
+    sudo \
     >> "$LOG" 2>&1
 log "Packages installed."
 log "Installing Python websocket-client..."
@@ -364,6 +365,50 @@ if [ "$SINGLE_GAME" = true ]; then
         log "WARNING: Could not start gpio-monitor-single-game service (may need reboot)"
     }
     log "Single-game GPIO monitor installed."
+
+    # ── 9c. Floppy disk game loading on reset ────────────────────────────────
+    # On reset, arcade-disk-load.sh (via sudo) checks a USB floppy drive: a
+    # disk holding a different game installs it and the console boots that
+    # "cartridge"; no disk or the same game is a plain reset.
+    log "Installing floppy disk game loading..."
+    sudo cp -f "$REPO_DIR/install/arcade-usb-update.sh" /usr/local/sbin/arcade-usb-update.sh
+    sudo cp -f "$REPO_DIR/install/arcade-disk-load.sh" /usr/local/sbin/arcade-disk-load.sh
+    sudo chmod 755 /usr/local/sbin/arcade-usb-update.sh /usr/local/sbin/arcade-disk-load.sh
+    if [ ! -f /etc/arcade-usb-update.conf ]; then
+        sudo tee /etc/arcade-usb-update.conf > /dev/null <<EOF
+GAMES_DIR="$HOME/arcade-games"
+ARCADE_USER="$USER"
+# Floppy drive read by the reset button; auto-detected when unset.
+#FLOPPY_DEV="/dev/sda"
+EOF
+        sudo chmod 644 /etc/arcade-usb-update.conf
+    fi
+    # Seed the active-game marker where the launcher actually looks for it —
+    # GAMES_DIR in the conf may point somewhere custom — and clear stale
+    # source markers so a disk holding an earlier cartridge isn't mistaken
+    # for the active game on next reset.
+    [ -f /etc/arcade-usb-update.conf ] && . /etc/arcade-usb-update.conf
+    GAMES_DIR="${GAMES_DIR:-$HOME/arcade-games}"
+    mkdir -p "$GAMES_DIR" 2>/dev/null || sudo mkdir -p "$GAMES_DIR"
+    sudo chown "$USER:$USER" "$GAMES_DIR" 2>/dev/null || true
+    # Remove the marker first — a stale root-owned one would fail the plain
+    # redirect and leave the launcher booting the previous game.
+    rm -f "$GAMES_DIR/.active-game" 2>/dev/null || sudo rm -f "$GAMES_DIR/.active-game"
+    if ! echo "$GAME_NAME" > "$GAMES_DIR/.active-game" 2>/dev/null; then
+        echo "$GAME_NAME" | sudo tee "$GAMES_DIR/.active-game" >/dev/null \
+            || log "WARNING: could not seed $GAMES_DIR/.active-game"
+    fi
+    rm -f "$GAMES_DIR/.active-source-id" "$GAMES_DIR/.active-source-mtime" 2>/dev/null \
+        || sudo rm -f "$GAMES_DIR/.active-source-id" "$GAMES_DIR/.active-source-mtime"
+    SUDOERS_TMP="$(mktemp)"
+    echo "$USER ALL=(root) NOPASSWD: /usr/local/sbin/arcade-disk-load.sh" > "$SUDOERS_TMP"
+    if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
+        sudo install -m 440 "$SUDOERS_TMP" /etc/sudoers.d/arcade-disk-load
+    else
+        log "WARNING: could not validate sudoers rule; floppy loading disabled"
+    fi
+    rm -f "$SUDOERS_TMP"
+    log "Floppy disk loading installed."
 fi
 
 # ── 10. Git update service ────────────────────────────────────────────────────

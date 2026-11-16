@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reading Disk</title>
+  <link rel="stylesheet" href="font-local.css" />
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #msg {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 28px;
+      color: #fff;
+      text-shadow: 4px 4px 0 #333;
+      letter-spacing: 2px;
+      white-space: nowrap;
+    }
+    #msg::after {
+      content: '';
+      animation: dots 1.2s steps(1) infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+      100% { content: '....'; }
+    }
+  </style>
+</head>
+<body>
+  <div id="msg">READING DISK</div>
+</body>
+</html>
