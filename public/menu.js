@@ -453,18 +453,23 @@ function onActivity() {
 showScene('attract');
 
 // ---- Aggressive focus management for kiosk mode ----
-function ensureFocus() {
-  if (document.activeElement !== document.body) {
+// While a game is open the focus belongs on the game frame — focusing body
+// would steal its keyboard input (Esc, R, sim controls).
+function focusShellTarget() {
+  if (gameOpen) {
+    gameFrame.focus();
+    try { if (gameFrame.contentWindow) gameFrame.contentWindow.focus(); } catch (e) {}
+  } else if (document.activeElement !== document.body) {
     document.body.focus();
   }
 }
 window.addEventListener('load', () => {
   document.body.tabIndex = 0;
   document.body.focus();
-  setInterval(ensureFocus, 100);
+  setInterval(focusShellTarget, 100);
 });
-window.addEventListener('blur', () => setTimeout(() => document.body.focus(), 10));
-document.addEventListener('visibilitychange', () => { if (!document.hidden) document.body.focus(); });
+window.addEventListener('blur', () => setTimeout(focusShellTarget, 10));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) focusShellTarget(); });
 
 // Keyboard input - multiple listeners for kiosk compatibility
 function handleKey(e) {
