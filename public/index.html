@@ -37,6 +37,11 @@
 
     </div>
   </div>
+
+  <!-- Game layer: play.html in a full-window iframe. Swapped in/out for
+       instant menu<->game transitions — no second window ever opens. -->
+  <iframe id="game-frame" class="hidden" allow="autoplay" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>
+
   <script src="menu.js"></script>
 </body>
 </html>

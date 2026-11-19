@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-# gpio-monitor.py - GPIO button monitor + inactivity timeout for Dual-Chromium kiosk
-# Watches reset button, monitors GPIO activity AND USB gamepad activity, kills game Chromium after inactivity
+# gpio-monitor.py - GPIO button monitor + inactivity timeout for single-window kiosk
+# Watches reset button and USB gamepad activity; asks the kiosk to close the
+# game iframe (route back to menu) — nothing is killed.
 
 import RPi.GPIO as GPIO
 import time
-import subprocess
+import json
 import os
 import threading
-import signal
 import struct
 import select
 import glob
+import urllib.request
 
 # Configuration
 RESET_PIN = 4           # BCM GPIO 4 for reset button (from arcade.cfg BTN_RESET)
 # Reset button is ACTIVE LOW - connect button between GPIO 4 and Ground
 BUTTON_PINS = []        # Loaded from arcade.cfg
 INACTIVITY_SECONDS = 2 * 60  # 2 minutes
-GAME_PID_FILE = "/tmp/arcade-game-chromium.pid"
+API = "http://localhost:3000"
 
 # State
 _last_activity = time.monotonic()
@@ -56,24 +57,18 @@ def load_button_pins():
     # De-dupe
     return list(dict.fromkeys(pins))
 
-def is_game_running():
-    """Check if game Chromium is running via PID file"""
+def api_get(path):
+    """GET a JSON endpoint on the arcade server. Returns {} on failure."""
     try:
-        with open(GAME_PID_FILE, "r") as f:
-            pid = int(f.read().strip())
-        # Check if process exists
-        os.kill(pid, 0)
-        return True
-    except (FileNotFoundError, ValueError, OSError):
-        return False
+        with urllib.request.urlopen(API + path, timeout=5) as r:
+            return json.loads(r.read().decode())
+    except Exception as e:
+        log(f"API {path} failed: {e}")
+        return {}
 
-def get_game_pid():
-    """Get game Chromium PID from file"""
-    try:
-        with open(GAME_PID_FILE, "r") as f:
-            return int(f.read().strip())
-    except (FileNotFoundError, ValueError):
-        return None
+def is_game_running():
+    """Ask the server whether the menu page has a game open."""
+    return bool(api_get("/api/game-state").get("active"))
 
 def on_button_activity(channel):
     """Any button press resets activity timer"""
@@ -81,9 +76,9 @@ def on_button_activity(channel):
     _last_activity = time.monotonic()
 
 def on_reset_press(channel):
-    """Reset button immediately kills game Chromium"""
+    """Reset button routes the kiosk back to the menu"""
     log(f"Reset button pressed on pin {channel}")
-    kill_game_chromium()
+    return_to_menu()
 
 def open_joystick_devices():
     """Open all available joystick devices for monitoring"""
@@ -146,32 +141,10 @@ def check_joystick_activity():
     
     return False
 
-def kill_game_chromium():
-    """Kill game Chromium process directly via PID file"""
-    pid = get_game_pid()
-    if pid:
-        try:
-            os.kill(pid, signal.SIGTERM)
-            log(f"Sent SIGTERM to game Chromium (PID: {pid})")
-            # Wait a bit then force kill if still running
-            time.sleep(1)
-            try:
-                os.kill(pid, 0)
-                os.kill(pid, signal.SIGKILL)
-                log(f"Force killed game Chromium (PID: {pid})")
-            except OSError:
-                pass  # Already dead
-        except OSError as e:
-            log(f"Error killing game Chromium: {e}")
-    else:
-        # Fallback: try to find and kill by pattern
-        try:
-            subprocess.run(["pkill", "-f", "chromium.*localhost:3000/play"], 
-                         capture_output=True, timeout=5)
-            log("Killed game Chromium via pkill pattern")
-        except Exception as e:
-            log(f"pkill failed: {e}")
-    
+def return_to_menu():
+    """Ask the kiosk to close the game iframe — the page swaps back itself"""
+    log("Requesting return to menu via /api/kill-game")
+    api_get("/api/kill-game")
     global _last_activity
     _last_activity = time.monotonic()
 
@@ -202,8 +175,8 @@ def inactivity_monitor():
         if game_running:
             inactive_time = time.monotonic() - _last_activity
             if inactive_time > INACTIVITY_SECONDS:
-                log(f"TIMEOUT! Inactive for {int(inactive_time)}s in game, killing game Chromium")
-                kill_game_chromium()
+                log(f"TIMEOUT! Inactive for {int(inactive_time)}s in game, returning to menu")
+                return_to_menu()
             else:
                 log(f"In game, inactive for {int(inactive_time)}s (timeout: {INACTIVITY_SECONDS}s)")
         else:

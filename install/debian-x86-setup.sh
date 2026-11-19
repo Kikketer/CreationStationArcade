@@ -1,14 +1,14 @@
 #!/bin/bash
 # debian-x86-setup.sh — one-shot Debian x86 setup for Creation Station Arcade kiosk mode
 # For Intel/AMD desktop/laptop systems (NOT Raspberry Pi)
-# Uses dual-chromium architecture: menu Chromium (always-on) + game Chromium (spawned)
+# Single-window architecture: one kiosk Chromium; games swap in via iframe
 # Assumes standard USB gamepads (no GPIO)
 #
 # This script:
 #   1. Installs required packages
 #   2. Configures auto-login and Xorg
 #   3. Creates runtime folder from git repo
-#   4. Sets up dual-chromium kiosk with menu-launcher.sh
+#   4. Sets up single-window kiosk with menu-launcher.sh + Plymouth splash
 # Usage: bash install/debian-x86-setup.sh (run from repo root)
 
 set -e
@@ -55,6 +55,9 @@ sudo apt-get install -y \
     alsa-utils \
     pulseaudio \
     pulseaudio-utils \
+    feh \
+    plymouth \
+    plymouth-themes \
     >> "$LOG" 2>&1
 log "Packages installed."
 
@@ -115,8 +118,12 @@ unclutter -idle 0.1 -root &
 # fullscreen/kiosk state and window geometry gets ignored.
 openbox &
 
-# Launch arcade from runtime folder (dual-chromium mode)
+# Splash bridge: paint the boot logo on the root window so there's no black
+# gap between Plymouth quitting and Chromium first paint.
 RUN_DIR="$RUN_DIR"
+feh --bg-scale "\$RUN_DIR/install/splash.png" 2>/dev/null || true
+
+# Launch arcade from runtime folder (single-window kiosk)
 if [ -f "\$RUN_DIR/menu-launcher.sh" ]; then
     cd "\$RUN_DIR"
     exec bash menu-launcher.sh
@@ -128,7 +135,7 @@ fi
 XEOF
 chmod +x "$XINITRC"
 chown "$USER_NAME:$USER_NAME" "$XINITRC" "$PROFILE" 2>/dev/null || true
-log ".xinitrc configured for dual-chromium mode."
+log ".xinitrc configured for single-window mode."
 
 # ── 6. Create runtime folder (sync from repo) ────────────────────────────────
 log "Creating runtime folder at $RUN_DIR..."
@@ -147,11 +154,11 @@ chmod +x "$RUN_DIR/kill-to-menu.sh" 2>/dev/null || true
 log "Runtime folder created."
 
 # ── 7. Menu launcher ──────────────────────────────────────────────────────────
-# The repo's menu-launcher.sh (dual-chromium, user-agnostic paths) is synced
+# The repo's menu-launcher.sh (single-window, user-agnostic paths) is synced
 # into the runtime folder and used directly — a generated copy here would be
 # overwritten by the boot-time rsync anyway.
 chmod +x "$RUN_DIR/menu-launcher.sh"
-log "Using repo menu-launcher.sh (dual-chromium)."
+log "Using repo menu-launcher.sh (single-window)."
 
 # ── 8. Git update service ─────────────────────────────────────────────────────
 log "Configuring background git updates..."
@@ -242,7 +249,24 @@ sudo udevadm control --reload-rules 2>/dev/null || true
 log "USB controller tools installed."
 log "After plugging in controllers, run: sudo bash $RUN_DIR/setup-usb-controllers.sh"
 
-# ── 11. Suppress boot messages (Debian x86 paths) ───────────────────────────
+# ── 11. Plymouth boot splash ──────────────────────────────────────────────
+# Repo carries the 'arcade' theme under install/usr/share/plymouth/themes —
+# a script theme that paints media/MadeArcadeBoot.png fullscreen. GRUB gets
+# 'quiet splash' below, which is what makes Plymouth actually show.
+log "Installing Plymouth boot splash..."
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+    THEME_DIR="/usr/share/plymouth/themes/arcade"
+    sudo mkdir -p "$THEME_DIR"
+    sudo cp -a "$REPO_DIR/install/usr/share/plymouth/themes/arcade/." "$THEME_DIR/"
+    sudo cp -f "$REPO_DIR/media/MadeArcadeBoot.png" "$THEME_DIR/MadeArcadeBoot.png"
+    sudo plymouth-set-default-theme -R arcade >> "$LOG" 2>&1 \
+        || log "WARNING: plymouth-set-default-theme failed"
+    log "Plymouth theme 'arcade' installed."
+else
+    log "WARNING: plymouth-set-default-theme not found; skipping boot splash."
+fi
+
+# ── 12. Suppress boot messages (Debian x86 paths) ───────────────────────────
 log "Suppressing boot messages..."
 # Debian uses /etc/default/grub for kernel parameters
 if [ -f /etc/default/grub ]; then
@@ -259,14 +283,14 @@ log "=== Setup complete. Reboot to activate. ==="
 echo ""
 echo "Run: sudo reboot"
 echo ""
-echo "After reboot, the arcade will auto-start in dual-chromium kiosk mode."
+echo "After reboot, the arcade will auto-start in single-window kiosk mode."
 echo "Runtime folder: $RUN_DIR"
 echo "Source folder:  $REPO_DIR"
 echo ""
-echo "Dual-chromium architecture:"
-echo "  - Menu Chromium: always running (http://localhost:3000/)"
-echo "  - Game Chromium: spawned by server.js when game selected"
-echo "  - Kill button: returns to menu instantly"
+echo "Single-window architecture:"
+echo "  - One kiosk Chromium (http://localhost:3000/) serves menu + games"
+echo "  - Games swap in via iframe; reset button routes back to the menu"
+echo "  - Plymouth boot splash hides boot text"
 echo ""
 echo "USB Controller Setup (after plugging in controllers):"
 echo "  sudo bash $RUN_DIR/setup-usb-controllers.sh"

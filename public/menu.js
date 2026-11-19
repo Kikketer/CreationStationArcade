@@ -15,6 +15,11 @@ let lastGamepadInput = 0;
 let isLaunching = false;
 let placeholderCache = {};
 
+// Single-window kiosk: the game runs inside #game-frame (play.html) and is
+// swapped in/out — no second window. gameOpen gates all menu input.
+let gameOpen = false;
+let gameStatePoll = null;
+
 // Scene state: 'menu' | 'attract'
 let currentScene = 'attract';
 let idleTimer = null;
@@ -25,6 +30,7 @@ const gameList = document.getElementById('game-list');
 const pixelScreen = document.getElementById('pixel-screen');
 const sceneMenu = document.getElementById('scene-menu');
 const sceneAttract = document.getElementById('scene-attract');
+const gameFrame = document.getElementById('game-frame');
 
 // Virtual resolution
 const VIRTUAL_W = 160;
@@ -254,7 +260,7 @@ function onBPress() {
 // Runs every frame with the raw B state — not throttled like other input,
 // so quick taps aren't missed.
 function trackArchiveGesture(bDown, now) {
-  if (currentScene !== 'menu' || isLaunching) {
+  if (currentScene !== 'menu' || isLaunching || gameOpen) {
     if (archiveArmed) disarmArchive();
     if (!bDown) bCombo = 0;
     bWasDown = bDown;
@@ -283,7 +289,7 @@ async function confirmArchive() {
 
 // Navigation with grid layout awareness (2 columns fixed)
 function move(dir) {
-  if (!games.length || isLaunching) return;
+  if (!games.length || isLaunching || gameOpen) return;
   if (archiveArmed) { moveArmed(dir); return; }
   resetArchiveGesture();
 
@@ -310,7 +316,7 @@ function move(dir) {
 
 // Launch game (or confirm an armed archive)
 async function selectGame() {
-  if (!games.length || isLaunching) return;
+  if (!games.length || isLaunching || gameOpen) return;
   if (archiveArmed) { confirmArchive(); return; }
   const game = games[selectedIndex];
   if (!game || !game.file) return;
@@ -320,18 +326,71 @@ async function selectGame() {
   if (card) card.classList.add('is-disabled');
 
   try {
-    const res = await fetch(`/api/launch-game?name=${encodeURIComponent(game.name)}&file=${encodeURIComponent(game.file)}`);
+    const url = `/api/launch-game?name=${encodeURIComponent(game.name)}&file=${encodeURIComponent(game.file)}`;
+    const res = await fetch(url);
     const data = await res.json();
 
-    if (res.status === 409) console.log('Game already running');
-    else if (res.status === 429) console.log('Launch pending');
-    else if (data.ok) console.log('Game launched');
+    if (res.status === 409) {
+      // Stale flag from a crashed game — clear it and retry once.
+      console.log('Game already running; clearing stale state');
+      await fetch('/api/game-closed').catch(() => {});
+      const retry = await fetch(url);
+      const rdata = await retry.json();
+      if (rdata.ok) openGame(game);
+    } else if (res.status === 429) {
+      console.log('Launch pending');
+    } else if (data.ok) {
+      openGame(game);
+    }
   } catch (e) {
     console.error('Launch error:', e);
   }
 
   isLaunching = false;
   if (card) card.classList.remove('is-disabled');
+}
+
+// ---- Single-window game swap ----
+// The game loads play.html inside #game-frame. Returning to the menu just
+// hides and unloads the iframe — instant, no second window, and the menu's
+// own state (selection, scroll) is never torn down.
+
+function openGame(game) {
+  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+  gameOpen = true;
+  gameFrame.src = `/play?game=${encodeURIComponent(game.name)}&file=${encodeURIComponent(game.file)}`;
+  gameFrame.classList.remove('hidden');
+  startGameStatePoll();
+}
+
+function closeGame() {
+  if (!gameOpen) return;
+  gameOpen = false;
+  if (gameStatePoll) { clearInterval(gameStatePoll); gameStatePoll = null; }
+  gameFrame.classList.add('hidden');
+  gameFrame.src = 'about:blank';
+  fetch('/api/game-closed').catch(() => {});
+  showScene('menu'); // re-arms the menu idle timer
+  document.body.focus();
+}
+
+// play.html posts {type:'arcade-exit'} for its own exits (Esc, exit buttons,
+// idle timeout).
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'arcade-exit') closeGame();
+});
+
+// The physical reset path (GPIO button, kill-to-menu.sh) sets a flag on the
+// server; we poll it while a game is open so the swap stays in-page.
+function startGameStatePoll() {
+  if (gameStatePoll) clearInterval(gameStatePoll);
+  gameStatePoll = setInterval(async () => {
+    try {
+      const res = await fetch('/api/game-state');
+      const s = await res.json();
+      if (s.closeRequested || !s.active) closeGame();
+    } catch (e) {}
+  }, 400);
 }
 
 // Load games
@@ -383,6 +442,7 @@ function resetIdleTimer() {
 }
 
 function onActivity() {
+  if (gameOpen) return;
   if (currentScene !== 'menu') {
     showScene('menu');
   }
@@ -408,6 +468,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) docu
 
 // Keyboard input - multiple listeners for kiosk compatibility
 function handleKey(e) {
+  if (gameOpen) return;
   const wasAttract = currentScene !== 'menu';
   onActivity();
   if (wasAttract) return; // wakeup press only - don't act
@@ -449,6 +510,13 @@ function trackButtonStats(pads) {
 }
 
 function pollGamepads() {
+  // While a game is open its own page handles all gamepad input (incl.
+  // button stats and the exit buttons), so the menu must ignore the pads.
+  if (gameOpen) {
+    requestAnimationFrame(pollGamepads);
+    return;
+  }
+
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   const now = performance.now();
   trackButtonStats(pads);
@@ -566,6 +634,8 @@ async function loadConfig() {
 }
 
 // Init
+// Clear any stale game flag — a fresh page load means no game iframe exists.
+fetch('/api/game-closed').catch(() => {});
 window.addEventListener('gamepadconnected', () => {});
 pollGamepads();
 loadConfig();

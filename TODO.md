@@ -1,28 +1,23 @@
 # Creation Station Arcade - TODO & Status
 
-## Current Architecture (Dual-Chromium Mode)
+## Current Architecture (Single-Window Mode)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     NODE SERVER (server.js)                      │
 │  • Serves static files (public/)                                │
 │  • /api/games - list available games                              │
-│  • /api/launch-game?name=XXX - spawns game Chromium             │
+│  • /api/launch-game?name=XXX - marks game active (stats/409)    │
+│  • /api/game-state / game-closed / kill-game - game lifecycle   │
 │  • /api/heartbeat - activity ping                               │
-│  • Manages game process via child_process.spawn()              │
-│  • Handles window focus (xdotool)                               │
 └─────────────────────────────────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│              GAME CHROMIUM (spawned by server)                  │
-│              http://localhost:3000/play?game=XXX               │
-│              Kill button → dies instantly, menu revealed!        │
-└─────────────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────────────┐
-│              MENU CHROMIUM (always running via xinitrc)          │
+│              KIOSK CHROMIUM (the only window ever opened)        │
 │              http://localhost:3000/                             │
-│              Never killed, always ready for instant return       │
+│              Menu page swaps the game in via #game-frame         │
+│              (play.html in an iframe) — instant, nothing killed  │
+│              Reset button → /api/kill-game → page routes back    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -46,21 +41,19 @@
 - [x] Made git sync non-blocking in `kill-to-menu.sh`
 - [x] Background sync runs on slow/no WiFi without blocking menu
 
-### Dual-Chromium Architecture
-- [x] `server.js` - Spawns game Chromium directly via `child_process.spawn()`
-- [x] `menu-launcher.sh` - Launches menu Chromium + Node server
+### Single-Window Architecture (iframe swap)
+- [x] `server.js` - Tracks game state only (`/api/game-state`, `/api/game-closed`); no process spawning
+- [x] `menu-launcher.sh` - Launches the one kiosk Chromium + Node server
+- [x] `menu.js` - `#game-frame` iframe swap; `/api/game-state` poll; `arcade-exit` postMessage
+- [x] `play.html` - Runs inside the menu's iframe; exits postMessage to the shell
 - [x] Singleton protection - API returns 409 if game already running
-- [x] Window focus management - lowers menu, raises game, refocuses menu on exit
-- [x] PID file tracking - `/tmp/arcade-game-chromium.pid`
-- [x] DISPLAY env fix for Chromium spawning
+- [x] No window management at all — menu page never dies, swap is ~instant
 
-### GPIO Monitor (Dual-Chromium Ready)
-- [x] `gpio-monitor.py` - Updated for PID-based game detection
-- [x] Kill game Chromium directly via PID file (not Chrome DevTools)
-- [x] Reset button kills game Chromium only
-- [x] Inactivity monitor kills game after 2 minutes
+### GPIO Monitor (Single-Window Ready)
+- [x] `gpio-monitor.py` - Asks the server to close the game (no process kill)
+- [x] Reset button → `/api/kill-game` → page routes back to menu
+- [x] Inactivity monitor returns to menu after 2 minutes
 - [x] Timer resets when back at menu
-- [x] **TESTED** - All buttons wired and working (May 25, 2026)
 
 ### GPIO Hardware Setup ✅ (Fully Tested)
 - [x] Reset button wired to GPIO 4 (BCM) - active low (ground to pin)
@@ -111,11 +104,11 @@
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `server.js` | Node HTTP server, spawns game Chromium | Ready |
-| `menu-launcher.sh` | Launches menu Chromium + server | Ready |
-| `kill-to-menu.sh` | Kills game Chromium | Ready |
-| `install/kiosk-setup.sh` | Pi 5 one-shot kiosk setup (with `--gpio-controllers` option) | ✅ Dual-chromium |
-| `install/debian-x86-setup.sh` | Debian x86 one-shot kiosk setup (USB controllers) | ✅ Dual-chromium |
+| `server.js` | Node HTTP server, tracks game state | Ready |
+| `menu-launcher.sh` | Launches the kiosk Chromium + server | Ready |
+| `kill-to-menu.sh` | Routes back to menu via `/api/kill-game` | Ready |
+| `install/kiosk-setup.sh` | Pi 5 one-shot kiosk setup (with `--gpio-controllers` option) | ✅ Single-window |
+| `install/debian-x86-setup.sh` | Debian x86 one-shot kiosk setup (USB controllers, Plymouth splash) | ✅ Single-window |
 | `setup-usb-controllers.sh` | Configure stable USB controller ordering by physical port | ✅ Stable P1-P4 |
 | `install/usb-controllers.udev` | Udev rules template for USB controller stability | ✅ Template |
 | `gpio-monitor.py` | GPIO monitor + inactivity timeout | Ready |
@@ -142,7 +135,7 @@ bash install/kiosk-setup.sh
 # Raspberry Pi 5 kiosk setup with GPIO virtual gamepads
 bash install/kiosk-setup.sh --gpio-controllers
 
-# Debian/Ubuntu x86 kiosk setup (USB controllers, dual-chromium)
+# Debian/Ubuntu x86 kiosk setup (USB controllers, single-window)
 bash install/debian-x86-setup.sh
 
 # Configure stable USB controller ordering (run after plugging in controllers)

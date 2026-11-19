@@ -190,3 +190,15 @@ header #logo {
 #attract-text .highlight {
   color: #f7d51d;
 }
+
+/* Game iframe overlay: fills the whole window above the pixel screen.
+   Hidden/shown for instant menu<->game swaps (single-window kiosk). */
+#game-frame {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #000;
+  z-index: 200;
+}

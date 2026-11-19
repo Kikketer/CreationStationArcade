@@ -1,6 +1,6 @@
 #!/bin/bash
-# menu-launcher.sh - Launches menu Chromium (game Chromium spawned by server.js)
-# This is the NEW dual-Chromium architecture where server spawns games directly
+# menu-launcher.sh - Launches the single kiosk Chromium window
+# The menu page swaps games in/out via iframe — one window for everything
 
 LOG_FILE="$HOME/arcade.log"
 PID_FILE="/tmp/arcade-server.pid"
@@ -21,8 +21,8 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-log "=== Menu Launcher Starting (Dual-Chromium Mode) ==="
-log "Menu Chromium will be launched here. Game Chromium spawned by server.js"
+log "=== Menu Launcher Starting (Single-Window Mode) ==="
+log "One kiosk Chromium serves menu + games (iframe swap)."
 
 
 # Kill any existing processes
@@ -61,7 +61,7 @@ echo $SERVER_PID > "$PID_FILE"
 log "Waiting for server..."
 for i in {1..30}; do
     if curl -s http://localhost:3000 >/dev/null 2>&1; then
-        log "Server ready (server.js will spawn game Chromium when needed)"
+        log "Server ready"
         break
     fi
     sleep 1
@@ -107,8 +107,8 @@ RES="${CFG_RES:-$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')}"
 [ -n "$RES" ] || RES="1920x1080"
 log "Display resolution: $RES"
 
-# Launch MENU Chromium (always running, kiosk mode, bottom layer)
-log "Launching MENU Chromium (kiosk, always-on)..."
+# Launch the kiosk Chromium (only window ever opened)
+log "Launching kiosk Chromium..."
 "$CHROMIUM_BIN" \
     --user-data-dir=/tmp/chromium-arcade-menu \
     --kiosk \
@@ -119,7 +119,7 @@ log "Launching MENU Chromium (kiosk, always-on)..."
 
 MENU_PID=$!
 echo $MENU_PID > "$MENU_CHROMIUM_PID_FILE"
-log "Menu Chromium started (PID: $MENU_PID)"
+log "Kiosk Chromium started (PID: $MENU_PID)"
 
 # Wait for menu window to appear
 sleep 3
@@ -137,11 +137,11 @@ if command -v xdotool >/dev/null 2>&1; then
     done
 fi
 
-# Monitor loop - just keep menu running, server handles game spawning
+# Monitor loop - keep the single kiosk window running
 while true; do
-    # Check if menu died (restart if so)
+    # Check if it died (restart if so)
     if ! kill -0 "$MENU_PID" 2>/dev/null; then
-        log "WARNING: Menu Chromium died, restarting..."
+        log "WARNING: Kiosk Chromium died, restarting..."
         "$CHROMIUM_BIN" \
             --user-data-dir=/tmp/chromium-arcade-menu \
             --kiosk \
