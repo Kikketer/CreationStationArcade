@@ -44,7 +44,7 @@ fi
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Background update: syncing to runtime folder" >> "$LOG_FILE"
 mkdir -p "$RUN_DIR"
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --no-group --no-owner --delete --exclude ".git" --exclude "arcade.log" --exclude ".lgd-*" "$SOURCE_DIR"/ "$RUN_DIR"/
+    rsync -a --no-group --no-owner --delete --exclude ".git" --exclude "arcade.log" --exclude ".lgd-*" --exclude "__pycache__" --exclude "*.pyc" "$SOURCE_DIR"/ "$RUN_DIR"/
 else
     rm -rf "$RUN_DIR"
     cp -a "$SOURCE_DIR" "$RUN_DIR"

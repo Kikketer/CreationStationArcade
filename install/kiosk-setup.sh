@@ -167,7 +167,7 @@ log "Creating runtime folder at $RUN_DIR..."
 mkdir -p "$RUN_DIR"
 
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete --exclude ".git" --exclude "arcade.log" "$REPO_DIR"/ "$RUN_DIR"/
+    rsync -a --delete --exclude ".git" --exclude "arcade.log" --exclude "__pycache__" --exclude "*.pyc" "$REPO_DIR"/ "$RUN_DIR"/
 else
     cp -a "$REPO_DIR"/ "$RUN_DIR"/
 fi
