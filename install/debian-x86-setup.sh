@@ -118,6 +118,10 @@ unclutter -idle 0.1 -root &
 # fullscreen/kiosk state and window geometry gets ignored.
 openbox &
 
+# With no display manager nothing else quits Plymouth — release the
+# framebuffer before X takes the VT (no-op when Plymouth isn't running).
+plymouth quit 2>/dev/null || true
+
 # Splash bridge: paint the boot logo on the root window so there's no black
 # gap between Plymouth quitting and Chromium first paint.
 RUN_DIR="$RUN_DIR"
@@ -270,13 +274,32 @@ fi
 log "Suppressing boot messages..."
 # Debian uses /etc/default/grub for kernel parameters
 if [ -f /etc/default/grub ]; then
-    sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*"/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 splash"/' /etc/default/grub 2>/dev/null || \
-    sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=""/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 splash"/' /etc/default/grub 2>/dev/null || \
-    sudo sed -i '$aGRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 splash"' /etc/default/grub 2>/dev/null || true
+    sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*"/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 splash vt.global_cursor_default=0"/' /etc/default/grub 2>/dev/null || \
+    sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=""/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 splash vt.global_cursor_default=0"/' /etc/default/grub 2>/dev/null || \
+    sudo sed -i '$aGRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 splash vt.global_cursor_default=0"' /etc/default/grub 2>/dev/null || true
     sudo update-grub 2>/dev/null || log "WARNING: Could not update GRUB"
     log "Boot quiet flags configured."
 else
     log "WARNING: /etc/default/grub not found; skipping boot flag update."
+fi
+
+# ── 13. Intel TearFree (X11-level vsync) ────────────────────────────────────
+# openbox has no compositor, so Chromium tears against the display refresh.
+# The modesetting driver's TearFree option fixes it GPU-side — cheap enough
+# to be the default on the i3-8100/UHD-630 floor. Only on Intel boxes: the
+# section pins the modesetting driver, which would fight NVIDIA/AMD setups.
+if lspci 2>/dev/null | grep -Eiq 'vga.*intel|intel.*vga'; then
+    sudo mkdir -p /etc/X11/xorg.conf.d
+    sudo tee /etc/X11/xorg.conf.d/20-intel-tearfree.conf > /dev/null <<'EOF'
+Section "Device"
+    Identifier "Intel Graphics"
+    Driver "modesetting"
+    Option "TearFree" "true"
+EndSection
+EOF
+    log "Intel TearFree enabled (Xorg vsync; /etc/X11/xorg.conf.d/20-intel-tearfree.conf)."
+else
+    log "No Intel GPU detected; skipping TearFree config."
 fi
 
 log "=== Setup complete. Reboot to activate. ==="
