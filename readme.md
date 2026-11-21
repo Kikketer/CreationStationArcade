@@ -97,4 +97,28 @@ By default the menu splits the filename on camelCase (`LouisaMushrooms.js` → a
 - `display.offsetX` / `offsetY` — shift the whole menu screen in real pixels, for bezels or off-center displays.
 - `display.scale` — nudges the auto-fit size; the result **snaps to a whole number** (pixel art blurs at fractional scales). Small changes may round to the same size — `1.0` and `1.1` can look identical.
 - `exitButtons` — gamepad button indices that route the running game back to the menu (default `[8, 9]` = Start/Select). Wire a dedicated cabinet reset button into a USB encoder input and set its index here.
+- `chromiumFlags` — array of extra Chromium flags appended last (they win where Chromium honors the last flag). Restart the kiosk to apply. Use it to experiment with GPU backends without editing the launcher.
 - Missing or invalid `config.jsonc` falls back to the built-in defaults. The page picks up changes on its next idle cycle.
+
+### Performance / tearing experiments (low-end x86)
+
+If games tear or run at low framerate, work through this in order on the box:
+
+1. **Check what Chromium accelerated**: `DISPLAY=:0 chromium --user-data-dir=/tmp/gpu chrome://gpu` (or attach via remote debugging on `:9222`). If "Canvas/WebGL" says *software*, GPU accel is broken — that's the framerate problem.
+2. **GPU backend flags** — try one at a time in `chromiumFlags`:
+   - `["--use-angle=gl"]` (ANGLE→GL, the default path Debian allows)
+   - `["--use-angle=gles"]`
+   - `["--use-gl=angle"]`
+   - `["--disable-gpu"]` (deterministic software fallback — compare tearing)
+3. **Xorg TearFree** (Intel/modesetting) — fixes tearing independent of Chromium:
+   ```bash
+   sudo tee /etc/X11/xorg.conf.d/20-intel-tearfree.conf <<'EOF'
+   Section "Device"
+     Identifier "Intel Graphics"
+     Driver "modesetting"
+     Option "TearFree" "true"
+   EndSection
+   EOF
+   ```
+   then reboot.
+4. **Compositor** — openbox has none, so tearing is expected; `picom` adds vsync: `sudo apt install picom`, then add `picom --vsync --backend glx &` to `.xinitrc` before `openbox`.
