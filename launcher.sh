@@ -77,16 +77,16 @@ RES="${CFG_RES:-$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')}"
 [ -n "$RES" ] || RES="1920x1080"
 
 # Per-machine Chromium flag overrides: config.jsonc "chromiumFlags": [...]
-read -ra EXTRA_FLAGS <<< "$(python3 -c "
+readarray -t EXTRA_FLAGS < <(python3 -c "
 import json, re, sys
 try:
     s = open(sys.argv[1]).read()
     s = re.sub(r'//[^\\n]*', '', s)
     s = re.sub(r'/\\*.*?\\*/', '', s, flags=re.S)
-    print(' '.join(json.loads(s).get('chromiumFlags', [])))
+    sys.stdout.write('\\n'.join(json.loads(s).get('chromiumFlags', [])))
 except Exception:
-    print('')
-" "$HOME/arcade-games/config.jsonc" 2>/dev/null)"
+    pass
+" "$HOME/arcade-games/config.jsonc" 2>/dev/null)
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
 "$CHROMIUM_BIN" \

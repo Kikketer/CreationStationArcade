@@ -110,16 +110,16 @@ log "Display resolution: $RES"
 # Appended last so they win where Chromium honors the last flag — lets you
 # experiment with GPU backends (--use-angle=gl etc.) without editing this
 # script, and survives the boot-time rsync since config lives outside it.
-read -ra EXTRA_FLAGS <<< "$(python3 -c "
+readarray -t EXTRA_FLAGS < <(python3 -c "
 import json, re, sys
 try:
     s = open(sys.argv[1]).read()
     s = re.sub(r'//[^\\n]*', '', s)
     s = re.sub(r'/\\*.*?\\*/', '', s, flags=re.S)
-    print(' '.join(json.loads(s).get('chromiumFlags', [])))
+    sys.stdout.write('\\n'.join(json.loads(s).get('chromiumFlags', [])))
 except Exception:
-    print('')
-" "$HOME/arcade-games/config.jsonc" 2>/dev/null)"
+    pass
+" "$HOME/arcade-games/config.jsonc" 2>/dev/null)
 [ ${#EXTRA_FLAGS[@]} -gt 0 ] && log "Extra Chromium flags: ${EXTRA_FLAGS[*]}"
 
 # Launch the kiosk Chromium (only window ever opened)
