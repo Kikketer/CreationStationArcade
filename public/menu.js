@@ -358,8 +358,13 @@ async function selectGame() {
 function openGame(game) {
   if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
   gameOpen = true;
+  // Keep the frame hidden until play.html has painted — otherwise Chromium
+  // flashes the blank white about:blank document during navigation.
+  gameFrame.onload = () => {
+    gameFrame.onload = null;
+    if (gameOpen) gameFrame.classList.remove('hidden');
+  };
   gameFrame.src = `/play?game=${encodeURIComponent(game.name)}&file=${encodeURIComponent(game.file)}`;
-  gameFrame.classList.remove('hidden');
   startGameStatePoll();
 }
 
