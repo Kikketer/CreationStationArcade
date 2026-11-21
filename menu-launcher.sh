@@ -84,7 +84,6 @@ CHROMIUM_FLAGS=(
     --enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy
     --ignore-gpu-blocklist
     --enable-gpu-rasterization
-    --use-gl=egl
     --hide-scrollbars
     --suppress-message-center-popups
     --remote-debugging-port=9222
@@ -107,6 +106,22 @@ RES="${CFG_RES:-$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')}"
 [ -n "$RES" ] || RES="1920x1080"
 log "Display resolution: $RES"
 
+# Per-machine Chromium flag overrides: config.jsonc "chromiumFlags": [...]
+# Appended last so they win where Chromium honors the last flag — lets you
+# experiment with GPU backends (--use-angle=gl etc.) without editing this
+# script, and survives the boot-time rsync since config lives outside it.
+readarray -t EXTRA_FLAGS < <(python3 -c "
+import json, re, sys
+try:
+    s = open(sys.argv[1]).read()
+    s = re.sub(r'//[^\\n]*', '', s)
+    s = re.sub(r'/\\*.*?\\*/', '', s, flags=re.S)
+    sys.stdout.write('\\n'.join(json.loads(s).get('chromiumFlags', [])))
+except Exception:
+    pass
+" "$HOME/arcade-games/config.jsonc" 2>/dev/null)
+[ ${#EXTRA_FLAGS[@]} -gt 0 ] && log "Extra Chromium flags: ${EXTRA_FLAGS[*]}"
+
 # Launch the kiosk Chromium (only window ever opened)
 log "Launching kiosk Chromium..."
 "$CHROMIUM_BIN" \
@@ -115,6 +130,7 @@ log "Launching kiosk Chromium..."
     --window-size=$RES \
     --start-fullscreen \
     "${CHROMIUM_FLAGS[@]}" \
+    "${EXTRA_FLAGS[@]}" \
     http://localhost:3000/ >> "$LOG_FILE" 2>&1 &
 
 MENU_PID=$!
@@ -145,9 +161,10 @@ while true; do
         "$CHROMIUM_BIN" \
             --user-data-dir=/tmp/chromium-arcade-menu \
             --kiosk \
-    --window-size=$RES \
+            --window-size=$RES \
             --start-fullscreen \
             "${CHROMIUM_FLAGS[@]}" \
+            "${EXTRA_FLAGS[@]}" \
             http://localhost:3000/ >> "$LOG_FILE" 2>&1 &
         MENU_PID=$!
         echo $MENU_PID > "$MENU_CHROMIUM_PID_FILE"

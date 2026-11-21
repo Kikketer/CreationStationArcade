@@ -75,6 +75,19 @@ except Exception:
 " "$HOME/arcade-games/config.jsonc" 2>/dev/null)"
 RES="${CFG_RES:-$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')}"
 [ -n "$RES" ] || RES="1920x1080"
+
+# Per-machine Chromium flag overrides: config.jsonc "chromiumFlags": [...]
+readarray -t EXTRA_FLAGS < <(python3 -c "
+import json, re, sys
+try:
+    s = open(sys.argv[1]).read()
+    s = re.sub(r'//[^\\n]*', '', s)
+    s = re.sub(r'/\\*.*?\\*/', '', s, flags=re.S)
+    sys.stdout.write('\\n'.join(json.loads(s).get('chromiumFlags', [])))
+except Exception:
+    pass
+" "$HOME/arcade-games/config.jsonc" 2>/dev/null)
+
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
 "$CHROMIUM_BIN" \
     --user-data-dir=/tmp/chromium-arcade \
@@ -99,7 +112,7 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] Launching Chromium kiosk" >> $LOG_FILE
     --force-gpu-rasterization \
     --enable-zero-copy \
     --enable-hardware-overlays \
-    --use-gl=egl \
+    ${EXTRA_FLAGS:+"${EXTRA_FLAGS[@]}"} \
     --remote-debugging-port=9222 \
     http://localhost:3000 >> $LOG_FILE 2>&1 &
 
