@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Creation Station Arcade - local HTTP server
-// Serves public/ as static files, provides /api/games, and spawns game Chromium
+// Serves public/ as static files, provides /api/games, and tracks game state
+// for the single-window kiosk (the menu page swaps the game in via iframe).
 
 const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { spawn, exec, execFile } = require("child_process");
+const { execFile } = require("child_process");
 
 const STATS_FILE = path.join(os.homedir(), "arcade-stats.json");
 
@@ -240,14 +241,13 @@ function handleTrackButton(res, btn) {
   res.end('{"ok":true}');
 }
 
+// GET /api/kill-game — mark that the game should close. This is the
+// out-of-page reset path (GPIO reset button, kill-to-menu.sh); the menu page
+// polls /api/game-state and tears down the game iframe itself. Nothing is
+// killed — the single kiosk window stays up the whole time.
 function handleKillGame(res) {
-  if (isGameRunning()) {
-    try {
-      gameProcess.kill("SIGKILL");
-      console.log(`[CSA] Killed game Chromium (pid ${gameProcess.pid}) via /api/kill-game`);
-    } catch (e) {}
-    gameProcess = null;
-  }
+  gameCloseRequested = true;
+  console.log("[CSA] Return-to-menu requested via /api/kill-game");
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: true }));
 }
@@ -257,147 +257,27 @@ function handleHeartbeat(res) {
   res.end(JSON.stringify({ ok: true, ts: Date.now() }));
 }
 
-// Track the game Chromium process
-let gameProcess = null;
+// Game state for the single-window kiosk. The menu page owns the whole
+// lifecycle — it opens play.html in an iframe and removes it again. The
+// server only tracks whether a game is "active" and whether someone asked
+// to close it, so out-of-page resets can reach the page.
+let gameActive = false;
+let gameCloseRequested = false;
 let gameLaunchTime = 0;
 
-function isGameRunning() {
-  if (!gameProcess) return false;
-  try {
-    process.kill(gameProcess.pid, 0); // Check if process exists
-    return true;
-  } catch (e) {
-    gameProcess = null;
-    return false;
-  }
+// GET /api/game-state — polled by the menu page while a game is open.
+function handleGameState(res) {
+  res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+  res.end(JSON.stringify({ active: gameActive, closeRequested: gameCloseRequested }));
 }
 
-// Real display resolution for the game window (kiosk doesn't stretch on
-// some X setups). Falls back to 1080p.
-function displayRes() {
-  // config.jsonc "display.resolution" beats autodetect.
-  try {
-    const cfg = JSON.parse(stripJsonComments(
-      fs.readFileSync(path.join(GAMES_DIR, "config.jsonc"), "utf8")));
-    const r = cfg.display && cfg.display.resolution;
-    if (r && /^\d+x\d+$/.test(r)) return r;
-  } catch (e) {}
-  try {
-    const line = require("child_process").execSync("xrandr 2>/dev/null")
-      .toString().split("\n").find((l) => l.includes("*"));
-    const m = line && line.match(/\d+x\d+/);
-    if (m) return m[0];
-  } catch (e) {}
-  return "1920x1080";
-}
-
-function spawnGameChromium(gameName, gameFile) {
-  // Clear previous game user data to prevent "restore session" prompts
-  const gameUserDir = "/tmp/chromium-arcade-game";
-  try {
-    require("child_process").execSync(`rm -rf "${gameUserDir}"`);
-  } catch (e) {
-    // Ignore cleanup errors
-  }
-
-  const chromiumBin = process.env.CHROMIUM_BIN || 
-    require("child_process").execSync("which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo ''").toString().trim();
-  
-  if (!chromiumBin) {
-    console.error("[CSA] Chromium not found");
-    return null;
-  }
-
-  const gameUrl = `http://localhost:${PORT}/play?game=${encodeURIComponent(gameName)}&file=${encodeURIComponent(gameFile || gameName)}`;
-  
-  const args = [
-    "--user-data-dir=/tmp/chromium-arcade-game",
-    "--kiosk",  // Kiosk mode - no exit UI
-    "--start-fullscreen",
-    `--window-size=${displayRes()}`,
-    "--noerrdialogs",
-    "--disable-infobars",
-    "--no-first-run",
-    "--disable-session-crashed-bubble",
-    "--no-default-browser-check",
-    "--disable-pinch",
-    "--disable-extensions",
-    "--disable-background-networking",
-    "--disable-sync",
-    "--disable-default-apps",
-    "--disable-features=Translate,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies,RequestTabletSite,WebRTC,AccessibilityCache,AutofillServerCommunication,InfiniteSessionRestore",
-    "--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,GpuRasterization,ZeroCopy",
-    "--ignore-gpu-blocklist",
-    "--enable-gpu-rasterization",
-    "--use-gl=egl",
-    "--hide-scrollbars",
-    "--suppress-message-center-popups",
-    gameUrl
-  ];
-
-  console.log(`[CSA] Spawning game Chromium for: ${gameName}`);
-  
-  const proc = spawn(chromiumBin, args, {
-    detached: false,
-    stdio: "ignore",
-    env: { ...process.env, DISPLAY: process.env.DISPLAY || ':0' }
-  });
-
-  // Write PID file for kill-to-menu.sh
-  fs.writeFileSync("/tmp/arcade-game-chromium.pid", proc.pid.toString());
-
-  proc.on("exit", (code) => {
-    console.log(`[CSA] Game Chromium exited (code: ${code})`);
-    gameProcess = null;
-    try {
-      fs.unlinkSync("/tmp/arcade-game-chromium.pid");
-    } catch (e) {
-      // File might not exist, that's okay
-    }
-    
-    // Refocus menu window via xdotool
-    try {
-      require("child_process").execSync(
-        'xdotool search --onlyvisible --class "chromium" | head -1 | xargs -I {} xdotool windowraise {} windowfocus {} windowactivate {} 2>/dev/null || true'
-      );
-    } catch (e) {
-      // xdotool might fail, that's okay
-    }
-  });
-
-  proc.on("error", (err) => {
-    console.error(`[CSA] Game Chromium error: ${err}`);
-    gameProcess = null;
-  });
-
-  // Lower menu window and raise game window
-  setTimeout(() => {
-    try {
-      // Find all Chromium windows, lower the first (menu), raise the rest
-      const windows = require("child_process")
-        .execSync('xdotool search --class "chromium" 2>/dev/null')
-        .toString()
-        .trim()
-        .split("\n")
-        .filter(id => id);
-      
-      if (windows.length >= 1) {
-        // Lower first window (menu)
-        try { require("child_process").execSync(`xdotool windowlower ${windows[0]} 2>/dev/null`); } catch (e) {}
-      }
-      if (windows.length >= 2) {
-        // Raise last window (game - should be newest)
-        const gameWin = windows[windows.length - 1];
-        try { 
-          require("child_process").execSync(`xdotool windowraise ${gameWin} windowfocus ${gameWin} windowactivate ${gameWin} 2>/dev/null`);
-        } catch (e) {}
-      }
-    } catch (e) {
-      // Window management failed, but game is still running
-    }
-  }, 3000);
-
-  return proc;
+// GET /api/game-closed — the page reports the game iframe is gone. Also
+// called on menu page load so a crashed game can't wedge the launcher.
+function handleGameClosed(res) {
+  gameActive = false;
+  gameCloseRequested = false;
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true }));
 }
 
 function trackGamePlay(gameName) {
@@ -448,7 +328,7 @@ function trackNewGames(gamesList) {
 
 function handleLaunchGame(res, gameName, gameFile) {
   // Check if game already running
-  if (isGameRunning()) {
+  if (gameActive) {
     res.writeHead(409, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Game already running", active: true }));
     return;
@@ -465,18 +345,14 @@ function handleLaunchGame(res, gameName, gameFile) {
     return;
   }
 
-  // Spawn game Chromium
-  gameProcess = spawnGameChromium(gameName, gameFile);
+  // Mark the game active — the menu page does the actual swap into its iframe.
+  gameActive = true;
+  gameCloseRequested = false;
   gameLaunchTime = now;
 
-  if (!gameProcess) {
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Failed to spawn Chromium" }));
-    return;
-  }
-
+  console.log(`[CSA] Game launched (iframe swap): ${gameName}`);
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ ok: true, game: gameName, pid: gameProcess.pid }));
+  res.end(JSON.stringify({ ok: true, game: gameName }));
 }
 
 const server = http.createServer((req, res) => {
@@ -503,6 +379,14 @@ const server = http.createServer((req, res) => {
 
   if (pathname === "/api/kill-game") {
     return handleKillGame(res);
+  }
+
+  if (pathname === "/api/game-state") {
+    return handleGameState(res);
+  }
+
+  if (pathname === "/api/game-closed") {
+    return handleGameClosed(res);
   }
 
   if (pathname === "/api/heartbeat") {

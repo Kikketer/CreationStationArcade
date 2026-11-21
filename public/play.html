@@ -96,7 +96,7 @@
     }
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") goBack();
+      if (e.key === "Escape") killToMenu();
       // R key for reset (testing)
       if (e.key === "r" || e.key === "R") {
         e.preventDefault();
@@ -104,10 +104,11 @@
       }
     });
 
-    // Exit button: kills this window -> menu window refocuses underneath.
-    // Button indices are per-machine (config.json "exitButtons"); default
-    // Start/Select = 8/9. Wired to a dedicated cabinet reset button on USB
-    // encoder boards.
+    // Exit button: routes back to the menu. Embedded in the kiosk's game
+    // frame it asks the shell to close the frame; standalone it navigates
+    // back. Button indices are per-machine (config.json "exitButtons");
+    // default Start/Select = 8/9. Wired to a dedicated cabinet reset
+    // button on USB encoder boards.
     let exitButtons = [8, 9];
     fetch("/api/config").then(r => r.json()).then(cfg => {
       if (Array.isArray(cfg.exitButtons) && cfg.exitButtons.length) {
@@ -119,7 +120,16 @@
     function killToMenu() {
       if (exitSent) return;
       exitSent = true;
-      fetch("/api/kill-game").catch(() => goBack());
+      if (window.parent !== window) {
+        // Embedded in the menu's game frame: the shell swaps back itself.
+        // Also set the server flag so the poll path covers any missed
+        // message — both end at the same teardown.
+        try { window.parent.postMessage({ type: "arcade-exit" }, "*"); } catch (e) {}
+        fetch("/api/kill-game").catch(() => {});
+      } else {
+        // Standalone /play (debugging): navigate back ourselves.
+        goBack();
+      }
     }
 
     // Idle timeout: any gamepad button press keeps the game alive; after

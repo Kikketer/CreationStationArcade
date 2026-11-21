@@ -1,6 +1,7 @@
 #!/bin/bash
-# kill-to-menu.sh - GPIO reset button handler for Chromium kiosk mode
-# Kills Chromium and Node server, lets xinitrc restart everything
+# kill-to-menu.sh - reset button handler for the single-window kiosk
+# Asks the server to route the page back to the menu (the game iframe is
+# closed by the page itself — no window or process is killed).
 
 LOG_FILE="$HOME/arcade.log"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -18,15 +19,10 @@ log() {
 
 log "=== Kill-to-menu triggered ==="
 
-# Kill only GAME Chromium (launched for /play), leave menu running
-log "Killing game Chromium..."
-pkill -f "chromium.*localhost:3000/play" 2>/dev/null || true
-# Also kill by PID file if exists
-kill $(cat /tmp/arcade-game-chromium.pid 2>/dev/null) 2>/dev/null || true
-rm -f /tmp/arcade-game-chromium.pid
-
-# Note: We do NOT kill the menu Chromium or Node server - they stay running!
-# This gives "instant" return to menu since it was never closed
+# Single-window kiosk: no process to kill. Flag the close on the server and
+# the page swaps the game iframe out for the menu (~instant).
+log "Requesting return to menu..."
+curl -s http://localhost:3000/api/kill-game >/dev/null 2>&1 || true
 
 sleep 1
 
