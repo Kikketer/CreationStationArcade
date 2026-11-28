@@ -10,9 +10,12 @@
 
 set -Eeuo pipefail
 
-CSA_VERSION="0.2.0"
+CSA_VERSION="0.3.0"
 CSA_REPO_URL="https://github.com/Kikketer/CreationStationArcade.git"
 CSA_RAW_BASE="https://raw.githubusercontent.com/Kikketer/CreationStationArcade/main"
+# A nominal 4 GB machine normally reports about 3.7-3.9 GiB in MemTotal
+# after kernel/firmware reservations, so use 3.5 GiB as the practical floor.
+CHROMIUM_RECOMMENDED_MEMORY_KB=3670016
 
 ASSUME_YES=0
 DRY_RUN=0
@@ -293,8 +296,6 @@ machine_is_pi() {
 
 flavor_branch() {
     case "$1" in
-        elf-menu) printf 'main' ;;
-        elf-single) printf 'pi3-elf-kiosk' ;;
         chromium-menu) printf 'chromium-kiosk' ;;
         chromium-single) printf 'single-game-kiosk' ;;
         native-menu) printf 'multi-native-arcade' ;;
@@ -305,12 +306,10 @@ flavor_branch() {
 
 flavor_label() {
     case "$1" in
-        elf-menu) printf 'ELF menu arcade' ;;
-        elf-single) printf 'Single-game ELF kiosk' ;;
         chromium-menu) printf 'Chromium menu arcade' ;;
         chromium-single) printf 'Chromium single-game kiosk' ;;
-        native-menu) printf 'Native menu arcade' ;;
-        native-single) printf 'Native single-game arcade' ;;
+        native-menu) printf 'Native Application menu arcade' ;;
+        native-single) printf 'Native Application single-game arcade' ;;
         *) return 1 ;;
     esac
 }
@@ -335,43 +334,6 @@ expand_user_path() {
 
 sanitize_game_name() {
     printf '%s' "$1" | tr -cd 'A-Za-z0-9._-'
-}
-
-configure_autologin() {
-    local tmp
-    tmp="$(mktemp)"
-    cat > "$tmp" <<EOF
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin $USER_NAME --noclear %I linux
-EOF
-    sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
-    sudo cp "$tmp" /etc/systemd/system/getty@tty1.service.d/autologin.conf
-    sudo chmod 644 /etc/systemd/system/getty@tty1.service.d/autologin.conf
-    sudo systemctl daemon-reload
-    rm -f "$tmp"
-}
-
-write_elf_menu_autolaunch() {
-    local runtime_dir="$1"
-    local profile=""
-    local begin='# >>> Creation Station Arcade launcher >>>'
-    local end='# <<< Creation Station Arcade launcher <<<'
-
-    for profile in "$USER_HOME/.bash_profile" "$USER_HOME/.profile"; do
-        touch "$profile"
-        if ! grep -qF "$begin" "$profile" 2>/dev/null; then
-            cat >> "$profile" <<EOF
-
-$begin
-if [ "\$(tty)" = "/dev/tty1" ]; then
-    cd "$runtime_dir" || exit 1
-    exec bash "$runtime_dir/launcher.sh"
-fi
-$end
-EOF
-        fi
-    done
 }
 
 configure_x86_single_game() {
@@ -499,7 +461,7 @@ run_controller_setup() {
     fi
 
     local calibrated=1
-    if [ "$ENGINE" = "chromium" ] || [ "$ENGINE" = "native" ] || [ "$ENGINE" = "elf" ]; then
+    if [ "$ENGINE" = "chromium" ] || [ "$ENGINE" = "native" ]; then
         if ask_yes_no "Run full step-by-step controller calibration now" "y"; then
             local player_count="1"
             ask_choice player_count \
@@ -629,11 +591,6 @@ install_base_tools() {
 
 install_openbox_package() {
     sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y openbox
-}
-
-install_pi_elf_support() {
-    sudo apt-get update -y
-    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi.gpio fbset
 }
 
 run_native_installer() {
@@ -844,6 +801,7 @@ detect_platform() {
     local os_release="${CSA_OS_RELEASE:-/etc/os-release}"
     local cpuinfo="${CSA_CPUINFO:-/proc/cpuinfo}"
     local model_file="${CSA_DEVICE_TREE_MODEL:-/proc/device-tree/model}"
+    local meminfo="${CSA_MEMINFO:-/proc/meminfo}"
 
     OS_PRETTY="unknown Linux"
     OS_ID="unknown"
@@ -874,9 +832,13 @@ detect_platform() {
         esac
     fi
 
-    HARDWARE_LINE=missing
-    if [ -f "$cpuinfo" ] && grep -q '^Hardware' "$cpuinfo" 2>/dev/null; then
-        HARDWARE_LINE=present
+    TOTAL_MEMORY_KB=0
+    if [ -f "$meminfo" ]; then
+        local memory_kb=""
+        memory_kb="$(awk '/^MemTotal:/ {print $2; exit}' "$meminfo" 2>/dev/null || true)"
+        if [[ "$memory_kb" =~ ^[0-9]+$ ]]; then
+            TOTAL_MEMORY_KB="$memory_kb"
+        fi
     fi
 
     MACHINE_CLASS="$(classify_machine "$MACHINE_MODEL" "$MACHINE_ARCH")"
@@ -895,51 +857,91 @@ choose_machine_manually() {
         "other-arm64|Another 64-bit ARM board"
 }
 
+memory_label() {
+    if [ "${TOTAL_MEMORY_KB:-0}" -gt 0 ]; then
+        awk -v kb="$TOTAL_MEMORY_KB" 'BEGIN {printf "%.1f GiB", kb / 1048576}'
+    else
+        printf 'unknown memory'
+    fi
+}
+
+chromium_memory_recommended() {
+    [ "${TOTAL_MEMORY_KB:-0}" -ge "$CHROMIUM_RECOMMENDED_MEMORY_KB" ]
+}
+
+ask_engine_choice() {
+    local memory=""
+    local default_engine="native"
+    local chromium_label=""
+    local native_label=""
+    memory="$(memory_label)"
+
+    if chromium_memory_recommended; then
+        default_engine="chromium"
+        chromium_label="Chromium — full MakeCode simulator, best compatibility (recommended with $memory)"
+        native_label="Native Application — no browser, but games run slower"
+    else
+        chromium_label="Chromium — full MakeCode simulator, best compatibility (heavy with $memory)"
+        native_label="Native Application — no browser, lighter on weak hardware, but games run slower (recommended)"
+    fi
+
+    ask_choice ENGINE \
+        "What kind of game engine should this cabinet use?" \
+        "$default_engine" \
+        "chromium|$chromium_label" \
+        "native|$native_label"
+
+    if [ "$ENGINE" = "chromium" ] && ! chromium_memory_recommended; then
+        warn "Chromium usually wants at least 4 GB of RAM; this machine reports $memory."
+    fi
+}
+
 select_engine() {
     case "$MACHINE_CLASS" in
         x86)
-            ask_choice ENGINE \
-                "What kind of game engine should this cabinet use?" \
-                "chromium" \
-                "chromium|Chromium — full MakeCode simulator, best compatibility (recommended)" \
-                "native|Native SDL — no browser, useful on weaker hardware, but games run slower"
+            ask_engine_choice
             ;;
         pi5)
             if [ "$MACHINE_ARCH" = "arm64" ] || [ "$MACHINE_ARCH" = "aarch64" ]; then
-                ask_choice ENGINE \
-                    "What kind of game engine should this cabinet use?" \
-                    "chromium" \
-                    "chromium|Chromium — full MakeCode simulator, best compatibility (recommended)" \
-                    "native|Native SDL — no browser, useful on weaker hardware, but games run slower"
+                ask_engine_choice
             else
-                ENGINE="chromium"
-                warn "Pi 5 native binaries need a 64-bit OS; Chromium is the supported fit for this install."
+                if chromium_memory_recommended; then
+                    ENGINE="chromium"
+                    warn "Native Applications need a 64-bit OS; Chromium is the available engine for this 32-bit Pi 5 install."
+                else
+                    die "Native Applications need a 64-bit OS, and this Pi 5 is below the practical Chromium memory floor. Use a 64-bit OS."
+                fi
             fi
             ;;
-        pi4|zero2|pi3|zero)
-            if [ "$MACHINE_ARCH" = "armhf" ] || [ "$MACHINE_ARCH" = "armv7l" ] || [ "$MACHINE_ARCH" = "armv6l" ]; then
-                case "$MACHINE_CLASS" in
-                    pi3|zero|zero2)
-                        ENGINE="elf"
-                        info "  This Pi is running a 32-bit OS, so the lightweight ELF path is the best fit."
-                        ;;
-                    *)
-                        die "A 32-bit Pi 4 installation is not a supported arcade flavor. Use a 64-bit OS or a Pi 3/Zero."
-                        ;;
-                esac
-            elif [ "$MACHINE_ARCH" = "arm64" ] || [ "$MACHINE_ARCH" = "aarch64" ]; then
-                if [ "$MACHINE_CLASS" = "zero" ]; then
-                    die "The original Pi Zero cannot run the 64-bit native runtime. Use a 32-bit OS for ELF."
+        pi4)
+            if [ "$MACHINE_ARCH" = "arm64" ] || [ "$MACHINE_ARCH" = "aarch64" ]; then
+                ask_engine_choice
+            elif [ "$MACHINE_ARCH" = "armhf" ] || [ "$MACHINE_ARCH" = "armv7l" ]; then
+                if chromium_memory_recommended; then
+                    ENGINE="chromium"
+                    warn "Native Applications need a 64-bit OS; Chromium is the available engine for this 32-bit Pi 4 install."
+                else
+                    die "Native Applications need a 64-bit OS, and this Pi 4 is below the practical Chromium memory floor. Use a 64-bit OS for a Native Application cabinet."
                 fi
-                ENGINE="native"
-                info "  This 64-bit Pi is below the recommended Chromium floor, so Native is the safest fit."
+            else
+                die "Unsupported Pi 4 architecture: $MACHINE_ARCH"
+            fi
+            ;;
+        zero2|pi3)
+            if [ "$MACHINE_ARCH" = "armhf" ] || [ "$MACHINE_ARCH" = "armv7l" ] || [ "$MACHINE_ARCH" = "armv6l" ]; then
+                die "The legacy 32-bit ELF path is no longer installed by the guided installer. Use a 64-bit OS for a Native Application cabinet, or follow the manual legacy ELF guides."
+            elif [ "$MACHINE_ARCH" = "arm64" ] || [ "$MACHINE_ARCH" = "aarch64" ]; then
+                ask_engine_choice
             else
                 die "Unsupported Pi architecture: $MACHINE_ARCH"
             fi
             ;;
+        zero)
+            die "The original Pi Zero is only supported by the manual legacy ELF guides; the guided installer does not support it."
+            ;;
         other-arm64)
             ENGINE="native"
-            warn "This is not a Raspberry Pi. Native mode may work, but it is the experimental path."
+            warn "This is not a Raspberry Pi. Native Application mode may work, but it is the experimental path."
             ;;
         unknown-pi|other-armhf|unknown)
             die "This hardware is not in the supported installer matrix yet."
@@ -951,24 +953,11 @@ select_engine() {
 }
 
 select_mode() {
-    if [ "$ENGINE" = "elf" ]; then
-        if [ "$MACHINE_CLASS" = "pi3" ]; then
-            ask_choice CABINET_MODE \
-                "Is this cabinet a jukebox or a one-hit wonder?" \
-                "menu" \
-                "menu|A menu of games" \
-                "single|One dedicated game"
-        else
-            CABINET_MODE="single"
-            info "  ELF on this board supports the dedicated single-game cabinet."
-        fi
-    else
-        ask_choice CABINET_MODE \
-            "Is this cabinet a jukebox or a one-hit wonder?" \
-            "menu" \
-            "menu|A menu of games" \
-            "single|One dedicated game"
-    fi
+    ask_choice CABINET_MODE \
+        "Is this cabinet a jukebox or a one-hit wonder?" \
+        "menu" \
+        "menu|A menu of games" \
+        "single|One dedicated game"
 }
 
 resolve_flavor() {
@@ -983,16 +972,11 @@ select_controls() {
         CONTROL_MODE="usb"
         info "  x86 cabinets use USB gamepads or a USB encoder; there are no GPIO pins to wire."
     elif machine_is_pi "$MACHINE_CLASS"; then
-        if [ "$FLAVOR" = "elf-menu" ]; then
-            CONTROL_MODE="flexible"
-            info "  The ELF menu can use USB or GPIO controls; the game/menu configuration decides the exact mapping."
-        else
-            ask_choice CONTROL_MODE \
-                "How will players control the cabinet?" \
-                "usb" \
-                "usb|USB gamepads or a USB zero-delay encoder" \
-                "gpio|Arcade buttons wired directly to the Pi GPIO pins"
-        fi
+        ask_choice CONTROL_MODE \
+            "How will players control the cabinet?" \
+            "usb" \
+            "usb|USB gamepads or a USB zero-delay encoder" \
+            "gpio|Arcade buttons wired directly to the Pi GPIO pins"
     else
         CONTROL_MODE="usb"
     fi
@@ -1044,6 +1028,7 @@ print_plan() {
 
 ${C_BOLD}${C_CYAN}================= CABINET BUILD SHEET =================${C_RESET}
   Machine        : $MACHINE_MODEL
+  Memory         : $(memory_label)
   Operating system: $OS_PRETTY ($MACHINE_ARCH)
   Arcade flavor  : $FLAVOR_LABEL
   Cabinet mode   : $CABINET_MODE
@@ -1054,9 +1039,6 @@ ${C_BOLD}${C_CYAN}================= CABINET BUILD SHEET =================${C_RES
 EOF
     if [ "$ENGINE" = "native" ]; then
         printf '  Native games   : %s\n' "$NATIVE_ARTIFACT_SOURCE"
-    fi
-    if [ "$BOOT_SPLASH" = "yes" ]; then
-        printf '  Cabinet polish : boot splash enabled\n'
     fi
     if [ "$HDMI_FIX" = "yes" ]; then
         printf '  Cabinet polish : HDMI audio fix enabled\n'
@@ -1127,9 +1109,6 @@ preflight() {
 
 select_game_after_checkout() {
     case "$FLAVOR" in
-        elf-single)
-            select_existing_game "$REPO_DIR/games" "elf" "AndyPaddleTheRiver"
-            ;;
         chromium-single)
             select_existing_game "$REPO_DIR/games" "js" "AndyPaddleTheRiver"
             ;;
@@ -1144,14 +1123,6 @@ run_pi_extras() {
         return 0
     fi
 
-    if [ "$BOOT_SPLASH" = "yes" ]; then
-        if [ -f "$REPO_DIR/install/splash-setup.sh" ]; then
-            run_step "Painting the boot marquee" sudo bash "$REPO_DIR/install/splash-setup.sh"
-        else
-            warn "This flavor does not carry the boot-splash installer; skipping it."
-        fi
-    fi
-
     if [ "$HDMI_FIX" = "yes" ]; then
         if [ -f "$REPO_DIR/install/hdmi-audio-fix.sh" ]; then
             run_step "Tuning the HDMI speakers" sudo bash "$REPO_DIR/install/hdmi-audio-fix.sh"
@@ -1161,24 +1132,29 @@ run_pi_extras() {
     fi
 }
 
-install_elf_menu() {
-    run_step "Installing Pi framebuffer helpers" install_pi_elf_support
-    run_step "Copying the cabinet brain" bash "$REPO_DIR/setup.sh"
-    local runtime_dir="${REPO_DIR%-src}"
-    run_step "Teaching the cabinet to wake itself" configure_autologin
-    run_step "Wiring the power-on marquee" write_elf_menu_autolaunch "$runtime_dir"
-}
 
-install_elf_single() {
-    run_step "Installing Pi framebuffer helpers" install_pi_elf_support
-    # pi3-elf-setup.sh currently copies into /sd before creating it in some
-    # branch revisions. Creating it here keeps the branch installer compatible.
-    run_step "Opening the cartridge door" sudo mkdir -p /sd
-    local -a args=(bash "$REPO_DIR/install/pi3-elf-setup.sh" "--game=$GAME_NAME")
-    if [ "$CONTROL_MODE" = "gpio" ]; then
-        args+=(--input-mode=gpio)
-    fi
-    run_step "Installing the ELF arcade" "${args[@]}"
+configure_pi_chromium_gpu() {
+    machine_is_pi "$MACHINE_CLASS" || return 0
+    [ "$MACHINE_CLASS" != "pi5" ] || return 0
+
+    sudo mkdir -p /etc/X11/xorg.conf.d
+    sudo tee /etc/X11/xorg.conf.d/99-pi-kiosk.conf > /dev/null <<'EOF'
+Section "Device"
+    Identifier  "Card0"
+    Driver      "modesetting"
+    Option      "kmsdev" "/dev/dri/card0"
+EndSection
+
+Section "Screen"
+    Identifier "Screen0"
+    Device     "Card0"
+EndSection
+
+Section "ServerFlags"
+    Option "AutoAddGPU" "false"
+EndSection
+EOF
+    sudo chmod 644 /etc/X11/xorg.conf.d/99-pi-kiosk.conf
 }
 
 install_chromium() {
@@ -1197,6 +1173,9 @@ install_chromium() {
             args+=(--single-game "--game=$GAME_NAME")
         fi
         run_step "Installing the Chromium arcade" "${args[@]}"
+        if [ "$MACHINE_CLASS" != "pi5" ]; then
+            run_step "Teaching Xorg which Pi display card to use" configure_pi_chromium_gpu
+        fi
     fi
 }
 
@@ -1217,8 +1196,6 @@ install_native() {
 
 install_selected_flavor() {
     case "$FLAVOR" in
-        elf-menu) install_elf_menu ;;
-        elf-single) install_elf_single ;;
         chromium-menu|chromium-single) install_chromium ;;
         native-menu|native-single) install_native ;;
         *) die "Unknown flavor: $FLAVOR" ;;
@@ -1285,11 +1262,9 @@ EOF
     detect_platform
     printf '  Cabinet report\n'
     printf '    Machine : %s\n' "$MACHINE_MODEL"
+    printf '    Memory  : %s\n' "$(memory_label)"
     printf '    OS      : %s (%s)\n' "$OS_PRETTY" "$MACHINE_ARCH"
     printf '    User    : %s\n' "$USER_NAME"
-    if machine_is_pi "$MACHINE_CLASS"; then
-        printf '    ELF key : Hardware line is %s\n' "$HARDWARE_LINE"
-    fi
 
     if machine_is_pi "$MACHINE_CLASS" || [ "$MACHINE_CLASS" = "x86" ]; then
         if ! ask_yes_no "Does that cabinet report look right" "y"; then
@@ -1302,13 +1277,6 @@ EOF
 
     stage "2/6" "CHOOSE YOUR CABINET"
     select_engine
-    if [ "$ENGINE" = "elf" ] && [ "$HARDWARE_LINE" != "present" ]; then
-        warn "ELF games require the legacy 'Hardware' line in /proc/cpuinfo, and this machine does not report it."
-        warn "This usually means the kernel is too new. The game may boot to nothing."
-        if ! ask_yes_no "Continue with ELF anyway" "n"; then
-            die "ELF installation cancelled. Use a Pi image/kernel that still reports Hardware: BCM2835."
-        fi
-    fi
     select_mode
     resolve_flavor
     select_controls
@@ -1320,14 +1288,8 @@ EOF
         die "The single-game Chromium branch still has hard-coded /home/pi runtime paths. Create/use a 'pi' arcade user, or choose the Chromium menu flavor instead."
     fi
 
-    BOOT_SPLASH=no
     HDMI_FIX=no
     if machine_is_pi "$MACHINE_CLASS"; then
-        if [ "$ENGINE" = "elf" ]; then
-            if ask_yes_no "Add the arcade boot splash so the cabinet hides boring boot text" "y"; then
-                BOOT_SPLASH=yes
-            fi
-        fi
         if ask_yes_no "Install the HDMI audio fix now" "n"; then
             HDMI_FIX=yes
         fi

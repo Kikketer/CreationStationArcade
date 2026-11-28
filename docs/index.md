@@ -16,29 +16,28 @@ You build a game in MakeCode Arcade in your browser, export it, drop the file on
 
     If you insist on **GPIO-wired buttons**, a **Raspberry Pi 5 with Chromium** is a good bet.
 
-    Running on older or weaker hardware (Pi 3, Pi Zero 2 W) is possible, but go with the **Native** or **ELF** flavors at that point.
+    Running on older or weaker hardware (Pi 3, Pi Zero 2 W) is possible, but go with a **Native Application** flavor at that point. The ELF flavors are legacy manual installs, not part of the guided installer.
 
 ## Recommendations by hardware
 
 | Your hardware | Use | Controls |
 | --- | --- | --- |
-| Anything less powerful than a Raspberry Pi 5 (Pi 3, Pi 4, Pi Zero 2 W) | [Native](multi-native-arcade.md) or [ELF](elf-menu.md) flavors | GPIO buttons or USB |
-| Raspberry Pi 5 | [Chromium](chromium-kiosk.md) flavors | GPIO is possible and useful, or USB |
-| Any reasonable x86 PC (i3-8100-class or better) | [Chromium](chromium-kiosk.md) flavors | USB controllers |
+| Anything with less than about 4 GB RAM (Pi 3, low-memory Pi 4, Pi Zero 2 W) | [Native Application](multi-native-arcade.md) flavors on a 64-bit OS | GPIO buttons or USB |
+| Raspberry Pi 4/5 or x86 PC with about 4 GB RAM or more | [Chromium](chromium-kiosk.md) flavors | GPIO on Pi, or USB |
 
 ## What flavor do I build?
 
-There isn't just one arcade. There are **six** flavors, because the same MakeCode Arcade games can run several different ways, and each way fits different hardware and different goals. You pick the flavor *before* you start, because each one lives on its own branch of the project and has its own setup steps.
+There isn't just one arcade. There are **four go-forward** flavors, plus two legacy ELF flavors kept for manual Pi-image-style setups. The guided installer uses only the Chromium and Native Application flavors.
 
 !!! tip "Not sure which one?"
     Head to the [Pick Your Arcade](pick-your-arcade.md) guide. It asks a few plain questions and points you at the right page.
 
-The six flavors:
+The flavors:
 
 | Flavor | Best hardware | Menu? | What runs the game |
 | --- | --- | --- | --- |
-| [ELF Menu Arcade](elf-menu.md) | Raspberry Pi 3 | Yes — a menu of games | Raw `.elf` files (the "close to what MakeCode intended" path) |
-| [Pi 3 / Pi Zero Single-Game ELF](pi3-elf-kiosk.md) | Raspberry Pi 3 or Pi Zero | No — one game only | A single raw `.elf` file |
+| [ELF Menu Arcade](elf-menu.md) — legacy/manual | Raspberry Pi 3 | Yes — a menu of games | Raw `.elf` files (the "close to what MakeCode intended" path) |
+| [Pi 3 / Pi Zero Single-Game ELF](pi3-elf-kiosk.md) — legacy/manual | Raspberry Pi 3 or Pi Zero | No — one game only | A single raw `.elf` file |
 | [Chromium Kiosk (Menu)](chromium-kiosk.md) | An older x86 PC (recommended) or a Raspberry Pi 5 | Yes — a menu of games | Games in a fullscreen Chromium browser |
 | [Chromium Single-Game](single-game-kiosk.md) | An older x86 PC (recommended) or a Raspberry Pi 5 | No — one game only | One game in a fullscreen Chromium browser |
 | [Multi-Native Arcade](multi-native-arcade.md) | 64-bit Raspberry Pi weaker than a Pi 5 (3/4/Zero 2 W) | Yes — a menu of games | Native `Game` programs (no browser) |

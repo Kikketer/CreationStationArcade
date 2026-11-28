@@ -11,7 +11,7 @@ The installer does not flash or install the operating system. Start with a machi
 - Raspberry Pi OS Lite, Debian, or Ubuntu installed.
 - An internet connection.
 - A normal user account with `sudo` access.
-- For Raspberry Pi ELF/Chromium flavors, a user named `pi` — several older branch installers still assume that account.
+- For Raspberry Pi Chromium flavors, a user named `pi` — several older branch installers still assume that account.
 
 Use the operating-system instructions in the flavor guides if you are not sure which OS image to pick.
 
@@ -34,7 +34,7 @@ Do **not** put `sudo` in front of it. The installer runs as the arcade user and 
 The exact questions depend on the machine. Usually you will see:
 
 1. **Cabinet report** — confirms the detected machine, operating system, architecture, and user.
-2. **Engine choice** — Chromium or Native where both are possible. ELF is chosen automatically on the Pi models that support it.
+2. **Engine choice** — Chromium or Native Application where both are possible. The installer recommends Chromium when the machine has about 4 GB of RAM or more, and Native Application below that.
 3. **Cabinet style** — a menu of games or one dedicated game.
 4. **Controls** — USB controllers or GPIO-wired arcade buttons on a Raspberry Pi.
 5. **Game selection** — for single-game flavors, the installer lists the games included in that branch and lets you pick one.
@@ -42,9 +42,9 @@ The exact questions depend on the machine. Usually you will see:
 
 Long operations show a spinner and write details to `~/creation-station-installer.log`.
 
-## Native cabinets need game archives first
+## Native Application cabinets need game archives first
 
-Native flavors do not include game binaries in the repository. Before installing, build your games with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop).
+Native Application flavors do not include game binaries in the repository. Before installing, build your games with the [PNG to Desktop compiler](https://www.makecode.games/compilers/desktop).
 
 The installer accepts:
 
@@ -58,13 +58,14 @@ For a native **menu** cabinet, include the compiled menu project. It must instal
 
 | Detected machine | Menu choice | Single-game choice |
 | --- | --- | --- |
-| Pi 3, 32-bit OS | ELF menu | Single-game ELF |
-| Pi Zero / Zero 2 W, 32-bit OS | — | Single-game ELF |
-| Pi 5, 64-bit OS | Chromium menu (recommended) or Native | Chromium single-game (recommended) or Native |
-| Pi 3/4/Zero 2 W, 64-bit OS | Native menu | Native single-game |
-| x86-64 Debian/Ubuntu PC | Chromium menu (recommended) or Native | Chromium single-game (recommended) or Native |
+| x86-64 Debian/Ubuntu PC | Chromium or Native Application; Chromium is recommended with about 4 GB+ RAM | Same engine choices |
+| Raspberry Pi 5 | Chromium or Native Application on a 64-bit OS; Chromium is normally recommended | Same engine choices |
+| Raspberry Pi 4, 64-bit OS | Chromium or Native Application; recommendation follows the 4 GB memory rule | Same engine choices |
+| Raspberry Pi 4/5, 32-bit OS | Chromium only because Native Applications need a 64-bit OS | Chromium only |
+| Pi 3 / Zero 2 W, 64-bit OS | Chromium or Native Application; Native Application is normally recommended | Same engine choices |
+| Pi 3 / Zero / Zero 2 W, 32-bit OS | Not supported by the guided installer | Not supported by the guided installer |
 
-The branches still exist, but they are implementation details. The installer uses `main`, `pi3-elf-kiosk`, `chromium-kiosk`, `single-game-kiosk`, `single-native-arcade`, or `multi-native-arcade` as needed.
+The legacy ELF branches still exist for hand-built, MakeCode-style Pi images, but the guided installer no longer installs ELF flavors. The branches it uses are implementation details: `chromium-kiosk`, `single-game-kiosk`, `single-native-arcade`, or `multi-native-arcade`.
 
 ## Preview without changing anything
 
@@ -87,12 +88,12 @@ Useful files after installation:
 
 - Installer log: `~/creation-station-installer.log`
 - Branch installer log: usually `~/arcade-setup.log` or `~/arcade.log`
-- Source checkout: usually `~/CreationStationArcade-src` for ELF/Chromium flavors or `~/CreationStationArcade` for Native flavors
+- Source checkout: usually `~/CreationStationArcade-src` for Chromium flavors or `~/CreationStationArcade` for Native Application flavors
 
 
 ## USB controller calibration
 
-For Chromium, Native, and USB-controlled ELF cabinets, the installer offers a guided calibration step after the system install. It prompts for each player and each control:
+For Chromium and Native Application USB cabinets, the installer offers a guided calibration step after the system install. It prompts for each player and each control:
 
 - up, down, left, right
 - A and B
@@ -119,8 +120,8 @@ Replace `2` with the number of physical control positions on the cabinet.
 
 ## Current limits
 
-- Raspberry Pi ELF and Chromium installers still expect the `pi` user. The single-game Chromium branch also expects `pi` on x86 because its runtime paths are still hard-coded. The installer stops with a clear message if another user selects one of those flavors.
-- ELF games require the legacy `Hardware` line in `/proc/cpuinfo`. The installer checks it and warns before continuing.
+- Raspberry Pi Chromium installers still expect the `pi` user. The single-game Chromium branch also expects `pi` on x86 because its runtime paths are still hard-coded. The installer stops with a clear message if another user selects one of those flavors.
+- The legacy ELF runtime is not installed by this guided installer. Use the manual ELF guides only for the raw Pi-zero-style setup they were designed for.
 - The installer cannot flash the OS, physically wire controls, or compile games for you.
 - Native support depends on archives built for the correct architecture: `arm64` for 64-bit Pi boards, `x86-64` for PCs.
 - USB controller setup maps physical USB ports to stable player numbers. The optional calibration wizard additionally translates cabinet inputs into standard virtual gamepads for up to four players. MakeCode games own their logical button meanings; this is cabinet input alignment, not per-game remapping.

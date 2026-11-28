@@ -10,7 +10,7 @@ On a Raspberry Pi OS Lite, Debian, or Ubuntu machine that is already installed a
 curl -fsSL https://raw.githubusercontent.com/Kikketer/CreationStationArcade/main/install.sh | bash
 ```
 
-Do not prefix it with `sudo`; the installer asks for administrator access when needed. It detects the machine, asks plain questions, confirms a build sheet, shows progress while it works, and chooses the correct arcade branch behind the scenes.
+Do not prefix it with `sudo`; the installer asks for administrator access when needed. It detects the machine and memory, asks plain questions, recommends Chromium at about 4 GB RAM or Native Application below that, confirms a build sheet, shows progress while it works, and chooses the correct arcade branch behind the scenes. The legacy ELF branches remain documented below for manual Pi-image-style setups, but are not installed by the guided installer.
 
 See the [guided installer documentation](https://kikketer.github.io/CreationStationArcade/guided-installer/) for prerequisites, native-game archive requirements, safety notes, and current limits.
 

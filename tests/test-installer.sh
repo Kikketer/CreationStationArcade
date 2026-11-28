@@ -52,6 +52,12 @@ ID_LIKE=debian
 EOF
 }
 
+write_meminfo() {
+    cat > "$1" <<EOF
+MemTotal:        $2 kB
+EOF
+}
+
 test_classify_machine() {
     assert_eq "pi5" "$(classify_machine 'Raspberry Pi 5 Model B' arm64)" "classifies Raspberry Pi 5"
     assert_eq "pi3" "$(classify_machine 'Raspberry Pi 3 Model B Plus' armhf)" "classifies Raspberry Pi 3"
@@ -60,35 +66,41 @@ test_classify_machine() {
 }
 
 test_flavor_map() {
-    assert_eq "main" "$(flavor_branch elf-menu)" "maps ELF menu to main"
-    assert_eq "pi3-elf-kiosk" "$(flavor_branch elf-single)" "maps ELF single-game branch"
     assert_eq "chromium-kiosk" "$(flavor_branch chromium-menu)" "maps Chromium menu branch"
     assert_eq "single-game-kiosk" "$(flavor_branch chromium-single)" "maps Chromium single-game branch"
     assert_eq "multi-native-arcade" "$(flavor_branch native-menu)" "maps native menu branch"
     assert_eq "single-native-arcade" "$(flavor_branch native-single)" "maps native single-game branch"
+    if flavor_branch elf-menu >/dev/null 2>&1; then
+        fail "does not map deprecated ELF flavors"
+    else
+        pass "does not map deprecated ELF flavors"
+    fi
 }
 
 test_detect_x86() {
     local dir="$TMP/detect-x86"
     mkdir -p "$dir"
     write_debian_os_release "$dir/os-release"
+    write_meminfo "$dir/meminfo" 3900000
     : > "$dir/cpuinfo"
 
     CSA_OS_RELEASE="$dir/os-release" \
     CSA_CPUINFO="$dir/cpuinfo" \
     CSA_DEVICE_TREE_MODEL="$dir/no-model" \
+    CSA_MEMINFO="$dir/meminfo" \
     CSA_ARCH=amd64 \
         detect_platform
 
     assert_eq "x86" "$MACHINE_CLASS" "detects x86 fixture"
     assert_eq "amd64" "$MACHINE_ARCH" "detects x86 architecture fixture"
-    assert_eq "missing" "$HARDWARE_LINE" "x86 fixture has no Pi Hardware line"
+    assert_eq "3900000" "$TOTAL_MEMORY_KB" "detects total memory"
 }
 
 test_detect_pi3() {
     local dir="$TMP/detect-pi3"
     mkdir -p "$dir"
     write_debian_os_release "$dir/os-release"
+    write_meminfo "$dir/meminfo" 1000000
     cat > "$dir/cpuinfo" <<'EOF'
 Hardware	: BCM2835
 Model		: Raspberry Pi 3 Model B Plus Rev 1.3
@@ -97,11 +109,12 @@ EOF
     CSA_OS_RELEASE="$dir/os-release" \
     CSA_CPUINFO="$dir/cpuinfo" \
     CSA_DEVICE_TREE_MODEL="$dir/no-model" \
+    CSA_MEMINFO="$dir/meminfo" \
     CSA_ARCH=armhf \
         detect_platform
 
     assert_eq "pi3" "$MACHINE_CLASS" "detects Pi 3 fixture"
-    assert_eq "present" "$HARDWARE_LINE" "detects legacy Hardware line"
+    assert_eq "1000000" "$TOTAL_MEMORY_KB" "detects Pi memory fixture"
 }
 
 test_default_engine_choices() {
@@ -109,23 +122,45 @@ test_default_engine_choices() {
 
     MACHINE_CLASS=x86
     MACHINE_ARCH=amd64
+    TOTAL_MEMORY_KB=3900000
     select_engine
-    assert_eq "chromium" "$ENGINE" "x86 defaults to Chromium"
+    assert_eq "chromium" "$ENGINE" "x86 with 4 GB defaults to Chromium"
+
+    MACHINE_CLASS=x86
+    MACHINE_ARCH=amd64
+    TOTAL_MEMORY_KB=2000000
+    select_engine
+    assert_eq "native" "$ENGINE" "x86 below 4 GB defaults to Native Application"
 
     MACHINE_CLASS=pi5
     MACHINE_ARCH=arm64
+    TOTAL_MEMORY_KB=3900000
     select_engine
-    assert_eq "chromium" "$ENGINE" "Pi 5 defaults to Chromium"
+    assert_eq "chromium" "$ENGINE" "Pi 5 with 4 GB defaults to Chromium"
 
     MACHINE_CLASS=pi4
     MACHINE_ARCH=arm64
+    TOTAL_MEMORY_KB=3900000
     select_engine
-    assert_eq "native" "$ENGINE" "64-bit Pi 4 defaults to Native"
+    assert_eq "chromium" "$ENGINE" "64-bit Pi 4 with 4 GB defaults to Chromium"
+
+    MACHINE_CLASS=pi4
+    MACHINE_ARCH=arm64
+    TOTAL_MEMORY_KB=2000000
+    select_engine
+    assert_eq "native" "$ENGINE" "64-bit Pi 4 below 4 GB defaults to Native Application"
 
     MACHINE_CLASS=pi3
-    MACHINE_ARCH=armhf
+    MACHINE_ARCH=arm64
+    TOTAL_MEMORY_KB=1000000
     select_engine
-    assert_eq "elf" "$ENGINE" "32-bit Pi 3 defaults to ELF"
+    assert_eq "native" "$ENGINE" "64-bit Pi 3 uses Native Application"
+
+    if (MACHINE_CLASS=pi3; MACHINE_ARCH=armhf; TOTAL_MEMORY_KB=1000000; select_engine) >/dev/null 2>&1; then
+        fail "32-bit Pi 3 legacy ELF path is rejected"
+    else
+        pass "32-bit Pi 3 legacy ELF path is rejected"
+    fi
 
     ASSUME_YES=0
 }
@@ -133,12 +168,6 @@ test_default_engine_choices() {
 test_flavor_resolution() {
     USER_HOME="$TMP/home"
     mkdir -p "$USER_HOME"
-
-    ENGINE=elf
-    CABINET_MODE=menu
-    resolve_flavor
-    assert_eq "elf-menu" "$FLAVOR" "resolves ELF menu flavor"
-    assert_eq "main" "$BRANCH" "ELF menu resolves to main branch"
 
     ENGINE=chromium
     CABINET_MODE=single
@@ -249,6 +278,7 @@ test_dry_run_cli() {
     local dir="$TMP/cli-fixture"
     mkdir -p "$dir"
     write_debian_os_release "$dir/os-release"
+    write_meminfo "$dir/meminfo" 3900000
     : > "$dir/cpuinfo"
 
     local output=""
@@ -256,6 +286,7 @@ test_dry_run_cli() {
         CSA_OS_RELEASE="$dir/os-release" \
         CSA_CPUINFO="$dir/cpuinfo" \
         CSA_DEVICE_TREE_MODEL="$dir/no-model" \
+        CSA_MEMINFO="$dir/meminfo" \
         CSA_ARCH=amd64 \
         "$ROOT/install.sh" --yes --dry-run 2>&1)"
 
