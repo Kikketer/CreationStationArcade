@@ -403,6 +403,123 @@ EOF
     chmod +x "$USER_HOME/.xinitrc"
 }
 
+
+count_usb_joysticks() {
+    local count=0
+    local js=""
+    for js in /dev/input/js*; do
+        [ -e "$js" ] && count=$((count + 1))
+    done
+    printf '%s' "$count"
+}
+
+prompt_controller_plugin() {
+    [ "$CONTROL_MODE" = "usb" ] || return 0
+
+    cat <<EOF
+
+${C_YELLOW}${C_BOLD}CONTROLLER CHECK${C_RESET}
+  Plug every USB controller or encoder into the physical USB port where it
+  will stay. Those physical ports are what the cabinet uses to decide who is
+  Player 1, Player 2, and so on.
+EOF
+    if ! ask_yes_no "Are the USB controllers plugged into their final ports now" "y"; then
+        warn "Continuing, but controller setup may find no devices. You can run it again after plugging them in."
+    fi
+
+    local count
+    count="$(count_usb_joysticks)"
+    if [ "$count" -eq 0 ]; then
+        warn "No /dev/input/js* controllers are currently visible. Keyboard-style encoders may not appear there."
+    else
+        info "  I can see $count USB joystick device(s)."
+    fi
+}
+
+verify_usb_button_presses() {
+    local count="$1"
+    [ "$count" -gt 0 ] || return 1
+    [ "$count" -le 4 ] || count=4
+
+    python3 - "$count" <<'CSA_PY'
+import glob
+import os
+import select
+import struct
+import sys
+import time
+
+wanted = int(sys.argv[1])
+devices = {}
+for path in sorted(glob.glob('/dev/input/js*')):
+    try:
+        devices[os.open(path, os.O_RDONLY | os.O_NONBLOCK)] = path
+    except OSError:
+        pass
+if not devices:
+    sys.exit(2)
+
+for player in range(1, wanted + 1):
+    print(f"\n  PLAYER {player}: press the A button now (30 seconds)...", flush=True)
+    deadline = time.time() + 30
+    found = False
+    while time.time() < deadline and not found:
+        ready, _, _ = select.select(list(devices), [], [], 0.25)
+        for fd in ready:
+            try:
+                data = os.read(fd, 8)
+            except BlockingIOError:
+                continue
+            if len(data) != 8:
+                continue
+            _, value, event_type, number = struct.unpack('IhBB', data)
+            if event_type == 1 and value == 1:
+                print(f"  Player {player} heard on {devices[fd]} (button {number}).", flush=True)
+                found = True
+                break
+    if not found:
+        print(f"  Player {player}: no button press heard; continuing anyway.", flush=True)
+
+for fd in devices:
+    os.close(fd)
+CSA_PY
+}
+
+run_controller_setup() {
+    [ "$CONTROL_MODE" = "usb" ] || return 0
+    [ "$DRY_RUN" != "1" ] || return 0
+
+    local count
+    count="$(count_usb_joysticks)"
+    if [ "$count" -gt 0 ] && ask_yes_no "Test the USB buttons now with guided Player 1/2/3/4 presses" "y"; then
+        if ! verify_usb_button_presses "$count"; then
+            warn "The button test could not read the controllers. You can still configure ports manually."
+        fi
+    fi
+
+    local setup_script=""
+    if [ "$ENGINE" = "chromium" ]; then
+        setup_script="${REPO_DIR}-run/setup-usb-controllers.sh"
+        if [ ! -f "$setup_script" ]; then
+            setup_script="$REPO_DIR/setup-usb-controllers.sh"
+        fi
+    fi
+
+    if [ -n "$setup_script" ] && [ -f "$setup_script" ]; then
+        if ask_yes_no "Map those physical USB ports to stable player numbers now" "y"; then
+            printf '\n%sFollow the controller setup prompts below.%s\n' "$C_BOLD" "$C_RESET"
+            # shellcheck disable=SC2024 # Redirects intentionally attach the interactive helper to the terminal.
+            if sudo bash "$setup_script" < /dev/tty > /dev/tty 2>&1; then
+                info "  USB controller port mapping is complete."
+            else
+                warn "USB controller setup did not complete. Re-run: sudo bash $setup_script"
+            fi
+        fi
+    elif [ "$count" -eq 0 ]; then
+        warn "No USB joysticks were detected. If these are keyboard encoders, test them in the arcade after reboot."
+    fi
+}
+
 install_base_tools() {
     sudo apt-get update -y
     sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y git rsync curl tar file
@@ -1048,6 +1165,20 @@ main() {
     banner
     dim "Answer a few questions. The installer handles the branch plumbing behind the curtain."
 
+    printf '%s%sIMPORTANT: DEDICATED MACHINE REQUIRED%s\n' "$C_RED" "$C_BOLD" "$C_RESET"
+    cat <<'EOF'
+  This installer is intended for an empty machine or a fresh OS install that
+  will become a dedicated arcade cabinet. It changes boot behavior, autologin,
+  system packages, device rules, and startup services. Do not use it on a
+  machine you rely on for everyday work or personal files.
+EOF
+    if [ "$ASSUME_YES" != "1" ]; then
+        if ! ask_yes_no "I understand this machine will be dedicated to the arcade" "n"; then
+            info "Cancelled before making any changes."
+            exit 0
+        fi
+    fi
+
     stage "1/6" "POWER ON"
     detect_platform
     printf '  Cabinet report\n'
@@ -1135,9 +1266,12 @@ main() {
         die "Stopped before system installation. The source checkout may exist, but system configuration was not changed."
     fi
 
+    prompt_controller_plugin
+
     stage "6/6" "BUILDING THE CABINET"
     install_selected_flavor
     run_pi_extras
+    run_controller_setup
 
     cat <<EOF
 
@@ -1147,10 +1281,6 @@ ${C_GREEN}${C_BOLD}================== INSTALLATION COMPLETE ==================${
   Checkout: $REPO_DIR
 
 EOF
-
-    if machine_is_pi "$MACHINE_CLASS" && [ "$CONTROL_MODE" = "usb" ] && [ "$ENGINE" = "chromium" ]; then
-        printf 'After plugging in USB controllers, run:\n  sudo bash %s-run/setup-usb-controllers.sh\n\n' "$REPO_DIR"
-    fi
 
     if ask_yes_no "Reboot into the arcade now" "n"; then
         info "Rebooting. See you at the attract screen."

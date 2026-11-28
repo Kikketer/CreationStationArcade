@@ -91,3 +91,4 @@ Useful files after installation:
 - ELF games require the legacy `Hardware` line in `/proc/cpuinfo`. The installer checks it and warns before continuing.
 - The installer cannot flash the OS, physically wire controls, or compile games for you.
 - Native support depends on archives built for the correct architecture: `arm64` for 64-bit Pi boards, `x86-64` for PCs.
+- USB controller setup maps physical USB ports to stable player numbers. The installer can guide a button-press check and run the Chromium port-mapping step when controllers are plugged in, but it does not yet rewrite per-button mappings inside games.
