@@ -2,9 +2,21 @@
 
 **Full setup docs:** <https://kikketer.github.io/CreationStationArcade> — step-by-step guides for every arcade flavor, written for a non-technical reader.
 
+## Guided installer
+
+On a Raspberry Pi OS Lite, Debian, or Ubuntu machine that is already installed and online, log in as the arcade user and run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kikketer/CreationStationArcade/main/install.sh | bash
+```
+
+Do not prefix it with `sudo`; the installer asks for administrator access when needed. It detects the machine, asks plain questions, confirms a build sheet, shows progress while it works, and chooses the correct arcade branch behind the scenes.
+
+See the [guided installer documentation](https://kikketer.github.io/CreationStationArcade/guided-installer/) for prerequisites, native-game archive requirements, safety notes, and current limits.
+
 ## Branches
 
-This repo uses long-lived branches to represent different arcade machine configurations.
+Branches are implementation details used by the installer. People installing a cabinet should not normally need to choose or remember them. This repo uses long-lived branches to represent different arcade machine configurations so breakage in one flavor does not break the others.
 
 - `main` — the primary "elf + arcade" setup. The menu itself is an ELF file (`MadeArcadeMenu.elf`) and all games are launched from it. This is the closest to what MakeCode intended for the ELF arcades. Using the [4-player raw ELF compiler](https://www.makecode.games/compilers/elf) you can even use 4 players with GPIO pins.
 

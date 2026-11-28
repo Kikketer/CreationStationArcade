@@ -4,6 +4,13 @@ Creation Station Arcade turns a small computer (usually a Raspberry Pi) into a d
 
 You build a game in MakeCode Arcade in your browser, export it, drop the file onto the arcade, and reboot. The arcade boots up, hides all the normal computer stuff, and shows only your game on the screen. Plug in a USB gamepad or wire up arcade buttons, and you've got a real arcade machine.
 
+!!! success "Start here: the guided installer"
+    The easiest installation path is the [Guided Installer](guided-installer.md). It detects your machine, asks plain questions, recommends a flavor, and handles the branch selection behind the scenes:
+
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/Kikketer/CreationStationArcade/main/install.sh | bash
+    ```
+
 !!! success "Our recommended setup: an older x86 PC running Chromium"
     The best, go-forward configuration is an **older x86 desktop or mini PC** running one of the Chromium flavors ([menu](chromium-kiosk.md) or [single-game](single-game-kiosk.md)) with **USB controllers**. Even modest machines run MakeCode games in Chromium just fine — our slowest tested box that runs well is an **Intel Core i3-8100 with UHD 630 graphics and 8 GB of RAM**, the kind of office PC you can find used for very little.
 

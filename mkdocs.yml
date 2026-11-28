@@ -42,6 +42,7 @@ markdown_extensions:
   - md_in_html
 nav:
   - Home: index.md
+  - Guided Installer: guided-installer.md
   - Pick Your Arcade: pick-your-arcade.md
   - Installation Guides:
       - ELF Menu Arcade (Pi 3): elf-menu.md
