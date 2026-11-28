@@ -432,7 +432,7 @@ run_native_installer() {
     local backup
     backup="$(mktemp)"
     cp "$installer" "$backup"
-    sed -i 's/ python3-rpi\.gpio//g' "$installer"
+    sed -i -e 's/ python3-rpi\.gpio//g' -e 's/,gpio//g' "$installer"
 
     set +e
     sudo bash "$installer" "$@"
