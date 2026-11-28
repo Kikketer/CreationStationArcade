@@ -499,14 +499,16 @@ run_controller_setup() {
     fi
 
     local calibrated=1
-    if [ "$ENGINE" = "chromium" ] || [ "$ENGINE" = "native" ]; then
+    if [ "$ENGINE" = "chromium" ] || [ "$ENGINE" = "native" ] || [ "$ENGINE" = "elf" ]; then
         if ask_yes_no "Run full step-by-step controller calibration now" "y"; then
             local player_count="1"
             ask_choice player_count \
                 "How many players have physical cabinet controls?" \
                 "1" \
                 "1|One player" \
-                "2|Two players (maximum for the first keyboard-based calibration layer)"
+                "2|Two players" \
+                "3|Three players" \
+                "4|Four players"
             run_step "Installing controller calibration support" install_controller_support
             if run_full_controller_calibration "$player_count"; then
                 calibrated=0
@@ -548,7 +550,7 @@ run_controller_setup() {
 
 install_controller_support() {
     sudo apt-get update -y
-    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-evdev python3-uinput
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-evdev
 
     local support_dir="/usr/local/lib/creation-station-arcade"
     local script_dir=""
@@ -575,6 +577,7 @@ Description=Creation Station Arcade calibrated input remapper
 
 [Service]
 Type=simple
+ExecStartPre=-/sbin/modprobe uhid
 ExecStart=/usr/bin/python3 /usr/local/lib/creation-station-arcade/arcade-input-remap.py
 Restart=always
 RestartSec=5
@@ -585,6 +588,16 @@ EOF
     sudo cp "$unit" /etc/systemd/system/arcade-input-remap.service
     sudo chmod 644 /etc/systemd/system/arcade-input-remap.service
     rm -f "$unit"
+
+    local rules
+    rules="$(mktemp)"
+    cat > "$rules" <<EOF
+SUBSYSTEM=="input", ATTRS{name}=="Creation Station Player*", OWNER="$USER_NAME", MODE="0660"
+EOF
+    sudo cp "$rules" /etc/udev/rules.d/99-creation-station-controllers.rules
+    sudo chmod 644 /etc/udev/rules.d/99-creation-station-controllers.rules
+    rm -f "$rules"
+    sudo udevadm control --reload-rules || true
     sudo systemctl daemon-reload
 }
 
@@ -595,7 +608,9 @@ run_full_controller_calibration() {
     # shellcheck disable=SC2024 # The calibration helper must use the terminal, not the curl pipe.
     if sudo python3 /usr/local/lib/creation-station-arcade/controller-calibrate.py "$player_count" /etc/arcade-controller-map.json < /dev/tty > /dev/tty 2>&1; then
         sudo systemctl enable arcade-input-remap.service >/dev/null 2>&1 || true
-        if sudo systemctl restart arcade-input-remap.service; then
+        sudo systemctl restart arcade-input-remap.service || true
+        sleep 1
+        if sudo systemctl is-active --quiet arcade-input-remap.service; then
             info "  Calibrated input remapper is active."
             return 0
         fi

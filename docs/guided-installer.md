@@ -92,7 +92,7 @@ Useful files after installation:
 
 ## USB controller calibration
 
-For Chromium and Native cabinets that use USB controls, the installer offers a guided calibration step after the system install. It prompts for each player and each control:
+For Chromium, Native, and USB-controlled ELF cabinets, the installer offers a guided calibration step after the system install. It prompts for each player and each control:
 
 - up, down, left, right
 - A and B
@@ -100,12 +100,22 @@ For Chromium and Native cabinets that use USB controls, the installer offers a g
 
 Press `Esc` to skip one control or `f` to finish early. This means a one-player cabinet does not have to step through controls for extra players.
 
-The wizard writes `/etc/arcade-controller-map.json` and enables the `arcade-input-remap` systemd service. The service reads the configured physical inputs exclusively and creates a virtual keyboard named `Creation Station Calibrated Input` (also linked at `/dev/input/arcade-calibrated` when the system allows it). It emits the standard MakeCode keyboard controls: player 1 uses `WASD` + `Q/E`, player 2 uses `IJKL` + `U/O`; player 1 also emits the Chromium menu's arrow-key and `Z/X` aliases.
+The wizard writes `/etc/arcade-controller-map.json` and enables the `arcade-input-remap` systemd service. The service reads the configured physical inputs exclusively, hides those dormant physical controllers from games, and creates one Xbox-360-compatible virtual HID gamepad per calibrated player named `Creation Station Player 1`, `Creation Station Player 2`, and so on. Chromium, SDL/Native, and the ELF USB bridge can then use the same gamepad style they already understand, while the service translates each cabinet input into the correct player. The virtual devices use Linux UHID so Chromium sees the players as separate standard Gamepad API devices.
 
-The first version of this calibration layer supports one or two players because those are the keyboard-player assignments MakeCode defines. Three- and four-player cabinets should use standard gamepads or GPIO wiring for the additional players until virtual-gamepad remapping is added and hardware-tested.
+The calibration layer supports up to four players. Pressing the calibrated reset control emits the standard gamepad Select/Start exit controls used by the Chromium kiosk runtime.
 
-!!! warning "Calibration grabs the selected input device"
-    Do not calibrate using the keyboard you still need to administer the machine. Once the service starts, calibrated devices are grabbed for arcade input. Use the real cabinet buttons/encoder, or stop `arcade-input-remap.service` if you need the device back.
+!!! warning "Calibration grabs and hides the selected input device"
+    Do not calibrate using the keyboard you still need to administer the machine. Once the service starts, calibrated devices are grabbed and hidden from games so they do not appear as extra dormant controllers. Use the real cabinet buttons/encoder. Stop `arcade-input-remap.service` if you need the device back; stopping the service restores normal device permissions.
+
+To re-run calibration later, use the guided installer again or run the helper as root, then restart the service:
+
+```bash
+sudo systemctl stop arcade-input-remap.service
+sudo python3 /usr/local/lib/creation-station-arcade/controller-calibrate.py 2 /etc/arcade-controller-map.json
+sudo systemctl restart arcade-input-remap.service
+```
+
+Replace `2` with the number of physical control positions on the cabinet.
 
 ## Current limits
 
@@ -113,4 +123,5 @@ The first version of this calibration layer supports one or two players because 
 - ELF games require the legacy `Hardware` line in `/proc/cpuinfo`. The installer checks it and warns before continuing.
 - The installer cannot flash the OS, physically wire controls, or compile games for you.
 - Native support depends on archives built for the correct architecture: `arm64` for 64-bit Pi boards, `x86-64` for PCs.
-- USB controller setup maps physical USB ports to stable player numbers. The optional calibration wizard additionally translates cabinet inputs into MakeCode keyboard controls for one or two players. MakeCode games own their logical button meanings; this is cabinet input alignment, not per-game remapping.
+- USB controller setup maps physical USB ports to stable player numbers. The optional calibration wizard additionally translates cabinet inputs into standard virtual gamepads for up to four players. MakeCode games own their logical button meanings; this is cabinet input alignment, not per-game remapping.
+- The virtual-gamepad calibration layer is validated with Linux virtual input devices and Chromium's standard Gamepad API mapping, but it still needs validation on physical cabinet hardware before being treated as production-proven. It requires the Linux `uhid` kernel module; the installer loads it automatically where the distribution provides it.

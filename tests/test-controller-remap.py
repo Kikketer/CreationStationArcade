@@ -2,6 +2,7 @@
 """Unit tests for the controller remapper's pure mapping logic."""
 
 import importlib.util
+import struct
 import sys
 import types
 from pathlib import Path
@@ -12,16 +13,6 @@ evdev = types.ModuleType("evdev")
 evdev.ecodes = types.SimpleNamespace(EV_KEY=1, EV_ABS=3)
 evdev.InputDevice = object
 sys.modules["evdev"] = evdev
-
-uinput = types.ModuleType("uinput")
-KEY_NAMES = [
-    "KEY_W", "KEY_UP", "KEY_S", "KEY_DOWN", "KEY_A", "KEY_LEFT",
-    "KEY_D", "KEY_RIGHT", "KEY_Q", "KEY_Z", "KEY_E", "KEY_X",
-    "KEY_ESC", "KEY_I", "KEY_K", "KEY_J", "KEY_L", "KEY_U", "KEY_O",
-]
-for index, name in enumerate(KEY_NAMES, start=1):
-    setattr(uinput, name, (1, index))
-sys.modules["uinput"] = uinput
 
 spec = importlib.util.spec_from_file_location("remap", ROOT / "install" / "arcade-input-remap.py")
 remap = importlib.util.module_from_spec(spec)
@@ -53,33 +44,72 @@ def test_build_index():
     assert [entry[1:] for entry in entries] == [(1, "up"), (1, "left")]
 
 
-def test_key_events_are_unique():
-    events = remap.key_events()
-    assert len(events) == len(set(events))
-    assert (1, KEY_NAMES.index("KEY_ESC") + 1) in events
+def test_hid_report_layout():
+    assert len(remap.HID_REPORT_DESCRIPTOR) == 80
+    report = remap.hid_report(0b101, 7)
+    assert len(report) == 15
+    buttons, x, y, z, rx, ry, rz, hat = struct.unpack("<H6hB", report)
+    assert buttons == 0b101
+    assert (x, y, rx, ry) == (0, 0, 0, 0)
+    assert (z, rz) == (remap.TRIGGER_REST, remap.TRIGGER_REST)
+    assert hat == 7
 
 
-def test_emit_action_aliases_and_state():
+def test_hat_values():
+    assert remap.hat_value(set()) == 0
+    assert remap.hat_value({"up"}) == 1
+    assert remap.hat_value({"up", "right"}) == 2
+    assert remap.hat_value({"right"}) == 3
+    assert remap.hat_value({"down", "right"}) == 4
+    assert remap.hat_value({"down"}) == 5
+    assert remap.hat_value({"down", "left"}) == 6
+    assert remap.hat_value({"left"}) == 7
+    assert remap.hat_value({"up", "left"}) == 8
+
+
+def test_uhid_gamepad_state_updates():
+    pad = object.__new__(remap.UhidGamepad)
+    pad.buttons = 0
+    pad.directions = set()
+    sent = []
+    pad.send_report = lambda: sent.append((pad.buttons, remap.hat_value(pad.directions)))
+
+    pad.set_action("a", True)
+    assert sent[-1] == (1, 0)
+    pad.set_action("reset", True)
+    assert sent[-1] == (1 | (1 << 2) | (1 << 6) | (1 << 7), 0)
+    pad.set_action("left", True)
+    assert sent[-1][1] == 7
+    pad.set_action("up", True)
+    assert sent[-1][1] == 8
+    pad.set_action("left", False)
+    assert sent[-1][1] == 1
+    pad.set_action("a", False)
+    assert sent[-1][0] == (1 << 2) | (1 << 6) | (1 << 7)
+
+
+def test_emit_action_tracks_state():
     class Output:
         def __init__(self):
             self.calls = []
 
-        def emit(self, key, value, syn=True):
-            self.calls.append((key, value, syn))
+        def set_action(self, action, pressed):
+            self.calls.append((action, pressed))
 
     out = Output()
+    outputs = {1: out}
     active = {}
-    assert remap.emit_action(out, 1, "up", True, active)
-    assert len(out.calls) == 2
-    assert all(value == 1 for _, value, _ in out.calls)
-    assert not remap.emit_action(out, 1, "up", True, active)
-    assert remap.emit_action(out, 1, "up", False, active)
-    assert len(out.calls) == 4
-    assert all(value == 0 for _, value, _ in out.calls[2:])
+    assert remap.emit_action(outputs, 1, "up", True, active)
+    assert out.calls == [("up", True)]
+    assert not remap.emit_action(outputs, 1, "up", True, active)
+    assert remap.emit_action(outputs, 1, "up", False, active)
+    assert out.calls == [("up", True), ("up", False)]
 
 
 if __name__ == "__main__":
     test_build_index()
-    test_key_events_are_unique()
-    test_emit_action_aliases_and_state()
+    test_hid_report_layout()
+    test_hat_values()
+    test_uhid_gamepad_state_updates()
+    test_emit_action_tracks_state()
     print("controller remapper tests passed")

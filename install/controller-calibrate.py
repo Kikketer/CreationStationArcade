@@ -2,7 +2,7 @@
 """Guided USB controller calibration for Creation Station Arcade.
 
 Writes /etc/arcade-controller-map.json. The file describes physical evdev
-inputs; arcade-input-remap.py turns them into MakeCode-friendly virtual keys.
+inputs; arcade-input-remap.py turns them into standard virtual gamepads.
 """
 
 import glob
@@ -47,7 +47,7 @@ def open_devices():
     for path in sorted(glob.glob("/dev/input/event*")):
         try:
             dev = InputDevice(path)
-            if dev.name == "Creation Station Calibrated Input":
+            if dev.name.startswith("Creation Station Player") or dev.name == "Creation Station Calibrated Input":
                 dev.close()
                 continue
             os.set_blocking(dev.fd, False)
@@ -150,8 +150,8 @@ def main():
         player_count = int(sys.argv[1])
     except ValueError:
         return 2
-    if not 1 <= player_count <= 2:
-        print("ERROR: this calibration layer currently supports 1 or 2 players", file=sys.stderr)
+    if not 1 <= player_count <= 4:
+        print("ERROR: player count must be between 1 and 4", file=sys.stderr)
         return 2
     output = sys.argv[2]
 
@@ -174,6 +174,7 @@ def main():
     result = {
         "version": 1,
         "created": datetime.now(timezone.utc).isoformat(),
+        "owner": os.environ.get("SUDO_USER") or os.environ.get("USER", ""),
         "players": [],
     }
     finish = False
@@ -181,7 +182,7 @@ def main():
         for player in range(1, player_count + 1):
             if finish:
                 break
-            entry = {"player": player, "controls": {}}
+            entry = {"player": player, "controls": {}, "skipped": [], "finishedEarly": False}
             for action in ACTIONS:
                 while True:
                     control, finish = capture_action(devices, fd_tty, player, action)
@@ -204,7 +205,10 @@ def main():
                 if control:
                     entry["controls"][action] = control
                     print(f"  captured on {control['sourceName']} ({control['device']})")
+                else:
+                    entry["skipped"].append(action)
                 if finish:
+                    entry["finishedEarly"] = True
                     break
             if entry["controls"]:
                 result["players"].append(entry)
@@ -216,6 +220,10 @@ def main():
                 dev.close()
             except Exception:
                 pass
+
+    if not any(entry["controls"] for entry in result["players"]):
+        print("\nNo controls were calibrated; calibration cancelled.", file=sys.stderr)
+        return 1
 
     tmp = output + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
