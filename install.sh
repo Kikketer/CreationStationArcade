@@ -459,6 +459,7 @@ for path in sorted(glob.glob('/dev/input/js*')):
 if not devices:
     sys.exit(2)
 
+assigned = set()
 for player in range(1, wanted + 1):
     print(f"\n  PLAYER {player}: press the A button now (30 seconds)...", flush=True)
     deadline = time.time() + 30
@@ -473,7 +474,10 @@ for player in range(1, wanted + 1):
             if len(data) != 8:
                 continue
             _, value, event_type, number = struct.unpack('IhBB', data)
+            if fd in assigned:
+                continue
             if event_type == 1 and value == 1:
+                assigned.add(fd)
                 print(f"  Player {player} heard on {devices[fd]} (button {number}).", flush=True)
                 found = True
                 break
