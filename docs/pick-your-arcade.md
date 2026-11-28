@@ -1,6 +1,9 @@
 # Pick Your Arcade
 
-Not sure which flavor of Creation Station Arcade to build? You usually do not need to decide manually: the [Guided Installer](guided-installer.md) detects the machine and asks these questions interactively. Use this page if you want to understand the tradeoffs or need a manual installation.
+Not sure which flavor of Creation Station Arcade to build? You usually do not need to decide manually: the [Guided Installer](guided-installer.md) detects the machine, offers Chromium or Native Application where both are possible, and recommends Chromium at about 4 GB of RAM or more. Use this page if you want to understand the tradeoffs or need a manual installation.
+
+!!! warning "ELF is legacy"
+    The ELF flavors remain documented for hand-built, MakeCode-style Pi images, but they are no longer installed by the guided installer. New guided installs should choose Chromium or Native Application.
 
 ## The short version
 
@@ -11,12 +14,11 @@ Not sure which flavor of Creation Station Arcade to build? You usually do not ne
 
 !!! question "Which computer are you using?"
 
-    - **Anything less powerful than a Raspberry Pi 5** (Pi 3, Pi 4, Pi Zero 2 W), especially with GPIO buttons → use a **Native** or **ELF** flavor. (ELF only works on a Pi 3 / Pi Zero — see the gotcha note below.)
-    - **Raspberry Pi 5** → use a **Chromium** flavor. GPIO buttons are possible and useful here. The ELF flavors do **not** work on the Pi 5.
-    - **Any reasonable x86 PC** (i3-8100-class or better) → use a **Chromium** flavor with **USB controllers**. This is our recommended setup.
+    - **Anything with less than about 4 GB RAM** (Pi 3, low-memory Pi 4, Pi Zero 2 W) → use a **Native Application** flavor on a 64-bit OS.
+    - **A Raspberry Pi 4/5 or x86 PC with about 4 GB RAM or more** → use a **Chromium** flavor. GPIO buttons are possible and useful on Pi; USB controllers are normal on x86.
 
 !!! success "Our recommendation"
-    An **older x86 PC running Chromium** with USB controllers is the best, go-forward configuration. Even an i3-8100 with built-in UHD 630 graphics runs MakeCode games in Chromium just fine. If you insist on GPIO buttons, a **Raspberry Pi 5 with Chromium** is a good bet. On older hardware, go with Native or ELF.
+    An **older x86 PC running Chromium** with USB controllers is the best, go-forward configuration. Even an i3-8100 with built-in UHD 630 graphics runs MakeCode games in Chromium just fine. If you insist on GPIO buttons, a **Raspberry Pi 5 with Chromium** is a good bet. On older hardware, use Native Application.
 
 !!! note "Native is not the fastest"
     Native `Game` programs skip the browser, but they run your game in an interpreter. Our compiler testing found they can be **10–40x slower** than the same game in Chromium. Choose Native for weak hardware, not for speed.
@@ -73,6 +75,6 @@ So:
 
 If you just want the simplest possible first arcade:
 
-- You have a **Pi 3** → [ELF Menu Arcade](elf-menu.md). It's the closest to what MakeCode intended and gives you a menu of games.
+- You have a **Pi 3 or Pi Zero** and specifically want the legacy raw-ELF path → [ELF Menu Arcade](elf-menu.md) or the manual single-game ELF guide.
 - You have a **Pi 5** → [Chromium Kiosk (Menu)](chromium-kiosk.md). It gives you a menu of games and uses the full MakeCode simulator in the browser.
 - You have (or can find) an **older x86 PC** → [Chromium Kiosk (Menu)](chromium-kiosk.md) with USB controllers. This is our recommended setup.
