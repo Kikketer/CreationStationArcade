@@ -28,6 +28,7 @@ CONFIG = os.environ.get("ARCADE_CONTROLLER_MAP", "/etc/arcade-controller-map.jso
 AXIS_THRESHOLD = 8000
 MAX_PLAYERS = 4
 DEVICE_NAME_PREFIX = "Creation Station Player"
+RESET_KEYBOARD_NAME = "Creation Station Reset Keyboard"
 
 ACTIONS = ("up", "down", "left", "right", "a", "b", "reset")
 
@@ -94,8 +95,21 @@ BUTTON_BITS = {
     # Chromium kiosk treats as exit controls. Also pulse X (raw joystick
     # button 2) because the ELF usb-to-gpio bridge uses that as its hard
     # reset control.
+    # Unknown/manual configurations use the maximal legacy-compatible set.
+    # Installer-written configs carry an engine field and use only the output
+    # that engine understands, avoiding stray Native A/Menu presses on reset.
     "reset": (2, 6, 7),
 }
+
+RESET_BUTTON_BITS = {
+    "chromium": (6, 7),
+    "native": (),
+    "elf": (2,),
+}
+
+
+def reset_button_bits(engine):
+    return RESET_BUTTON_BITS.get(engine, BUTTON_BITS["reset"])
 
 DIRECTIONS = ("up", "down", "left", "right")
 TRIGGER_REST = -32767
@@ -168,14 +182,15 @@ class UhidGamepad:
         event = struct.pack("<LH4096s", UHID_INPUT2, len(report), report)
         self._write(event)
 
-    def set_action(self, action, pressed):
+    def set_action(self, action, pressed, button_bits=None):
         if action in DIRECTIONS:
             if pressed:
                 self.directions.add(action)
             else:
                 self.directions.discard(action)
         else:
-            for bit in BUTTON_BITS.get(action, ()):
+            bits = BUTTON_BITS.get(action, ()) if button_bits is None else button_bits
+            for bit in bits:
                 if pressed:
                     self.buttons |= 1 << bit
                 else:
@@ -191,6 +206,44 @@ class UhidGamepad:
             os.close(self.fd)
         except OSError:
             pass
+
+
+class ResetKeyboard:
+    """Small virtual keyboard used for Native's keyboard-only reset input."""
+
+    def __init__(self):
+        from evdev import UInput
+
+        self.device = UInput(
+            {ecodes.EV_KEY: [ecodes.KEY_R]},
+            name=RESET_KEYBOARD_NAME,
+            vendor=XBOX360_VENDOR,
+            product=XBOX360_PRODUCT,
+            bustype=BUS_USB,
+            phys="creation-station/reset-keyboard",
+        )
+        self.pressed = False
+
+    @property
+    def path(self):
+        if self.device.device is None:
+            return None
+        return self.device.device.path
+
+    def set_pressed(self, pressed):
+        if pressed == self.pressed:
+            return
+        self.device.write(ecodes.EV_KEY, ecodes.KEY_R, 1 if pressed else 0)
+        self.device.syn()
+        self.pressed = pressed
+
+    def close(self):
+        if self.pressed:
+            try:
+                self.set_pressed(False)
+            except OSError:
+                pass
+        self.device.close()
 
 
 def load_config(path):
@@ -309,6 +362,18 @@ def find_event_by_name(name):
     return None
 
 
+def chown_input_nodes(nodes, owner_info):
+    for node in nodes:
+        try:
+            stat = os.stat(node)
+            if stat.st_uid != owner_info.pw_uid or stat.st_gid != owner_info.pw_gid:
+                os.chown(node, owner_info.pw_uid, owner_info.pw_gid)
+            if stat.st_mode & 0o777 != 0o660:
+                os.chmod(node, 0o660)
+        except OSError:
+            pass
+
+
 def set_virtual_pad_owner(outputs, owner):
     """Give the arcade user direct access to the virtual event/js nodes."""
     if not owner:
@@ -327,20 +392,41 @@ def set_virtual_pad_owner(outputs, owner):
             if nodes and all(os.path.exists(node) for node in nodes):
                 break
             time.sleep(0.1)
-        if not nodes:
-            continue
-        for node in nodes:
-            try:
-                stat = os.stat(node)
-                if stat.st_uid != owner_info.pw_uid or stat.st_gid != owner_info.pw_gid:
-                    os.chown(node, owner_info.pw_uid, owner_info.pw_gid)
-                if stat.st_mode & 0o777 != 0o660:
-                    os.chmod(node, 0o660)
-            except OSError:
-                pass
+        if nodes:
+            chown_input_nodes(nodes, owner_info)
 
 
-def emit_action(outputs, player, action, pressed, active):
+def set_reset_keyboard_owner(reset_keyboard, owner):
+    if reset_keyboard is None or not owner:
+        return
+    try:
+        owner_info = pwd.getpwnam(owner)
+    except KeyError:
+        return
+    path = reset_keyboard.path
+    if path:
+        chown_input_nodes(input_nodes_for_event(path), owner_info)
+
+
+def config_has_reset(config):
+    return any("reset" in player.get("controls", {}) for player in config.get("players", []))
+
+
+def create_reset_keyboard(config):
+    if not config_has_reset(config):
+        return None
+    engine = str(config.get("engine", "")).lower()
+    if engine in ("chromium", "elf"):
+        return None
+    try:
+        return ResetKeyboard()
+    except OSError as exc:
+        print(f"WARNING: cannot create reset keyboard via /dev/uinput: {exc}", file=sys.stderr)
+        print("Native game reset will not work; try: sudo modprobe uinput", file=sys.stderr)
+        return None
+
+
+def emit_action(outputs, player, action, pressed, active, reset_keyboard=None, engine=""):
     out = outputs.get(player)
     if out is None:
         return False
@@ -348,17 +434,22 @@ def emit_action(outputs, player, action, pressed, active):
     if active.get(state_key) == pressed:
         return False
     try:
-        out.set_action(action, pressed)
+        if action == "reset":
+            out.set_action(action, pressed, reset_button_bits(engine))
+        else:
+            out.set_action(action, pressed)
+        if action == "reset" and reset_keyboard is not None:
+            reset_keyboard.set_pressed(pressed)
     except OSError:
         return False
     active[state_key] = pressed
     return True
 
 
-def release_all(outputs, active):
+def release_all(outputs, active, reset_keyboard=None, engine=""):
     for player, action in list(active):
         if active.get((player, action)):
-            emit_action(outputs, player, action, False, active)
+            emit_action(outputs, player, action, False, active, reset_keyboard, engine)
 
 
 def main():
@@ -379,9 +470,12 @@ def main():
     if not outputs:
         print("ERROR: calibration file has no supported players", file=sys.stderr)
         return 1
+    reset_keyboard = create_reset_keyboard(config)
+    engine = str(config.get("engine", "")).lower()
     time.sleep(0.5)
     owner = config.get("owner", "")
     set_virtual_pad_owner(outputs, owner)
+    set_reset_keyboard_owner(reset_keyboard, owner)
     last_owner_refresh = time.time()
 
     devices = {}
@@ -406,6 +500,7 @@ def main():
             # process can open the calibrated pads.
             if time.time() - last_owner_refresh >= 2:
                 set_virtual_pad_owner(outputs, owner)
+                set_reset_keyboard_owner(reset_keyboard, owner)
                 last_owner_refresh = time.time()
 
             # Open missing configured devices. This retry loop also handles
@@ -438,7 +533,7 @@ def main():
                     batch = dev.read()
                 except OSError:
                     for (_kind, _code, _direction, _threshold), player, action in index.get(path, []):
-                        emit_action(outputs, player, action, False, active)
+                        emit_action(outputs, player, action, False, active, reset_keyboard, engine)
                     try:
                         selector.unregister(dev)
                     except Exception:
@@ -454,21 +549,26 @@ def main():
                     for (kind, code, direction, threshold), player, action in index.get(path, []):
                         if kind == "key" and event.type == ecodes.EV_KEY and event.code == code:
                             if event.value == 1:
-                                emit_action(outputs, player, action, True, active)
+                                emit_action(outputs, player, action, True, active, reset_keyboard, engine)
                             elif event.value == 0:
-                                emit_action(outputs, player, action, False, active)
+                                emit_action(outputs, player, action, False, active, reset_keyboard, engine)
                         elif kind == "abs" and event.type == ecodes.EV_ABS and event.code == code:
                             pressed = (event.value * direction) >= threshold
                             state_key = (path, code, direction, player, action)
                             if axis_state.get(state_key) != pressed:
                                 axis_state[state_key] = pressed
-                                emit_action(outputs, player, action, pressed, active)
+                                emit_action(outputs, player, action, pressed, active, reset_keyboard, engine)
     finally:
-        release_all(outputs, active)
+        release_all(outputs, active, reset_keyboard, engine)
         restore_hidden_devices(hidden_modes)
         for dev in devices.values():
             try:
                 dev.close()
+            except Exception:
+                pass
+        if reset_keyboard is not None:
+            try:
+                reset_keyboard.close()
             except Exception:
                 pass
         for out in outputs.values():

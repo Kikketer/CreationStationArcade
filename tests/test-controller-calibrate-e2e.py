@@ -44,6 +44,7 @@ def main():
         cwd=str(ROOT),
         timeout=8,
         encoding="utf-8",
+        env=dict(os.environ, ARCADE_ENGINE="native"),
     )
     try:
         child.expect("Player 1: press UP")
@@ -65,6 +66,7 @@ def main():
             data = json.load(f)
         player = data["players"][0]
         control = player["controls"]["up"]
+        assert data["engine"] == "native"
         assert control["type"] == "key"
         assert control["code"] == uinput.KEY_R[1]
         assert control["sourceName"] == "CSA Calibration Test Source"

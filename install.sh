@@ -578,6 +578,7 @@ Description=Creation Station Arcade calibrated input remapper
 [Service]
 Type=simple
 ExecStartPre=-/sbin/modprobe uhid
+ExecStartPre=-/sbin/modprobe uinput
 ExecStart=/usr/bin/python3 /usr/local/lib/creation-station-arcade/arcade-input-remap.py
 Restart=always
 RestartSec=5
@@ -592,7 +593,7 @@ EOF
     local rules
     rules="$(mktemp)"
     cat > "$rules" <<EOF
-SUBSYSTEM=="input", ATTRS{name}=="Creation Station Player*", OWNER="$USER_NAME", MODE="0660"
+SUBSYSTEM=="input", ATTRS{name}=="Creation Station*", OWNER="$USER_NAME", MODE="0660"
 EOF
     sudo cp "$rules" /etc/udev/rules.d/99-creation-station-controllers.rules
     sudo chmod 644 /etc/udev/rules.d/99-creation-station-controllers.rules
@@ -606,7 +607,7 @@ run_full_controller_calibration() {
     sudo systemctl stop arcade-input-remap.service 2>/dev/null || true
     printf '\n%sFollow the calibration prompts below.%s\n' "$C_BOLD" "$C_RESET"
     # shellcheck disable=SC2024 # The calibration helper must use the terminal, not the curl pipe.
-    if sudo python3 /usr/local/lib/creation-station-arcade/controller-calibrate.py "$player_count" /etc/arcade-controller-map.json < /dev/tty > /dev/tty 2>&1; then
+    if sudo env ARCADE_ENGINE="$ENGINE" python3 /usr/local/lib/creation-station-arcade/controller-calibrate.py "$player_count" /etc/arcade-controller-map.json < /dev/tty > /dev/tty 2>&1; then
         sudo systemctl enable arcade-input-remap.service >/dev/null 2>&1 || true
         sudo systemctl restart arcade-input-remap.service || true
         sleep 1

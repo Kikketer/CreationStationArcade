@@ -121,18 +121,20 @@ def drain_js(fd):
 
 def main():
     hat = uinput.ABS_HAT0X + (-1, 1, 0, 0)
-    source = uinput.Device([uinput.KEY_R, hat], name="CSA Remap Test Source")
+    source = uinput.Device([uinput.KEY_R, uinput.KEY_T, hat], name="CSA Remap Test Source")
     time.sleep(0.5)
     source_path = wait_for_event("CSA Remap Test Source")
 
     config = {
         "version": 1,
         "owner": "root",
+        "engine": "native",
         "players": [
             {
                 "player": 1,
                 "controls": {
                     "a": {"device": source_path, "type": "key", "code": ecodes.KEY_R},
+                    "reset": {"device": source_path, "type": "key", "code": ecodes.KEY_T},
                     "left": {
                         "device": source_path,
                         "type": "abs",
@@ -160,15 +162,20 @@ def main():
         env=env,
     )
     output = None
+    reset_keyboard = None
     js_fd = None
     try:
         output_path = wait_for_event("Creation Station Player 1")
+        reset_path = wait_for_event("Creation Station Reset Keyboard")
         output = InputDevice(output_path)
+        reset_keyboard = InputDevice(reset_path)
         os.set_blocking(output.fd, False)
+        os.set_blocking(reset_keyboard.fd, False)
         js_fd = os.open(joystick_path_for_event(output_path), os.O_RDONLY | os.O_NONBLOCK)
         # Give the daemon time to open/grab the source before injecting input.
         time.sleep(1)
         drain(output)
+        drain(reset_keyboard)
         drain_js(js_fd)
 
         source.emit(uinput.KEY_R, 1, syn=True)
@@ -182,6 +189,15 @@ def main():
         release_events = read_events(output)
         if (ecodes.EV_KEY, ecodes.BTN_A, 0) not in release_events:
             raise AssertionError(f"missing virtual A release: {release_events}")
+
+        source.emit(uinput.KEY_T, 1, syn=True)
+        reset_key_events = read_events(reset_keyboard)
+        if (ecodes.EV_KEY, ecodes.KEY_R, 1) not in reset_key_events:
+            raise AssertionError(f"missing Native reset keyboard output: {reset_key_events}")
+        source.emit(uinput.KEY_T, 0, syn=True)
+        reset_release_events = read_events(reset_keyboard)
+        if (ecodes.EV_KEY, ecodes.KEY_R, 0) not in reset_release_events:
+            raise AssertionError(f"missing Native reset keyboard release: {reset_release_events}")
 
         source.emit(uinput.ABS_HAT0X, -1, syn=True)
         axis_events = read_events(output)
@@ -201,6 +217,8 @@ def main():
             proc.wait(timeout=3)
         if output is not None:
             output.close()
+        if reset_keyboard is not None:
+            reset_keyboard.close()
         if js_fd is not None:
             os.close(js_fd)
         source.destroy()

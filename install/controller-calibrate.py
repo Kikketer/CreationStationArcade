@@ -142,6 +142,17 @@ def capture_action(devices, fd_tty, player, action):
     return None, False
 
 
+def configured_engine(output):
+    engine = os.environ.get("ARCADE_ENGINE", "").strip().lower()
+    if engine:
+        return engine
+    try:
+        with open(output, encoding="utf-8") as f:
+            return str(json.load(f).get("engine", "")).strip().lower()
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return ""
+
+
 def main():
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} PLAYER_COUNT OUTPUT_JSON", file=sys.stderr)
@@ -175,6 +186,7 @@ def main():
         "version": 1,
         "created": datetime.now(timezone.utc).isoformat(),
         "owner": os.environ.get("SUDO_USER") or os.environ.get("USER", ""),
+        "engine": configured_engine(output),
         "players": [],
     }
     finish = False

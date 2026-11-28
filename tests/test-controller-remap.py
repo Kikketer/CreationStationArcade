@@ -93,17 +93,44 @@ def test_emit_action_tracks_state():
         def __init__(self):
             self.calls = []
 
-        def set_action(self, action, pressed):
-            self.calls.append((action, pressed))
+        def set_action(self, action, pressed, button_bits=None):
+            self.calls.append((action, pressed, button_bits))
+
+    class Keyboard:
+        def __init__(self):
+            self.calls = []
+
+        def set_pressed(self, pressed):
+            self.calls.append(pressed)
 
     out = Output()
+    keyboard = Keyboard()
     outputs = {1: out}
     active = {}
     assert remap.emit_action(outputs, 1, "up", True, active)
-    assert out.calls == [("up", True)]
+    assert out.calls == [("up", True, None)]
     assert not remap.emit_action(outputs, 1, "up", True, active)
     assert remap.emit_action(outputs, 1, "up", False, active)
-    assert out.calls == [("up", True), ("up", False)]
+    assert out.calls == [("up", True, None), ("up", False, None)]
+
+    assert remap.emit_action(outputs, 1, "reset", True, active, keyboard, "native")
+    assert keyboard.calls == [True]
+    assert out.calls[-1] == ("reset", True, ())
+    assert remap.emit_action(outputs, 1, "reset", False, active, keyboard, "native")
+    assert keyboard.calls == [True, False]
+    assert out.calls[-1] == ("reset", False, ())
+
+
+def test_reset_output_modes():
+    assert remap.reset_button_bits("chromium") == (6, 7)
+    assert remap.reset_button_bits("native") == ()
+    assert remap.reset_button_bits("elf") == (2,)
+    assert remap.reset_button_bits("") == (2, 6, 7)
+
+
+def test_config_has_reset():
+    assert remap.config_has_reset({"players": [{"controls": {"reset": {"type": "key"}}}]})
+    assert not remap.config_has_reset({"players": [{"controls": {"a": {"type": "key"}}}]})
 
 
 if __name__ == "__main__":
@@ -112,4 +139,6 @@ if __name__ == "__main__":
     test_hat_values()
     test_uhid_gamepad_state_updates()
     test_emit_action_tracks_state()
+    test_reset_output_modes()
+    test_config_has_reset()
     print("controller remapper tests passed")
