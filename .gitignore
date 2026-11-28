@@ -1,2 +1,4 @@
 *.data
 site/
+__pycache__/
+*.pyc
