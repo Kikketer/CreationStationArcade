@@ -1,6 +1,6 @@
 # Pick Your Arcade
 
-Not sure which flavor of Creation Station Arcade to build? Answer the questions below and follow the arrow. Each one sends you to a full step-by-step guide.
+Not sure which flavor of Creation Station Arcade to build? You usually do not need to decide manually: the [Guided Installer](guided-installer.md) detects the machine and asks these questions interactively. Use this page if you want to understand the tradeoffs or need a manual installation.
 
 ## The short version
 
