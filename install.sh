@@ -10,8 +10,9 @@
 
 set -Eeuo pipefail
 
-CSA_VERSION="0.1.0"
+CSA_VERSION="0.2.0"
 CSA_REPO_URL="https://github.com/Kikketer/CreationStationArcade.git"
+CSA_RAW_BASE="https://raw.githubusercontent.com/Kikketer/CreationStationArcade/main"
 
 ASSUME_YES=0
 DRY_RUN=0
@@ -492,10 +493,30 @@ CSA_PY
 run_controller_setup() {
     [ "$CONTROL_MODE" = "usb" ] || return 0
     [ "$DRY_RUN" != "1" ] || return 0
+    if [ "$ASSUME_YES" = "1" ]; then
+        info "  Non-interactive mode: skipping controller calibration; run the installer again or the helper manually to calibrate."
+        return 0
+    fi
+
+    local calibrated=1
+    if [ "$ENGINE" = "chromium" ] || [ "$ENGINE" = "native" ]; then
+        if ask_yes_no "Run full step-by-step controller calibration now" "y"; then
+            local player_count="1"
+            ask_choice player_count \
+                "How many players have physical cabinet controls?" \
+                "1" \
+                "1|One player" \
+                "2|Two players (maximum for the first keyboard-based calibration layer)"
+            run_step "Installing controller calibration support" install_controller_support
+            if run_full_controller_calibration "$player_count"; then
+                calibrated=0
+            fi
+        fi
+    fi
 
     local count
     count="$(count_usb_joysticks)"
-    if [ "$count" -gt 0 ] && ask_yes_no "Test the USB buttons now with guided Player 1/2/3/4 presses" "y"; then
+    if [ "$calibrated" != "0" ] && [ "$count" -gt 0 ] && ask_yes_no "Test the USB buttons now with guided Player 1/2/3/4 presses" "y"; then
         if ! verify_usb_button_presses "$count"; then
             warn "The button test could not read the controllers. You can still configure ports manually."
         fi
@@ -509,7 +530,7 @@ run_controller_setup() {
         fi
     fi
 
-    if [ -n "$setup_script" ] && [ -f "$setup_script" ]; then
+    if [ "$calibrated" != "0" ] && [ -n "$setup_script" ] && [ -f "$setup_script" ]; then
         if ask_yes_no "Map those physical USB ports to stable player numbers now" "y"; then
             printf '\n%sFollow the controller setup prompts below.%s\n' "$C_BOLD" "$C_RESET"
             # shellcheck disable=SC2024 # Redirects intentionally attach the interactive helper to the terminal.
@@ -522,6 +543,67 @@ run_controller_setup() {
     elif [ "$count" -eq 0 ]; then
         warn "No USB joysticks were detected. If these are keyboard encoders, test them in the arcade after reboot."
     fi
+}
+
+
+install_controller_support() {
+    sudo apt-get update -y
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-evdev python3-uinput
+
+    local support_dir="/usr/local/lib/creation-station-arcade"
+    local script_dir=""
+    if [[ "${BASH_SOURCE[0]}" == */install.sh ]]; then
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || printf '')"
+    fi
+    sudo mkdir -p "$support_dir"
+
+    local helper=""
+    for helper in controller-calibrate.py arcade-input-remap.py; do
+        if [ -n "$script_dir" ] && [ -f "$script_dir/install/$helper" ]; then
+            sudo cp "$script_dir/install/$helper" "$support_dir/$helper"
+        else
+            curl -fsSL "$CSA_RAW_BASE/install/$helper" | sudo tee "$support_dir/$helper" >/dev/null
+        fi
+        sudo chmod 755 "$support_dir/$helper"
+    done
+
+    local unit
+    unit="$(mktemp)"
+    cat > "$unit" <<'EOF'
+[Unit]
+Description=Creation Station Arcade calibrated input remapper
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/lib/creation-station-arcade/arcade-input-remap.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo cp "$unit" /etc/systemd/system/arcade-input-remap.service
+    sudo chmod 644 /etc/systemd/system/arcade-input-remap.service
+    rm -f "$unit"
+    sudo systemctl daemon-reload
+}
+
+run_full_controller_calibration() {
+    local player_count="$1"
+    sudo systemctl stop arcade-input-remap.service 2>/dev/null || true
+    printf '\n%sFollow the calibration prompts below.%s\n' "$C_BOLD" "$C_RESET"
+    # shellcheck disable=SC2024 # The calibration helper must use the terminal, not the curl pipe.
+    if sudo python3 /usr/local/lib/creation-station-arcade/controller-calibrate.py "$player_count" /etc/arcade-controller-map.json < /dev/tty > /dev/tty 2>&1; then
+        sudo systemctl enable arcade-input-remap.service >/dev/null 2>&1 || true
+        if sudo systemctl restart arcade-input-remap.service; then
+            info "  Calibrated input remapper is active."
+            return 0
+        fi
+        warn "Calibration was saved, but the input remapper service did not start."
+        return 1
+    fi
+    warn "Controller calibration did not complete. You can re-run it after installation."
+    return 1
 }
 
 install_base_tools() {

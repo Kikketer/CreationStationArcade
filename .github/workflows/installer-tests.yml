@@ -5,12 +5,20 @@ on:
     branches: [main]
     paths:
       - "install.sh"
+      - "install/controller-calibrate.py"
+      - "install/arcade-input-remap.py"
       - "tests/test-installer.sh"
+      - "tests/test-controller-remap.py"
+      - "tests/test-controller-remap-e2e.py"
       - ".github/workflows/installer-tests.yml"
   pull_request:
     paths:
       - "install.sh"
+      - "install/controller-calibrate.py"
+      - "install/arcade-input-remap.py"
       - "tests/test-installer.sh"
+      - "tests/test-controller-remap.py"
+      - "tests/test-controller-remap-e2e.py"
       - ".github/workflows/installer-tests.yml"
 
 permissions:
@@ -33,5 +41,17 @@ jobs:
       - name: Run ShellCheck
         run: shellcheck -x install.sh tests/test-installer.sh
 
+      - name: Check controller helper syntax
+        run: python3 -m py_compile install/controller-calibrate.py install/arcade-input-remap.py tests/test-controller-remap.py tests/test-controller-remap-e2e.py
+
+      - name: Install controller test dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-evdev python3-uinput
+
       - name: Run installer unit tests
         run: tests/test-installer.sh
+
+      - name: Run controller remapper unit tests
+        run: tests/test-controller-remap.py
+
+      - name: Run controller remapper kernel test
+        run: sudo python3 tests/test-controller-remap-e2e.py

@@ -15,6 +15,10 @@ The installer does not flash or install the operating system. Start with a machi
 
 Use the operating-system instructions in the flavor guides if you are not sure which OS image to pick.
 
+
+!!! danger "Dedicated machine required"
+    Use this only on an empty machine or fresh OS install that will become a dedicated arcade cabinet. The installer changes boot behavior, autologin, packages, device rules, and startup services. It is not for a machine you use for everyday work or personal files.
+
 ## Run it
 
 Log in as the arcade user and run:
@@ -85,10 +89,28 @@ Useful files after installation:
 - Branch installer log: usually `~/arcade-setup.log` or `~/arcade.log`
 - Source checkout: usually `~/CreationStationArcade-src` for ELF/Chromium flavors or `~/CreationStationArcade` for Native flavors
 
+
+## USB controller calibration
+
+For Chromium and Native cabinets that use USB controls, the installer offers a guided calibration step after the system install. It prompts for each player and each control:
+
+- up, down, left, right
+- A and B
+- reset/exit
+
+Press `Esc` to skip one control or `f` to finish early. This means a one-player cabinet does not have to step through controls for extra players.
+
+The wizard writes `/etc/arcade-controller-map.json` and enables the `arcade-input-remap` systemd service. The service reads the configured physical inputs exclusively and creates a virtual keyboard named `Creation Station Calibrated Input` (also linked at `/dev/input/arcade-calibrated` when the system allows it). It emits the standard MakeCode keyboard controls: player 1 uses `WASD` + `Q/E`, player 2 uses `IJKL` + `U/O`; player 1 also emits the Chromium menu's arrow-key and `Z/X` aliases.
+
+The first version of this calibration layer supports one or two players because those are the keyboard-player assignments MakeCode defines. Three- and four-player cabinets should use standard gamepads or GPIO wiring for the additional players until virtual-gamepad remapping is added and hardware-tested.
+
+!!! warning "Calibration grabs the selected input device"
+    Do not calibrate using the keyboard you still need to administer the machine. Once the service starts, calibrated devices are grabbed for arcade input. Use the real cabinet buttons/encoder, or stop `arcade-input-remap.service` if you need the device back.
+
 ## Current limits
 
 - Raspberry Pi ELF and Chromium installers still expect the `pi` user. The single-game Chromium branch also expects `pi` on x86 because its runtime paths are still hard-coded. The installer stops with a clear message if another user selects one of those flavors.
 - ELF games require the legacy `Hardware` line in `/proc/cpuinfo`. The installer checks it and warns before continuing.
 - The installer cannot flash the OS, physically wire controls, or compile games for you.
 - Native support depends on archives built for the correct architecture: `arm64` for 64-bit Pi boards, `x86-64` for PCs.
-- USB controller setup maps physical USB ports to stable player numbers. The installer can guide a button-press check and run the Chromium port-mapping step when controllers are plugged in. MakeCode games own their logical button meanings; this step is about stable player/device ordering, not per-game remapping.
+- USB controller setup maps physical USB ports to stable player numbers. The optional calibration wizard additionally translates cabinet inputs into MakeCode keyboard controls for one or two players. MakeCode games own their logical button meanings; this is cabinet input alignment, not per-game remapping.
