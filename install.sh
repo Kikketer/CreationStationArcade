@@ -951,6 +951,7 @@ install_elf_menu() {
 }
 
 install_elf_single() {
+    run_step "Installing Pi framebuffer helpers" install_pi_elf_support
     # pi3-elf-setup.sh currently copies into /sd before creating it in some
     # branch revisions. Creating it here keeps the branch installer compatible.
     run_step "Opening the cartridge door" sudo mkdir -p /sd
@@ -1081,6 +1082,9 @@ main() {
 
     if { machine_is_pi "$MACHINE_CLASS" && [ "$ENGINE" != "native" ] && [ "$USER_NAME" != "pi" ]; }; then
         die "The current Pi branch installers are hard-coded for the user 'pi'. Create/use the 'pi' account for this flavor, or choose a Native flavor on a 64-bit OS."
+    fi
+    if [ "$FLAVOR" = "chromium-single" ] && [ "$USER_NAME" != "pi" ]; then
+        die "The single-game Chromium branch still has hard-coded /home/pi runtime paths. Create/use a 'pi' arcade user, or choose the Chromium menu flavor instead."
     fi
 
     BOOT_SPLASH=no

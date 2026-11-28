@@ -87,7 +87,7 @@ Useful files after installation:
 
 ## Current limits
 
-- Raspberry Pi ELF and Chromium installers still expect the `pi` user. The installer stops with a clear message if another user selects one of those flavors.
+- Raspberry Pi ELF and Chromium installers still expect the `pi` user. The single-game Chromium branch also expects `pi` on x86 because its runtime paths are still hard-coded. The installer stops with a clear message if another user selects one of those flavors.
 - ELF games require the legacy `Hardware` line in `/proc/cpuinfo`. The installer checks it and warns before continuing.
 - The installer cannot flash the OS, physically wire controls, or compile games for you.
 - Native support depends on archives built for the correct architecture: `arm64` for 64-bit Pi boards, `x86-64` for PCs.
